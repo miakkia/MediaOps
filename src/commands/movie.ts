@@ -4,52 +4,123 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 
-import { searchEmbyMovies } from '../services/emby.js';
+import {
+  getInteractionLocale,
+} from '../i18n/discord-locale.js';
 
-export const data = new SlashCommandBuilder()
-  .setName('movie')
-  .setDescription('Search for a movie in the Emby library.')
-  .addStringOption(option =>
-    option
-      .setName('title')
-      .setDescription('Movie title to search for.')
-      .setRequired(true)
-      .setMaxLength(100),
-  );
+import {
+  t,
+} from '../i18n/index.js';
+
+import {
+  searchEmbyMovies,
+} from '../services/emby.js';
+
+export const data =
+  new SlashCommandBuilder()
+    .setName('movie')
+    .setDescription(
+      t(
+        'en',
+        'commands.movie.description',
+      ),
+    )
+    .setDescriptionLocalizations({
+      fr:
+        t(
+          'fr',
+          'commands.movie.description',
+        ),
+    })
+    .addStringOption(option =>
+      option
+        .setName('title')
+        .setDescription(
+          t(
+            'en',
+            'commands.movie.titleOptionDescription',
+          ),
+        )
+        .setDescriptionLocalizations({
+          fr:
+            t(
+              'fr',
+              'commands.movie.titleOptionDescription',
+            ),
+        })
+        .setRequired(true)
+        .setMaxLength(100),
+    );
 
 export async function execute(
   interaction: ChatInputCommandInteraction,
 ): Promise<void> {
-  const title = interaction.options.getString('title', true);
+  const locale =
+    getInteractionLocale(
+      interaction,
+    );
+
+  const title =
+    interaction.options.getString(
+      'title',
+      true,
+    );
 
   await interaction.deferReply({
-    flags: MessageFlags.Ephemeral,
+    flags:
+      MessageFlags.Ephemeral,
   });
 
   try {
-    const movies = await searchEmbyMovies(title);
+    const movies =
+      await searchEmbyMovies(
+        title,
+      );
 
     if (movies.length === 0) {
       await interaction.editReply(
-        `No movie found for **${title}**.`,
+        t(
+          locale,
+          'emby.movie.notFound',
+          {
+            title,
+          },
+        ),
       );
+
       return;
     }
 
-    const results = movies.map(movie => {
-      const year = movie.year ? ` (${movie.year})` : '';
+    const results =
+      movies.map(movie => {
+        const year =
+          movie.year !== undefined
+            ? ` (${movie.year})`
+            : '';
 
-      return `• **${movie.name}**${year}`;
-    });
+        return (
+          `• **${movie.name}**${year}`
+        );
+      });
 
     await interaction.editReply(
-      `🎬 **Movie results**\n\n${results.join('\n')}`,
+      `${t(
+        locale,
+        'emby.movie.results',
+      )}\n\n` +
+      results.join('\n'),
     );
   } catch (error) {
-    console.error('Emby movie search failed:', error);
+    console.error(
+      'Emby movie search failed:',
+      error,
+    );
 
     await interaction.editReply(
-      'Unable to search the Emby library right now.',
+      t(
+        locale,
+        'emby.unavailable',
+      ),
     );
   }
 }

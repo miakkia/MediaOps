@@ -6,33 +6,137 @@ export const fr = {
       'Une erreur inattendue est survenue pendant l’exécution de cette commande.',
   },
 
+  commands: {
+    ping: {
+      description:
+        'Vérifie si Solitario Butler est en ligne.',
+    },
+
+    health: {
+      description:
+        'Vérifie l’état de Solitario Butler et d’Emby.',
+    },
+
+    movie: {
+      description:
+        'Recherche un film dans la bibliothèque Emby.',
+
+      titleOptionDescription:
+        'Titre du film à rechercher.',
+    },
+
+    tv: {
+      description:
+        'Recherche une série télé dans la bibliothèque Emby.',
+
+      titleOptionDescription:
+        'Titre de la série télé à rechercher.',
+    },
+
+    latest: {
+      description:
+        'Affiche les derniers films et séries télé ajoutés à Emby.',
+    },
+
+    watchparty: {
+      description:
+        'Ouvre le service Watch Party.',
+    },
+
+    watchpartyStart: {
+      description:
+        'Valide et ouvre une Watch Party existante.',
+
+      codeOptionDescription:
+        'Code Watch Party à 5 caractères.',
+    },
+
+    watchpartyStatus: {
+      description:
+        'Vérifie si une Watch Party est toujours active.',
+
+      codeOptionDescription:
+        'Code Watch Party à 5 caractères.',
+    },
+
+    watchpartySchedule: {
+      description:
+        'Planifie une Watch Party pour un film Emby.',
+
+      titleOptionDescription:
+        'Titre du film à rechercher.',
+
+      dateTimeOptionDescription:
+        'Date et heure ISO, ex. 2026-08-20T21:00:00-04:00',
+    },
+
+    watchpartyRandom: {
+      description:
+        'Choisit un film Emby au hasard pour une Watch Party.',
+    },
+  },
+
+  health: {
+    botOnline:
+      '🟢 Solitario Butler est en ligne.',
+
+    embyOnline:
+      '🟢 Emby est en ligne.',
+
+    embyFailed:
+      '🔴 La vérification de l’état d’Emby a échoué.',
+
+    server:
+      'Serveur',
+
+    version:
+      'Version',
+
+    unknown:
+      'Inconnu',
+  },
+
   emby: {
     unavailable:
       'Impossible de communiquer avec le serveur Emby pour le moment.',
 
     movie: {
-      results: '🎬 **Résultats — Films**',
-      notFound: 'Aucun film trouvé pour **{title}**.',
+      results:
+        '🎬 **Résultats — Films**',
+
+      notFound:
+        'Aucun film trouvé pour **{title}**.',
     },
 
     tv: {
-      results: '📺 **Résultats — Séries télé**',
-      notFound: 'Aucune série télé trouvée pour **{title}**.',
+      results:
+        '📺 **Résultats — Séries télé**',
+
+      notFound:
+        'Aucune série télé trouvée pour **{title}**.',
     },
 
     latest: {
-      title: '🆕 **Derniers ajouts**',
-      empty: 'Aucun film ou série télé récent trouvé.',
+      title:
+        '🆕 **Derniers ajouts**',
+
+      empty:
+        'Aucun film ou série télé récent trouvé.',
+
       error:
         'Impossible de récupérer les derniers ajouts Emby pour le moment.',
     },
   },
 
   watchparty: {
-    title: '🎉 **Watch Party SolitarioHomeCinema**',
+    title:
+      '🎉 **Watch Party SolitarioHomeCinema**',
 
-    openButton: 'Ouvrir Watch Party',
-    joinButton: 'Rejoindre la Watch Party',
+    openButton:
+      'Ouvrir Watch Party',
+
+    joinButton:
+      'Rejoindre la Watch Party',
 
     instructions:
       '1. Ouvre Watch Party.\n' +
@@ -62,25 +166,60 @@ export const fr = {
     statusError:
       'Impossible de vérifier l’état de la Watch Party pour le moment.',
 
+    random: {
+      title:
+        '🎲 **Choix aléatoire pour la Watch Party**',
+
+      empty:
+        '🎲 Aucun film disponible dans la bibliothèque Emby.',
+
+      noOverview:
+        'Aucun synopsis disponible.',
+
+      error:
+        'Impossible de choisir un film aléatoire pour le moment.',
+    },
+
     scheduling: {
-      title: '🎬 **Watch Party planifiée**',
-      movie: 'Film',
-      going: 'Je participe',
-      notGoing: 'Je ne participe pas',
-      participants: 'Participants',
-      organizer: 'Organisateur',
-      scheduledFor: 'Prévue pour',
-      relativeTime: 'Débute',
+      title:
+        '🎬 **Watch Party planifiée**',
+
+      movie:
+        'Film',
+
+      going:
+        'Je participe',
+
+      notGoing:
+        'Je ne participe pas',
+
+      participants:
+        'Participants',
+
+      organizer:
+        'Organisateur',
+
+      scheduledFor:
+        'Prévue pour',
+
+      relativeTime:
+        'Débute',
+
       serverOnly:
         'La planification d’une Watch Party est disponible uniquement dans un serveur Discord.',
+
       movieSelectionError:
         'Impossible de sélectionner un film Emby.',
+
       invalidDate:
         'La date et l’heure fournies sont invalides.',
+
       pastDate:
         'La Watch Party doit être planifiée à une date et une heure futures.',
+
       scheduleError:
         'Impossible de planifier la Watch Party pour le moment.',
+
       confirmation:
         '✅ Watch Party planifiée avec succès.',
     },

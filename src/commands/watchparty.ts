@@ -7,35 +7,90 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 
-import { getWatchPartyUrl } from '../services/watchparty.js';
+import {
+  getInteractionLocale,
+} from '../i18n/discord-locale.js';
 
-export const data = new SlashCommandBuilder()
-  .setName('watchparty')
-  .setDescription('Open SolitarioHomeCinema Watch Party.');
+import {
+  t,
+} from '../i18n/index.js';
+
+import {
+  getWatchPartyUrl,
+} from '../services/watchparty.js';
+
+export const data =
+  new SlashCommandBuilder()
+    .setName('watchparty')
+    .setDescription(
+      t(
+        'en',
+        'commands.watchparty.description',
+      ),
+    )
+    .setDescriptionLocalizations({
+      fr:
+        t(
+          'fr',
+          'commands.watchparty.description',
+        ),
+    });
 
 export async function execute(
   interaction: ChatInputCommandInteraction,
 ): Promise<void> {
-  const watchPartyUrl = getWatchPartyUrl();
+  const locale =
+    getInteractionLocale(
+      interaction,
+    );
 
-  const openButton = new ButtonBuilder()
-    .setLabel('Open Watch Party')
-    .setEmoji('🌐')
-    .setStyle(ButtonStyle.Link)
-    .setURL(watchPartyUrl);
+  const watchPartyUrl =
+    getWatchPartyUrl();
+
+  const openButton =
+    new ButtonBuilder()
+      .setLabel(
+        t(
+          locale,
+          'watchparty.openButton',
+        ),
+      )
+      .setEmoji('🌐')
+      .setStyle(
+        ButtonStyle.Link,
+      )
+      .setURL(
+        watchPartyUrl,
+      );
 
   const row =
-    new ActionRowBuilder<ButtonBuilder>().addComponents(openButton);
+    new ActionRowBuilder<ButtonBuilder>()
+      .addComponents(
+        openButton,
+      );
 
   await interaction.reply({
     content:
-      '🎉 **SolitarioHomeCinema Watch Party**\n\n' +
-      '1. Open Watch Party.\n' +
-      '2. Create the party and authenticate directly with Emby.\n' +
-      '3. Copy the generated 5-character party code.\n' +
-      '4. Run `/watchparty-start` with that code.\n\n' +
-      '🔐 Your Emby password is entered only on Watch Party and is never sent to Solitario Butler.',
-    components: [row],
-    flags: MessageFlags.Ephemeral,
+      `${t(
+        locale,
+        'watchparty.title',
+      )}\n\n` +
+
+      `${t(
+        locale,
+        'watchparty.instructions',
+      )}\n\n` +
+
+      t(
+        locale,
+        'watchparty.securityNotice',
+      ),
+
+    components: [
+      row,
+    ],
+
+    flags:
+      MessageFlags.Ephemeral,
   });
 }
