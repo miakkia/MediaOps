@@ -1,10 +1,12 @@
-name: Build MediaOps Docker image
+name: Build and publish MediaOps
 
 on:
   push:
     branches:
       - main
-      - feat/docker-media-provider
+      - 'feat/**'
+      - 'fix/**'
+      - 'chore/**'
     tags:
       - 'v*'
   workflow_dispatch:
@@ -18,7 +20,30 @@ env:
   IMAGE_NAME: miakkia/mediaops
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build application
+        run: npm run build
+
   build-and-push:
+    needs: validate
     runs-on: ubuntu-latest
 
     steps:
@@ -41,7 +66,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/feat/docker-media-provider' }}
+            type=raw,value=dev,enable=${{ startsWith(github.ref, 'refs/heads/feat/') || startsWith(github.ref, 'refs/heads/fix/') || startsWith(github.ref, 'refs/heads/chore/') }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha
             type=semver,pattern={{version}}
@@ -55,3 +80,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
