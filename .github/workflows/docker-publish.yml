@@ -9,6 +9,10 @@ on:
       - 'chore/**'
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
+
   workflow_dispatch:
 
 permissions:
@@ -44,6 +48,7 @@ jobs:
 
   build-and-push:
     needs: validate
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
