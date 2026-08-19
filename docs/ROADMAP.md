@@ -6,12 +6,20 @@ MediaOps is being built first as a reliable self-hosted Discord/media automation
 
 - Discord bot with automatic slash-command loading
 - Emby integration for health, movie search, TV search, latest additions, exact item lookup, and library-wide random movie selection
+- Implemented `MediaProvider` abstraction with Emby as the first provider adapter
+- Runtime provider selection through `MEDIA_PROVIDER=emby`
 - Watch Party scheduling with persistent runtime storage
 - RSVP support with Going / Not Going states
 - Organizer-only cancellation
 - Random movie flow with reroll, exact selection, and scheduling modal
 - Bilingual EN/FR interaction foundation
 - Public bilingual `/watchparty-setup` panel for simple self-service use
+- Production TypeScript build targeting `dist/`
+- Multi-stage Docker image with non-root runtime
+- Automated GHCR image publication
+- Validated Docker deployment on Unraid without copying the source repository to the server
+- Persistent `/data` appdata model
+- Preconfigured Unraid Docker template
 - Runtime data excluded from Git
 - Secret-based configuration kept outside the repository
 
@@ -34,84 +42,85 @@ MediaOps is being built first as a reliable self-hosted Discord/media automation
 
 ### Reliability and testing
 
-- Add automated tests for i18n, Emby parsing, provider matching, Watch Party storage, RSVP, cancellation, custom IDs, and modal validation
+- Add automated tests for i18n, provider parsing/matching, Watch Party storage, RSVP, cancellation, custom IDs, and modal validation
 - Add CI checks for TypeScript, tests, dependency auditing, and secret scanning
 - Improve structured error handling and logging
+- Add a meaningful container health strategy appropriate for a Discord bot without a current inbound HTTP service
 
 ### Public self-hosted release
 
-- Dockerfile and production container configuration
-- Non-root runtime where practical
-- Persistent `/data` volume
-- Healthcheck, memory/PID limits, and `no-new-privileges`
-- Complete `.env.example`
-- Detailed Discord Developer Portal setup guide so every self-hosted installation can use its own bot
-- Installation and upgrade documentation
-- Security documentation and token-rotation guidance
-- First tagged public release
+Completed foundation:
+
+- production Dockerfile and build configuration
+- non-root runtime
+- persistent `/data` volume
+- GHCR development image
+- `.env.example`
+- Docker deployment documentation
+- Unraid deployment documentation
+- preconfigured Unraid v2 template
+- validated Unraid runtime using Emby
+
+Still required before the first stable release:
+
+- stable image/tagging policy (`latest` plus version tags)
+- broader fresh-install/update/persistence testing
+- automated tests and stronger CI gates
+- detailed Discord Developer Portal setup guide
+- final security/token-rotation documentation review
+- release notes and first tagged public release
 
 ### Unraid Community Apps distribution
 
-MediaOps should target publication in **Unraid Community Apps** after the production Docker deployment has been validated. Community Apps is a distribution layer, not the place to debug the initial container.
+MediaOps now has a working Unraid deployment path and a preconfigured Docker template. Community Apps remains a later distribution step after the container has completed broader validation.
 
-Planned path:
+Remaining path:
 
-1. Build a production-ready multi-stage Docker image for MediaOps.
-2. Run the application as a non-root user where practical, with no privileged mode and no unnecessary host access.
-3. Publish versioned images automatically to GHCR, with a stable image such as `ghcr.io/miakkia/mediaops`.
-4. Persist runtime Watch Party data through an Unraid appdata mapping such as `/mnt/user/appdata/mediaops` -> `/data`.
-5. Test a completely fresh install, restart, update, configuration change, and data persistence cycle on Unraid using a local template before Community Apps submission.
-6. Create and maintain an Unraid Community Apps XML v2 template and required Community Apps metadata/profile files.
-7. Expose only the configuration required by the selected provider, including Discord credentials, media server URL/API credentials, Watch Party URL/settings, timezone, and persistent data path.
-8. Mark secrets such as Discord bot tokens and media API keys as sensitive/masked configuration fields wherever the Unraid template format supports it.
-9. Do not mount Movies/Series/Downloads into MediaOps when provider API access is sufficient.
-10. Pass Community Apps validation/scanning requirements and complete the public documentation before submission.
-11. Submit MediaOps to Unraid Community Apps after the container has proven stable outside the catalog.
+1. keep the GHCR image and template aligned with stable release tags;
+2. validate clean install, restart, Force Update, configuration changes and appdata persistence;
+3. finalize icon/profile metadata for a dedicated Community Apps submission repository if required by the current submission process;
+4. expose only configuration required by the selected provider;
+5. keep Discord and provider credentials masked in the template where supported;
+6. maintain the no-media-mount, no-privileged, no-Docker-socket security posture;
+7. run Community Apps Validate and Scan using the current official submission flow;
+8. submit after the first stable container release is considered supportable.
 
-The first Community Apps release may be **MediaOps for Emby**. Jellyfin and Plex support do not need to block the initial Unraid release; future `MediaProvider` adapters should fit into the same container and template without redesigning the Discord UX.
-
-The preferred Unraid security posture is:
-
-- no `privileged` mode
-- bridge networking unless a provider-specific requirement proves otherwise
-- no direct media-library filesystem mounts by default
-- persistent appdata only for MediaOps-owned state
-- secrets supplied at deployment/runtime rather than embedded in the image
-- `no-new-privileges` and reasonable memory/PID limits where supported
+The first Community Apps release may be **MediaOps for Emby**. Jellyfin and Plex support do not block the initial Unraid release because the provider boundary already exists.
 
 ## Multi-provider media architecture
 
-MediaOps should not remain permanently tied to Emby. The long-term architecture should introduce a common `MediaProvider` abstraction so Discord commands and Watch Party workflows do not need to know which media server is behind them.
+The core `MediaProvider` abstraction is now implemented. Discord commands and shared Watch Party scheduling use normalized provider operations rather than importing the Emby service directly.
 
-Target media providers:
+Current provider:
 
-1. **Emby** — reference implementation and current provider
-2. **Jellyfin** — first additional provider candidate because its API/model is close to Emby
-3. **Plex** — planned provider with its own adapter for Plex-specific API and metadata behavior
+1. **Emby** — implemented reference provider
 
-A future provider interface should expose capabilities similar to:
+Planned providers:
+
+2. **Jellyfin** — first additional provider candidate
+3. **Plex** — dedicated future adapter for Plex-specific metadata/authentication behavior
+
+The current provider contract covers capabilities such as:
 
 - system/server health
 - movie search
 - TV/series search
 - latest additions
 - random movie selection
-- exact item lookup by provider ID
-- normalized media metadata such as display title, original title, sort title, year, overview, and media type
+- exact movie lookup by provider ID
+- normalized media metadata including display title, original title, sort title, year, overview and media type
 
-The Discord layer should eventually call generic methods such as `mediaProvider.searchMovies()` or `mediaProvider.getRandomMovie()` instead of Emby-specific functions.
-
-Example configuration direction:
+Current configuration:
 
 ```env
 MEDIA_PROVIDER=emby
 ```
 
-with future values such as `jellyfin` or `plex`.
+Future values may include `jellyfin` and `plex` once those adapters exist and are validated.
 
 ## Watch Party provider architecture
 
-Media library support and synchronized Watch Party support should be treated as related but separate capabilities.
+Media library support and synchronized Watch Party support remain related but separate capabilities.
 
 Future architecture direction:
 
@@ -122,12 +131,12 @@ Media Provider
 └── Plex
 
 Watch Party Provider
-├── Emby-compatible Watch Party service
+├── current Watch Party service integration
 ├── Jellyfin-compatible synchronized playback solution
 └── Plex Watch Together integration
 ```
 
-Before implementing these adapters, MediaOps should verify the current official/provider APIs and supported automation capabilities for Jellyfin and Plex instead of designing around assumptions.
+Before implementing additional Watch Party adapters, MediaOps should verify the current official/provider APIs and supported automation capabilities rather than designing around assumptions.
 
 The goal is to preserve one simple Discord experience while allowing provider-specific implementations behind it.
 
@@ -152,6 +161,7 @@ A hosted edition must keep strict tenant isolation and encrypted secret storage.
 - Provider-specific complexity stays behind adapters
 - No secrets committed to Git
 - Self-hosted remains a first-class deployment model
+- Deployment hosts should consume prebuilt images rather than source repositories
 - Unraid Community Apps should distribute a proven container rather than define application architecture
 - Public Discord UX should remain understandable without requiring users to memorize slash commands
 - New abstractions should be introduced only when they solve a real integration need

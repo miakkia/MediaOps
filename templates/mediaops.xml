@@ -1,20 +1,22 @@
 <Container version="2">
   <Name>MediaOps</Name>
-  <Repository>ghcr.io/miakkia/mediaops:dev</Repository>
+  <Repository>ghcr.io/miakkia/mediaops:latest</Repository>
   <Registry>https://ghcr.io/miakkia/mediaops</Registry>
   <Network>bridge</Network>
   <Shell>bash</Shell>
   <Privileged>false</Privileged>
 
-  <Overview>MediaOps is a self-hosted Discord automation platform for media server communities. It connects Discord to your media server for health checks, movie and TV discovery, latest additions, random movie selection, Watch Party scheduling, RSVP management and guided community workflows. Emby is currently supported through the MediaProvider architecture; Jellyfin and Plex are planned future providers.</Overview>
+  <Icon>https://raw.githubusercontent.com/miakkia/MediaOps/main/assets/mediaops-icon.png</Icon>
+
+  <Overview>MediaOps is a self-hosted Discord automation platform for media-server communities. It connects Discord to your media server for health checks, movie and TV discovery, latest additions, random movie selection, Watch Party scheduling, RSVP management and guided community workflows. Emby is currently supported through the MediaProvider architecture; Jellyfin and Plex are planned future providers.</Overview>
 
   <Project>https://github.com/miakkia/MediaOps</Project>
   <TemplateURL>https://raw.githubusercontent.com/miakkia/MediaOps/main/templates/mediaops.xml</TemplateURL>
   <ReadMe>https://raw.githubusercontent.com/miakkia/MediaOps/main/docs/UNRAID.md</ReadMe>
-  <Category>MediaApp:Other Tools:System</Category>
+  <Category>Tools:System MediaApp:Other</Category>
   <ExtraSearchTerms>discord emby watch party media server homelab automation</ExtraSearchTerms>
-  <Requires>Outbound Internet access for Discord/GHCR and network access to the configured media server and Watch Party service.</Requires>
-  <Changes>Initial development template for the GHCR-based MediaOps container.</Changes>
+  <Requires>Outbound Internet access for Discord and network access to the configured Emby server and Watch Party service.</Requires>
+  <Changes>Initial public Docker template for MediaOps with GHCR distribution, persistent appdata and guided environment configuration.</Changes>
   <Date>2026-08-19</Date>
   <Beta>true</Beta>
   <MinVer>6.12</MinVer>
@@ -28,7 +30,7 @@
 
   <Config Name="Discord Client ID" Target="DISCORD_CLIENT_ID" Default="" Description="Discord application/client ID for the MediaOps bot." Type="Variable" Display="always" Required="true" Mask="false"/>
 
-  <Config Name="Discord Guild ID" Target="DISCORD_GUILD_ID" Default="" Description="Discord server/guild ID used by the current command deployment workflow." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Discord Guild ID" Target="DISCORD_GUILD_ID" Default="" Description="Discord server/guild ID currently used for guild-scoped command deployment." Type="Variable" Display="always" Required="true" Mask="false"/>
 
   <Config Name="Emby URL" Target="EMBY_URL" Default="" Description="Emby base URL reachable from this container, for example http://192.168.1.100:8096." Type="Variable" Display="always" Required="true" Mask="false"/>
 

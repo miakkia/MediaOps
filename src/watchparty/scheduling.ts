@@ -10,8 +10,8 @@ import {
 } from '../i18n/index.js';
 
 import type {
-  EmbyMovie,
-} from '../services/emby.js';
+  MediaMovie,
+} from '../providers/media-provider.js';
 
 import {
   createScheduledWatchParty,
@@ -27,7 +27,7 @@ interface ScheduleWatchPartyInput {
   channelId: string;
   organizerDiscordId: string;
 
-  movie: EmbyMovie;
+  movie: MediaMovie;
 
   scheduledAt: string;
 

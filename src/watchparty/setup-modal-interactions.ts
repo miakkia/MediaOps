@@ -12,9 +12,12 @@ import {
 } from '../i18n/index.js';
 
 import {
-  searchEmbyMovies,
-  type EmbyMovie,
-} from '../services/emby.js';
+  mediaProvider,
+} from '../providers/media-provider-instance.js';
+
+import type {
+  MediaMovie,
+} from '../providers/media-provider.js';
 
 import {
   getManualScheduleModalValues,
@@ -128,7 +131,7 @@ function normalizeMovieTitle(
 }
 
 function matchesMovieTitle(
-  movie: EmbyMovie,
+  movie: MediaMovie,
   requestedTitle: string,
 ): boolean {
   const candidates = [
@@ -148,9 +151,9 @@ function matchesMovieTitle(
 }
 
 function selectBestMovie(
-  movies: EmbyMovie[],
+  movies: MediaMovie[],
   requestedTitle: string,
-): EmbyMovie | undefined {
+): MediaMovie | undefined {
   const normalizedRequestedTitle =
     normalizeMovieTitle(
       requestedTitle,
@@ -247,7 +250,7 @@ export async function handleWatchPartySetupModal(
     }
 
     const movies =
-      await searchEmbyMovies(
+      await mediaProvider.searchMovies(
         title,
       );
 

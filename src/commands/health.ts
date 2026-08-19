@@ -13,8 +13,9 @@ import {
 } from '../i18n/index.js';
 
 import {
-  getEmbySystemInfo,
-} from '../services/emby.js';
+  mediaProvider,
+} from '../providers/media-provider-instance.js';
+
 
 export const data =
   new SlashCommandBuilder()
@@ -42,18 +43,18 @@ export async function execute(
     );
 
   try {
-    const info =
-      await getEmbySystemInfo();
+      const info =
+        await mediaProvider.getSystemInfo();
 
     const serverName =
-      info.ServerName ??
+      info.serverName ??
       t(
         locale,
         'health.unknown',
       );
 
     const version =
-      info.Version ??
+      info.version ??
       t(
         locale,
         'health.unknown',
