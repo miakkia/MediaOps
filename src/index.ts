@@ -5,6 +5,10 @@ import {
   GatewayIntentBits,
 } from 'discord.js';
 
+import {
+  execute as executePing,
+} from './commands/ping.js';
+
 const token = process.env.DISCORD_TOKEN;
 
 if (!token) {
@@ -28,10 +32,7 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 
   if (interaction.commandName === 'ping') {
-    await interaction.reply({
-      content: '🟢 Solitario Butler is online.',
-      ephemeral: true,
-    });
+    await executePing(interaction);
   }
 });
 

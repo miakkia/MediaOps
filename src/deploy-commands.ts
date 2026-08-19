@@ -1,5 +1,7 @@
 import 'dotenv/config';
-import { REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { REST, Routes } from 'discord.js';
+
+import { data as pingCommand } from './commands/ping.js';
 
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.DISCORD_CLIENT_ID;
@@ -12,10 +14,8 @@ if (!token || !clientId || !guildId) {
 }
 
 const commands = [
-  new SlashCommandBuilder()
-    .setName('ping')
-    .setDescription('Check if Solitario Butler is online.'),
-].map(command => command.toJSON());
+  pingCommand.toJSON(),
+];
 
 const rest = new REST().setToken(token);
 
@@ -24,4 +24,4 @@ await rest.put(
   { body: commands },
 );
 
-console.log('Successfully registered /ping.');
+console.log('Successfully registered Discord commands.');
