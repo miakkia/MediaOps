@@ -50,6 +50,35 @@ MediaOps is being built first as a reliable self-hosted Discord/media automation
 - Security documentation and token-rotation guidance
 - First tagged public release
 
+### Unraid Community Apps distribution
+
+MediaOps should target publication in **Unraid Community Apps** after the production Docker deployment has been validated. Community Apps is a distribution layer, not the place to debug the initial container.
+
+Planned path:
+
+1. Build a production-ready multi-stage Docker image for MediaOps.
+2. Run the application as a non-root user where practical, with no privileged mode and no unnecessary host access.
+3. Publish versioned images automatically to GHCR, with a stable image such as `ghcr.io/miakkia/mediaops`.
+4. Persist runtime Watch Party data through an Unraid appdata mapping such as `/mnt/user/appdata/mediaops` -> `/data`.
+5. Test a completely fresh install, restart, update, configuration change, and data persistence cycle on Unraid using a local template before Community Apps submission.
+6. Create and maintain an Unraid Community Apps XML v2 template and required Community Apps metadata/profile files.
+7. Expose only the configuration required by the selected provider, including Discord credentials, media server URL/API credentials, Watch Party URL/settings, timezone, and persistent data path.
+8. Mark secrets such as Discord bot tokens and media API keys as sensitive/masked configuration fields wherever the Unraid template format supports it.
+9. Do not mount Movies/Series/Downloads into MediaOps when provider API access is sufficient.
+10. Pass Community Apps validation/scanning requirements and complete the public documentation before submission.
+11. Submit MediaOps to Unraid Community Apps after the container has proven stable outside the catalog.
+
+The first Community Apps release may be **MediaOps for Emby**. Jellyfin and Plex support do not need to block the initial Unraid release; future `MediaProvider` adapters should fit into the same container and template without redesigning the Discord UX.
+
+The preferred Unraid security posture is:
+
+- no `privileged` mode
+- bridge networking unless a provider-specific requirement proves otherwise
+- no direct media-library filesystem mounts by default
+- persistent appdata only for MediaOps-owned state
+- secrets supplied at deployment/runtime rather than embedded in the image
+- `no-new-privileges` and reasonable memory/PID limits where supported
+
 ## Multi-provider media architecture
 
 MediaOps should not remain permanently tied to Emby. The long-term architecture should introduce a common `MediaProvider` abstraction so Discord commands and Watch Party workflows do not need to know which media server is behind them.
@@ -123,5 +152,6 @@ A hosted edition must keep strict tenant isolation and encrypted secret storage.
 - Provider-specific complexity stays behind adapters
 - No secrets committed to Git
 - Self-hosted remains a first-class deployment model
+- Unraid Community Apps should distribute a proven container rather than define application architecture
 - Public Discord UX should remain understandable without requiring users to memorize slash commands
 - New abstractions should be introduced only when they solve a real integration need
