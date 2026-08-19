@@ -291,5 +291,13 @@ export const fr = {
         'Impossible de charger les prochaines Watch Parties pour le moment.',
     },
 
+    reminder: {
+      title:
+        '⏰ **Rappel Watch Party**',
+
+      starts:
+        'Débute',
+    },
+
   },
 } satisfies TranslationSchema;

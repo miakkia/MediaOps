@@ -3,6 +3,10 @@ import type {
 } from 'discord.js';
 
 import {
+  t,
+} from '../i18n/index.js';
+
+import {
   getWatchParties,
   refreshWatchPartyLifecycle,
   setWatchPartyReminderSentAt,
@@ -13,6 +17,14 @@ const LIFECYCLE_INTERVAL_MS =
 
 const REMINDER_LEAD_TIME_MS =
   15 * 60 * 1000;
+
+const configuredLocale =
+  process.env.MEDIAOPS_LOCALE?.trim().toLowerCase();
+
+const reminderLocale =
+  configuredLocale === 'fr'
+    ? 'fr'
+    : 'en';
 
 let lifecycleTimer:
   NodeJS.Timeout | undefined;
@@ -85,16 +97,22 @@ async function sendWatchPartyReminders(
           1000,
         );
 
+      const year =
+        party.mediaYear !== undefined
+          ? ` (${party.mediaYear})`
+          : '';
+
       await channel.send({
         content:
-          `⏰ **Watch Party reminder**\n\n` +
-          `**${party.mediaTitle}**` +
-          (
-            party.mediaYear !== undefined
-              ? ` (${party.mediaYear})`
-              : ''
-          ) +
-          `\nStarts <t:${timestamp}:R> • <t:${timestamp}:F>`,
+          `${t(
+            reminderLocale,
+            'watchparty.reminder.title',
+          )}\n\n` +
+          `**${party.mediaTitle}**${year}\n` +
+          `${t(
+            reminderLocale,
+            'watchparty.reminder.starts',
+          )} <t:${timestamp}:R> • <t:${timestamp}:F>`,
       });
 
       await setWatchPartyReminderSentAt(

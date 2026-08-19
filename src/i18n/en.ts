@@ -152,6 +152,11 @@ export interface TranslationSchema {
       guildOnly: string;
       error: string;
     };
+
+    reminder: {
+      title: string;
+      starts: string;
+    };
   };
 }
 
@@ -444,6 +449,14 @@ export const en = {
 
       error:
         'Unable to load upcoming Watch Parties right now.',
+    },
+
+    reminder: {
+      title:
+        '⏰ **Watch Party reminder**',
+
+      starts:
+        'Starts',
     },
 
   },
