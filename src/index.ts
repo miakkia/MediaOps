@@ -221,7 +221,9 @@ client.once(
         .join(', '),
     );
 
-    startWatchPartyLifecycle();
+    startWatchPartyLifecycle(
+      readyClient,
+    );
   },
 );
 

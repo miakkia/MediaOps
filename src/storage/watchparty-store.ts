@@ -53,6 +53,8 @@ export interface ScheduledWatchParty {
 
   partyCode: string | undefined;
 
+  reminderSentAt: string | undefined;
+
   participants: WatchPartyParticipant[];
 
   createdAt: string;
@@ -144,6 +146,7 @@ function isValidParty(
     isString(party.scheduledAt) &&
     isValidStatus(party.status) &&
     isOptionalString(party.partyCode) &&
+    isOptionalString(party.reminderSentAt) &&
     Array.isArray(party.participants) &&
     party.participants.every(
       isValidParticipant,
@@ -445,6 +448,8 @@ export async function createScheduledWatchParty(
 
     partyCode: undefined,
 
+    reminderSentAt: undefined,
+
     participants: [],
 
     createdAt: now,
@@ -504,6 +509,19 @@ export async function setWatchPartyCode(
     party => ({
       ...party,
       partyCode,
+    }),
+  );
+}
+
+export async function setWatchPartyReminderSentAt(
+  partyId: string,
+  reminderSentAt: string | undefined,
+): Promise<ScheduledWatchParty> {
+  return updateWatchParty(
+    partyId,
+    party => ({
+      ...party,
+      reminderSentAt,
     }),
   );
 }
