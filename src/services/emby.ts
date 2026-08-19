@@ -9,12 +9,15 @@ export interface EmbySystemInfo {
   Version: string | undefined;
 }
 
-export interface EmbyMovie {
+export interface EmbyMediaItem {
   id: string;
   name: string;
   year: number | undefined;
   overview: string | undefined;
 }
+
+export type EmbyMovie = EmbyMediaItem;
+export type EmbySeries = EmbyMediaItem;
 
 const rawEmbyUrl = process.env.EMBY_URL?.trim();
 const rawEmbyApiKey = process.env.EMBY_API_KEY?.trim();
@@ -72,6 +75,91 @@ async function embyFetch(
   }
 }
 
+function normalizeSearchTerm(
+  searchTerm: string,
+  mediaLabel: string,
+): string {
+  const normalizedSearchTerm = searchTerm.trim();
+
+  if (
+    normalizedSearchTerm.length === 0 ||
+    normalizedSearchTerm.length > MAX_SEARCH_LENGTH
+  ) {
+    throw new Error(
+      `${mediaLabel} search must contain between 1 and ${MAX_SEARCH_LENGTH} characters.`,
+    );
+  }
+
+  return normalizedSearchTerm;
+}
+
+async function searchEmbyItems(
+  searchTerm: string,
+  includeItemType: 'Movie' | 'Series',
+): Promise<EmbyMediaItem[]> {
+  const normalizedSearchTerm = normalizeSearchTerm(
+    searchTerm,
+    includeItemType,
+  );
+
+  const params = new URLSearchParams({
+    SearchTerm: normalizedSearchTerm,
+    IncludeItemTypes: includeItemType,
+    Recursive: 'true',
+    Limit: String(MAX_SEARCH_RESULTS),
+    Fields: 'Overview,ProductionYear',
+  });
+
+  const response = await embyFetch(`/Items?${params.toString()}`);
+  const data: unknown = await response.json();
+
+  if (!data || typeof data !== 'object') {
+    throw new Error(
+      `Emby returned an invalid ${includeItemType.toLowerCase()} search response.`,
+    );
+  }
+
+  const record = data as Record<string, unknown>;
+
+  if (!Array.isArray(record.Items)) {
+    throw new Error(
+      `Emby returned an invalid ${includeItemType.toLowerCase()} search response.`,
+    );
+  }
+
+  const items: EmbyMediaItem[] = [];
+
+  for (const item of record.Items) {
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
+
+    const mediaItem = item as Record<string, unknown>;
+
+    if (
+      typeof mediaItem.Id !== 'string' ||
+      typeof mediaItem.Name !== 'string'
+    ) {
+      continue;
+    }
+
+    items.push({
+      id: mediaItem.Id,
+      name: mediaItem.Name,
+      year:
+        typeof mediaItem.ProductionYear === 'number'
+          ? mediaItem.ProductionYear
+          : undefined,
+      overview:
+        typeof mediaItem.Overview === 'string'
+          ? mediaItem.Overview
+          : undefined,
+    });
+  }
+
+  return items;
+}
+
 export async function getEmbySystemInfo(): Promise<EmbySystemInfo> {
   const response = await embyFetch('/System/Info');
   const data: unknown = await response.json();
@@ -99,67 +187,11 @@ export async function getEmbySystemInfo(): Promise<EmbySystemInfo> {
 export async function searchEmbyMovies(
   searchTerm: string,
 ): Promise<EmbyMovie[]> {
-  const normalizedSearchTerm = searchTerm.trim();
+  return searchEmbyItems(searchTerm, 'Movie');
+}
 
-  if (
-    normalizedSearchTerm.length === 0 ||
-    normalizedSearchTerm.length > MAX_SEARCH_LENGTH
-  ) {
-    throw new Error(
-      `Movie search must contain between 1 and ${MAX_SEARCH_LENGTH} characters.`,
-    );
-  }
-
-  const params = new URLSearchParams({
-    SearchTerm: normalizedSearchTerm,
-    IncludeItemTypes: 'Movie',
-    Recursive: 'true',
-    Limit: String(MAX_SEARCH_RESULTS),
-    Fields: 'Overview,ProductionYear',
-  });
-
-  const response = await embyFetch(`/Items?${params.toString()}`);
-  const data: unknown = await response.json();
-
-  if (!data || typeof data !== 'object') {
-    throw new Error('Emby returned an invalid movie search response.');
-  }
-
-  const record = data as Record<string, unknown>;
-
-  if (!Array.isArray(record.Items)) {
-    throw new Error('Emby returned an invalid movie search response.');
-  }
-
-  const movies: EmbyMovie[] = [];
-
-  for (const item of record.Items) {
-    if (!item || typeof item !== 'object') {
-      continue;
-    }
-
-    const movie = item as Record<string, unknown>;
-
-    if (
-      typeof movie.Id !== 'string' ||
-      typeof movie.Name !== 'string'
-    ) {
-      continue;
-    }
-
-    movies.push({
-      id: movie.Id,
-      name: movie.Name,
-      year:
-        typeof movie.ProductionYear === 'number'
-          ? movie.ProductionYear
-          : undefined,
-      overview:
-        typeof movie.Overview === 'string'
-          ? movie.Overview
-          : undefined,
-    });
-  }
-
-  return movies;
+export async function searchEmbySeries(
+  searchTerm: string,
+): Promise<EmbySeries[]> {
+  return searchEmbyItems(searchTerm, 'Series');
 }
