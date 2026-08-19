@@ -2,6 +2,7 @@ import 'dotenv/config';
 
 const DEFAULT_TIMEOUT_MS = 5_000;
 const MAX_SEARCH_RESULTS = 5;
+const MAX_LATEST_RESULTS = 5;
 const MAX_SEARCH_LENGTH = 100;
 
 export interface EmbySystemInfo {
@@ -9,11 +10,15 @@ export interface EmbySystemInfo {
   Version: string | undefined;
 }
 
+export type EmbyMediaType = 'Movie' | 'Series';
+
 export interface EmbyMediaItem {
   id: string;
   name: string;
   year: number | undefined;
   overview: string | undefined;
+  type: EmbyMediaType | undefined;
+  dateCreated: string | undefined;
 }
 
 export type EmbyMovie = EmbyMediaItem;
@@ -75,6 +80,77 @@ async function embyFetch(
   }
 }
 
+function parseEmbyMediaItem(
+  value: unknown,
+): EmbyMediaItem | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const item = value as Record<string, unknown>;
+
+  if (
+    typeof item.Id !== 'string' ||
+    typeof item.Name !== 'string'
+  ) {
+    return undefined;
+  }
+
+  const type: EmbyMediaType | undefined =
+    item.Type === 'Movie' || item.Type === 'Series'
+      ? item.Type
+      : undefined;
+
+  return {
+    id: item.Id,
+    name: item.Name,
+    year:
+      typeof item.ProductionYear === 'number'
+        ? item.ProductionYear
+        : undefined,
+    overview:
+      typeof item.Overview === 'string'
+        ? item.Overview
+        : undefined,
+    type,
+    dateCreated:
+      typeof item.DateCreated === 'string'
+        ? item.DateCreated
+        : undefined,
+  };
+}
+
+function parseEmbyItemsResponse(
+  data: unknown,
+  context: string,
+): EmbyMediaItem[] {
+  if (!data || typeof data !== 'object') {
+    throw new Error(
+      `Emby returned an invalid ${context} response.`,
+    );
+  }
+
+  const record = data as Record<string, unknown>;
+
+  if (!Array.isArray(record.Items)) {
+    throw new Error(
+      `Emby returned an invalid ${context} response.`,
+    );
+  }
+
+  const items: EmbyMediaItem[] = [];
+
+  for (const item of record.Items) {
+    const parsedItem = parseEmbyMediaItem(item);
+
+    if (parsedItem) {
+      items.push(parsedItem);
+    }
+  }
+
+  return items;
+}
+
 function normalizeSearchTerm(
   searchTerm: string,
   mediaLabel: string,
@@ -95,7 +171,7 @@ function normalizeSearchTerm(
 
 async function searchEmbyItems(
   searchTerm: string,
-  includeItemType: 'Movie' | 'Series',
+  includeItemType: EmbyMediaType,
 ): Promise<EmbyMediaItem[]> {
   const normalizedSearchTerm = normalizeSearchTerm(
     searchTerm,
@@ -107,57 +183,19 @@ async function searchEmbyItems(
     IncludeItemTypes: includeItemType,
     Recursive: 'true',
     Limit: String(MAX_SEARCH_RESULTS),
-    Fields: 'Overview,ProductionYear',
+    Fields: 'Overview,ProductionYear,DateCreated',
   });
 
-  const response = await embyFetch(`/Items?${params.toString()}`);
+  const response = await embyFetch(
+    `/Items?${params.toString()}`,
+  );
+
   const data: unknown = await response.json();
 
-  if (!data || typeof data !== 'object') {
-    throw new Error(
-      `Emby returned an invalid ${includeItemType.toLowerCase()} search response.`,
-    );
-  }
-
-  const record = data as Record<string, unknown>;
-
-  if (!Array.isArray(record.Items)) {
-    throw new Error(
-      `Emby returned an invalid ${includeItemType.toLowerCase()} search response.`,
-    );
-  }
-
-  const items: EmbyMediaItem[] = [];
-
-  for (const item of record.Items) {
-    if (!item || typeof item !== 'object') {
-      continue;
-    }
-
-    const mediaItem = item as Record<string, unknown>;
-
-    if (
-      typeof mediaItem.Id !== 'string' ||
-      typeof mediaItem.Name !== 'string'
-    ) {
-      continue;
-    }
-
-    items.push({
-      id: mediaItem.Id,
-      name: mediaItem.Name,
-      year:
-        typeof mediaItem.ProductionYear === 'number'
-          ? mediaItem.ProductionYear
-          : undefined,
-      overview:
-        typeof mediaItem.Overview === 'string'
-          ? mediaItem.Overview
-          : undefined,
-    });
-  }
-
-  return items;
+  return parseEmbyItemsResponse(
+    data,
+    `${includeItemType.toLowerCase()} search`,
+  );
 }
 
 export async function getEmbySystemInfo(): Promise<EmbySystemInfo> {
@@ -194,4 +232,23 @@ export async function searchEmbySeries(
   searchTerm: string,
 ): Promise<EmbySeries[]> {
   return searchEmbyItems(searchTerm, 'Series');
+}
+
+export async function getLatestEmbyItems(): Promise<EmbyMediaItem[]> {
+  const params = new URLSearchParams({
+    IncludeItemTypes: 'Movie,Series',
+    Recursive: 'true',
+    SortBy: 'DateCreated',
+    SortOrder: 'Descending',
+    Limit: String(MAX_LATEST_RESULTS),
+    Fields: 'Overview,ProductionYear,DateCreated',
+  });
+
+  const response = await embyFetch(
+    `/Items?${params.toString()}`,
+  );
+
+  const data: unknown = await response.json();
+
+  return parseEmbyItemsResponse(data, 'latest items');
 }
