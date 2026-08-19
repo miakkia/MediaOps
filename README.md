@@ -2,15 +2,14 @@
 
 MediaOps is an open-source Discord companion for self-hosted media communities. It connects Discord to a media server and provides media discovery, Watch Party coordination, scheduling, RSVP, and community-facing controls without requiring users to learn a large command set.
 
-> **Project status:** active development. Emby is the current media provider. Jellyfin and Plex are planned through a future provider abstraction.
+> **Project status:** active development. Emby is the current supported media provider. The MediaProvider abstraction is now implemented, with Jellyfin and Plex planned as future adapters.
 
 ## What MediaOps does today
 
 MediaOps currently provides:
 
 - Discord bot health and media-server connectivity checks;
-- Emby movie search;
-- Emby TV-series search;
+- movie and TV-series search;
 - recently added movie and series discovery;
 - library-wide random movie selection;
 - title matching using display title, original title, and sort title where available;
@@ -20,7 +19,10 @@ MediaOps currently provides:
 - organizer-only cancellation;
 - guided scheduling with Discord modals;
 - a bilingual EN/FR public Watch Party setup panel;
-- persistent Watch Party runtime state.
+- persistent Watch Party runtime state;
+- a provider-independent media interface with Emby as the first adapter;
+- a production-style Docker build published through GitHub Container Registry (GHCR);
+- validated deployment on Unraid without copying the source repository to the server.
 
 The normal-user experience is intentionally short and button-driven. Slash commands remain available for direct access, while common Watch Party actions can be exposed through a public setup panel.
 
@@ -40,26 +42,76 @@ The normal-user experience is intentionally short and button-driven. Slash comma
 | `/watchpartyrandom` | Pick, reroll, choose, and schedule a random movie |
 | `/watchparty-setup` | Publish the bilingual self-service Watch Party panel |
 
-See [`docs/DISCORD_FEATURES.md`](docs/DISCORD_FEATURES.md) for the interaction model and detailed flows.
+See [`docs/DISCORD_FEATURES.md`](docs/DISCORD_FEATURES.md) for detailed interaction flows.
 
-## Current architecture
+## Architecture
 
-MediaOps is currently a TypeScript/Node.js Discord application using `discord.js`. Emby access is performed through a bounded API client rather than direct access to media files. Watch Party scheduling state is application-owned runtime data and is kept separate from source code.
-
-The long-term architecture separates Discord workflows from provider-specific implementations:
+MediaOps is a TypeScript/Node.js Discord application using `discord.js`. Provider-specific media logic is isolated behind a common `MediaProvider` interface.
 
 ```text
-Discord / MediaOps workflows
-          |
-          v
-     MediaProvider
-     /     |      \
-  Emby  Jellyfin  Plex
+Discord / Watch Party workflows
+            |
+            v
+       MediaProvider
+            |
+       Emby adapter
+            |
+         Emby API
 ```
 
-Watch Party integrations are expected to use a separate provider capability because media-library access and synchronized playback are not the same concern.
+The application layer no longer depends directly on Emby-specific functions. Future Jellyfin and Plex adapters are intended to implement the same media contract without rewriting normal Discord workflows.
+
+Watch Party integrations remain a separate concern because media-library access and synchronized playback are not necessarily provided by the same API or service.
 
 See [`docs/PROVIDER_MODEL.md`](docs/PROVIDER_MODEL.md) and [`docs/ARCHITECTURE_PRINCIPLES.md`](docs/ARCHITECTURE_PRINCIPLES.md).
+
+## Docker and GHCR
+
+MediaOps is now built as a multi-stage Docker image and published automatically to GHCR from the development branch.
+
+Current pre-release image:
+
+```text
+ghcr.io/miakkia/mediaops:dev
+```
+
+The container runs the compiled JavaScript application as a dedicated non-root user. No source checkout is required on the deployment host.
+
+MediaOps currently requires no inbound ports and does not require direct access to Movies, Series or Downloads. It communicates with Discord and configured services through network APIs.
+
+Persistent runtime state is stored under `/data`.
+
+See:
+
+- [`docs/DOCKER.md`](docs/DOCKER.md) — Docker/GHCR deployment and configuration
+- [`docs/UNRAID.md`](docs/UNRAID.md) — Unraid installation and update procedure
+- [`templates/mediaops.xml`](templates/mediaops.xml) — preconfigured Unraid Docker template
+
+## Quick Unraid configuration
+
+Recommended settings:
+
+```text
+Repository: ghcr.io/miakkia/mediaops:dev
+Network:    bridge
+Privileged: off
+Appdata:    /mnt/user/appdata/mediaops -> /data
+```
+
+Required configuration currently includes:
+
+```env
+MEDIA_PROVIDER=emby
+DISCORD_TOKEN=
+DISCORD_CLIENT_ID=
+DISCORD_GUILD_ID=
+EMBY_URL=
+EMBY_API_KEY=
+WATCHPARTY_URL=
+MEDIAOPS_DATA_DIR=/data
+```
+
+Never commit or publish real Discord tokens or media-server API keys.
 
 ## Security posture
 
@@ -69,41 +121,61 @@ Key principles:
 
 - no secrets committed to Git;
 - no media-library filesystem mounts required for normal provider access;
-- external API responses and Discord interaction input are validated;
+- no privileged container mode;
+- no Docker socket access;
+- provider responses and Discord interaction input are validated;
 - provider requests use bounded timeouts;
 - runtime state is kept outside source control;
-- future production containers should run without privileged mode and with minimal permissions.
+- the Docker runtime uses a dedicated non-root user.
 
 See [`SECURITY.md`](SECURITY.md) and [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md).
 
-## Self-hosting and deployment
+## Local development
 
-MediaOps is being developed as a self-hosted-first application. The production deployment path is planned around Docker, GHCR, persistent application data, and eventually an Unraid Community Apps template.
+Install dependencies and run the development process:
 
-The first public deployment target may ship as **MediaOps for Emby**. Jellyfin and Plex support do not need to block the initial self-hosted release.
+```bash
+npm install
+npm run dev
+```
 
-Deployment documentation and a production Docker image are still roadmap items; the repository should currently be treated as an active development project rather than a finished packaged release.
+Useful validation/build commands:
+
+```bash
+npm run typecheck
+npm run build
+```
+
+Production containers run the compiled build with:
+
+```bash
+npm start
+```
+
+Use `.env.example` as a configuration reference. Never commit a real `.env` file.
 
 ## Documentation
 
 - [`docs/VISION.md`](docs/VISION.md) — product direction and long-term identity
-- [`docs/PRODUCT_SCOPE.md`](docs/PRODUCT_SCOPE.md) — what MediaOps is and is not intended to do
+- [`docs/PRODUCT_SCOPE.md`](docs/PRODUCT_SCOPE.md) — product boundaries
 - [`docs/DISCORD_FEATURES.md`](docs/DISCORD_FEATURES.md) — current Discord capabilities and UX
 - [`docs/ARCHITECTURE_PRINCIPLES.md`](docs/ARCHITECTURE_PRINCIPLES.md) — architectural rules
-- [`docs/PROVIDER_MODEL.md`](docs/PROVIDER_MODEL.md) — Emby/Jellyfin/Plex provider direction
+- [`docs/PROVIDER_MODEL.md`](docs/PROVIDER_MODEL.md) — implemented provider boundary and future adapters
 - [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md) — trust boundaries and security goals
-- [`docs/DEVELOPMENT_GUIDELINES.md`](docs/DEVELOPMENT_GUIDELINES.md) — contribution and engineering conventions
+- [`docs/DEVELOPMENT_GUIDELINES.md`](docs/DEVELOPMENT_GUIDELINES.md) — engineering conventions
+- [`docs/DOCKER.md`](docs/DOCKER.md) — Docker and GHCR deployment
+- [`docs/UNRAID.md`](docs/UNRAID.md) — Unraid deployment
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — planned work and distribution goals
 - [`CHANGELOG.md`](CHANGELOG.md) — notable project changes
 
 ## Roadmap highlights
 
-Near-term work includes Watch Party lifecycle improvements, timezone configuration, automated tests, CI, production Docker packaging, and public self-hosting documentation.
+Near-term work includes Watch Party lifecycle improvements, timezone configuration, automated tests/CI hardening, stable image tagging, and further Unraid template validation.
 
-Longer term, MediaOps is intended to support multiple media providers, beginning with the current Emby implementation and later adding Jellyfin and Plex adapters after their APIs and Watch Party capabilities are verified.
+Longer term, MediaOps is intended to support additional media providers through the existing provider abstraction, beginning with research and adapters for Jellyfin and Plex.
 
-Unraid Community Apps distribution is also a planned target once the production container has been proven stable independently.
+Unraid Community Apps remains a distribution target after the container and template have completed broader validation.
 
 ## License
 
-See [`LICENSE`](LICENSE) for the repository's license terms.
+MediaOps is distributed under the GNU General Public License v3.0. See [`LICENSE`](LICENSE) for the full terms.
