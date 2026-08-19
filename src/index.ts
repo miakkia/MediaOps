@@ -26,6 +26,10 @@ import {
 } from './watchparty/interactions.js';
 
 import {
+  startWatchPartyLifecycle,
+} from './watchparty/lifecycle.js';
+
+import {
   handleWatchPartyRandomButton,
 } from './watchparty/random-interactions.js';
 
@@ -215,6 +219,10 @@ client.once(
       `Loaded ${commands.size} Discord commands: ` +
       [...commands.keys()]
         .join(', '),
+    );
+
+    startWatchPartyLifecycle(
+      readyClient,
     );
   },
 );

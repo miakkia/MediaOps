@@ -49,6 +49,7 @@ Use one Path entry:
 | Emby URL | `EMBY_URL` | empty | URL reachable from the container |
 | Emby API Key | `EMBY_API_KEY` | empty | Secret |
 | Watch Party URL | `WATCHPARTY_URL` | empty | Base/public URL for Watch Party |
+| MediaOps Locale | `MEDIAOPS_LOCALE` | `en` | Automated message language; supported: `en`, `fr` |
 | MediaOps Data Directory | `MEDIAOPS_DATA_DIR` | `/data` | Advanced; leave at `/data` |
 
 Unraid already provides its own timezone environment value, so the standard template does not define a duplicate `TZ` entry.
@@ -63,8 +64,9 @@ The intended installation flow is:
 2. enter Discord credentials and IDs;
 3. enter the Emby URL and API key;
 4. enter the Watch Party URL;
-5. leave `MEDIA_PROVIDER=emby` and `MEDIAOPS_DATA_DIR=/data` unless documented otherwise;
-6. Apply and inspect the container logs.
+5. choose `MEDIAOPS_LOCALE=en` or `fr`;
+6. leave `MEDIA_PROVIDER=emby` and `MEDIAOPS_DATA_DIR=/data` unless documented otherwise;
+7. Apply and inspect the container logs.
 
 ## First start
 
@@ -74,7 +76,7 @@ A successful startup currently looks similar to:
 
 ```text
 Solitario Butler connected as <bot tag>
-Loaded 11 Discord commands: health, latest, movie, ping, tv, watchparty-schedule, watchparty-setup, watchparty-start, watchparty-status, watchparty, watchpartyrandom
+Loaded 12 Discord commands: health, latest, movie, ping, tv, watchparty-schedule, watchparty-setup, watchparty-start, watchparty-status, watchparty-upcoming, watchparty, watchpartyrandom
 ```
 
 Then validate at minimum:
@@ -83,6 +85,8 @@ Then validate at minimum:
 2. `/movie`
 3. `/watchpartyrandom`
 4. a scheduled Watch Party flow
+5. `/watchparty-upcoming`
+6. automatic Watch Party reminder delivery
 
 This deployment path has been validated on Unraid using the GHCR image and persistent appdata mapping.
 
@@ -120,3 +124,19 @@ MediaOps should remain a narrow integration service:
 - no inbound ports unless a future feature requires one;
 - Discord and Emby secrets supplied only at runtime;
 - persistent access limited to MediaOps-owned appdata.
+
+
+## Watch Party lifecycle and reminders
+
+MediaOps runs a background Watch Party lifecycle scheduler after the Discord client connects.
+
+The scheduler currently:
+
+- refreshes scheduled Watch Party lifecycle state every minute;
+- exposes upcoming sessions through `/watchparty-upcoming`;
+- sends a single reminder approximately 15 minutes before start;
+- persists reminder delivery state in appdata to prevent duplicate reminders after container restarts;
+- ignores cancelled, auto-cancelled and expired sessions;
+- automatically marks a newly created Watch Party `auto_cancelled` if its Discord announcement cannot be posted.
+
+If Discord returns a missing-access error while scheduling, MediaOps reports a channel-permission message to the user instead of leaving the failed session visible as an upcoming Watch Party.

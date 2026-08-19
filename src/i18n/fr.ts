@@ -74,6 +74,11 @@ export const fr = {
       description:
         'Choisit un film Emby au hasard pour une Watch Party.',
     },
+    watchpartyUpcoming: {
+      description:
+        'Affiche les prochaines Watch Parties planifiées.',
+    },
+
   },
 
   health: {
@@ -220,6 +225,9 @@ export const fr = {
       scheduleError:
         'Impossible de planifier la Watch Party pour le moment.',
 
+      channelAccessError:
+        'MediaOps ne peut pas publier l’annonce de la Watch Party dans ce salon. Vérifie les permissions du bot pour ce salon.',
+
       confirmation:
         '✅ Watch Party planifiée avec succès.',
     },
@@ -269,5 +277,27 @@ export const fr = {
       unavailable:
         'Cette Watch Party ne peut plus être annulée.',
     },
+    upcoming: {
+      title:
+        '**Prochaines Watch Parties**',
+
+      empty:
+        'Il n’y a aucune Watch Party à venir.',
+
+      guildOnly:
+        'Cette commande peut seulement être utilisée dans un serveur Discord.',
+
+      error:
+        'Impossible de charger les prochaines Watch Parties pour le moment.',
+    },
+
+    reminder: {
+      title:
+        '⏰ **Rappel Watch Party**',
+
+      starts:
+        'Débute',
+    },
+
   },
 } satisfies TranslationSchema;

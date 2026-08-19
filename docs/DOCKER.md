@@ -44,6 +44,7 @@ The runtime process uses a dedicated non-root `mediaops` user.
 | `EMBY_URL` | Yes | Base URL MediaOps can use to reach Emby. |
 | `EMBY_API_KEY` | Yes | Emby API key. Treat as a secret. |
 | `WATCHPARTY_URL` | Yes for current Watch Party features | Base URL of the configured Watch Party application. |
+| `MEDIAOPS_LOCALE` | Recommended | Default language for automated messages. Supported values: `en`, `fr`. |
 | `MEDIAOPS_DATA_DIR` | Recommended | Runtime data directory. Docker deployments should use `/data`. |
 
 Do not commit real values to Git. `.env.example` contains placeholders only.
@@ -72,6 +73,7 @@ docker run -d \
   -e EMBY_URL='http://192.168.1.100:8096' \
   -e EMBY_API_KEY='REPLACE_ME' \
   -e WATCHPARTY_URL='https://watch.example.com' \
+  -e MEDIAOPS_LOCALE='en' \
   -e MEDIAOPS_DATA_DIR='/data' \
   -v /path/to/mediaops-data:/data:rw \
   ghcr.io/miakkia/mediaops:latest
@@ -97,3 +99,19 @@ Then recreate/restart the container using the same persistent `/data` mapping an
 - Prefer bridge networking unless a future provider integration documents another requirement.
 
 See `SECURITY.md` and `docs/SECURITY_MODEL.md` for the broader security model.
+
+
+## Watch Party lifecycle
+
+MediaOps maintains scheduled Watch Party state in persistent storage and refreshes lifecycle state automatically while the bot is running.
+
+Current behavior includes:
+
+- upcoming Watch Party discovery through `/watchparty-upcoming`;
+- automatic transition into the ready window before the scheduled time;
+- expiration handling for scheduled sessions that never start;
+- one persistent reminder approximately 15 minutes before start;
+- reminder deduplication across scheduler cycles and application restarts;
+- automatic rollback to `auto_cancelled` when the initial Discord announcement cannot be posted.
+
+Automated reminder language is controlled by `MEDIAOPS_LOCALE`. Discord timestamps remain client-rendered so date, time and relative-time formatting follow each Discord user's own locale.

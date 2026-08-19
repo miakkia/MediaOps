@@ -49,6 +49,10 @@ export interface TranslationSchema {
     watchpartyRandom: {
       description: string;
     };
+    watchpartyUpcoming: {
+      description: string;
+    };
+
   };
 
   health: {
@@ -118,6 +122,7 @@ export interface TranslationSchema {
       invalidDate: string;
       pastDate: string;
       scheduleError: string;
+      channelAccessError: string;
       confirmation: string;
     };
 
@@ -139,6 +144,18 @@ export interface TranslationSchema {
       confirmed: string;
       alreadyCancelled: string;
       unavailable: string;
+    };
+
+    upcoming: {
+      title: string;
+      empty: string;
+      guildOnly: string;
+      error: string;
+    };
+
+    reminder: {
+      title: string;
+      starts: string;
     };
   };
 }
@@ -217,6 +234,11 @@ export const en = {
       description:
         'Pick a random movie from Emby for a Watch Party.',
     },
+    watchpartyUpcoming: {
+      description:
+        'Show upcoming scheduled Watch Parties.',
+    },
+
   },
 
   health: {
@@ -363,6 +385,9 @@ export const en = {
       scheduleError:
         'Unable to schedule the Watch Party right now.',
 
+      channelAccessError:
+        'MediaOps cannot post the Watch Party announcement in this channel. Check the bot’s channel permissions.',
+
       confirmation:
         '✅ Watch Party scheduled successfully.',
     },
@@ -412,5 +437,27 @@ export const en = {
       unavailable:
         'This Watch Party can no longer be cancelled.',
     },
+    upcoming: {
+      title:
+        '**Upcoming Watch Parties**',
+
+      empty:
+        'There are no upcoming Watch Parties.',
+
+      guildOnly:
+        'This command can only be used inside a Discord server.',
+
+      error:
+        'Unable to load upcoming Watch Parties right now.',
+    },
+
+    reminder: {
+      title:
+        '⏰ **Watch Party reminder**',
+
+      starts:
+        'Starts',
+    },
+
   },
 } satisfies TranslationSchema;

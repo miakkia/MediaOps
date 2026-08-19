@@ -19,6 +19,7 @@ import {
 import {
   createScheduledWatchParty,
   setWatchPartyMessageId,
+  setWatchPartyStatus,
 } from '../storage/watchparty-store.js';
 
 import {
@@ -258,38 +259,49 @@ export async function execute(
       );
     }
 
-    const publicMessage =
-      await channel.send({
-        content:
-          `${t(
-            locale,
-            'watchparty.scheduling.title',
-          )}\n\n` +
+    let publicMessage;
 
-          `${t(
-            locale,
-            'watchparty.scheduling.movie',
-          )}: **${movie.name}**${year}\n` +
+    try {
+      publicMessage =
+        await channel.send({
+          content:
+            `${t(
+              locale,
+              'watchparty.scheduling.title',
+            )}\n\n` +
 
-          `${t(
-            locale,
-            'watchparty.scheduling.organizer',
-          )}: <@${interaction.user.id}>\n` +
+            `${t(
+              locale,
+              'watchparty.scheduling.movie',
+            )}: **${movie.name}**${year}\n` +
 
-          `${t(
-            locale,
-            'watchparty.scheduling.scheduledFor',
-          )}: <t:${timestamp}:F>\n` +
+            `${t(
+              locale,
+              'watchparty.scheduling.organizer',
+            )}: <@${interaction.user.id}>\n` +
 
-          `${t(
-            locale,
-            'watchparty.scheduling.relativeTime',
-          )}: <t:${timestamp}:R>`,
+            `${t(
+              locale,
+              'watchparty.scheduling.scheduledFor',
+            )}: <t:${timestamp}:F>\n` +
 
-        components: [
-          rsvpRow,
-        ],
-      });
+            `${t(
+              locale,
+              'watchparty.scheduling.relativeTime',
+            )}: <t:${timestamp}:R>`,
+
+          components: [
+            rsvpRow,
+          ],
+        });
+    } catch (error) {
+      await setWatchPartyStatus(
+        party.id,
+        'auto_cancelled',
+      );
+
+      throw error;
+    }
 
     await setWatchPartyMessageId(
       party.id,
@@ -308,10 +320,20 @@ export async function execute(
       error,
     );
 
+    const discordError =
+      error as {
+        code?: number;
+      };
+
+    const messageKey =
+      discordError.code === 50001
+        ? 'watchparty.scheduling.channelAccessError'
+        : 'watchparty.scheduling.scheduleError';
+
     await interaction.editReply(
       t(
         locale,
-        'watchparty.scheduling.scheduleError',
+        messageKey,
       ),
     );
   }
