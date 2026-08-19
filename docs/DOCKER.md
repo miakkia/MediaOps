@@ -2,20 +2,26 @@
 
 MediaOps is distributed as a container image through GitHub Container Registry (GHCR). The container runs the compiled Node.js application and does not require the MediaOps source repository to be copied to the host.
 
-## Current image
+## Image channels
 
-During active development, the validated image is:
+Stable/default image after the Docker branch is merged:
+
+```text
+ghcr.io/miakkia/mediaops:latest
+```
+
+Development image while `feat/docker-media-provider` remains active:
 
 ```text
 ghcr.io/miakkia/mediaops:dev
 ```
 
-A stable `latest`/versioned release channel will be introduced before the first public stable release.
+Tagged releases such as `v1.0.0` publish matching semantic-version tags in GHCR in addition to a commit-SHA tag.
 
 ## Architecture
 
 ```text
-Git push
+Git push / release tag
    -> GitHub Actions
       -> Docker build
          -> GHCR
@@ -29,37 +35,22 @@ The runtime process uses a dedicated non-root `mediaops` user.
 
 ## Required configuration
 
-MediaOps currently requires the following environment variables for the Emby deployment:
-
 | Variable | Required | Description |
 | --- | --- | --- |
 | `MEDIA_PROVIDER` | Yes | Media provider selector. Current supported value: `emby`. |
 | `DISCORD_TOKEN` | Yes | Discord bot token. Treat as a secret. |
 | `DISCORD_CLIENT_ID` | Yes | Discord application/client ID. |
-| `DISCORD_GUILD_ID` | Yes for current guild command deployment workflow | Discord guild/server ID used during development command registration. |
-| `EMBY_URL` | Yes | Base URL MediaOps can use to reach Emby, for example `http://192.168.1.100:8096`. |
+| `DISCORD_GUILD_ID` | Yes for the current command deployment workflow | Discord guild/server ID. |
+| `EMBY_URL` | Yes | Base URL MediaOps can use to reach Emby. |
 | `EMBY_API_KEY` | Yes | Emby API key. Treat as a secret. |
-| `WATCHPARTY_URL` | Yes for Watch Party features | Public/base URL of the configured Watch Party application. |
+| `WATCHPARTY_URL` | Yes for current Watch Party features | Base URL of the configured Watch Party application. |
 | `MEDIAOPS_DATA_DIR` | Recommended | Runtime data directory. Docker deployments should use `/data`. |
 
 Do not commit real values to Git. `.env.example` contains placeholders only.
 
 ## Persistent data
 
-MediaOps owns persistent runtime state, currently including scheduled Watch Party data. Mount a persistent host directory at:
-
-```text
-/data
-```
-
-Example Docker mapping:
-
-```text
-Host:      /path/to/mediaops-data
-Container: /data
-```
-
-Set:
+Mount a persistent host directory at `/data` and set:
 
 ```text
 MEDIAOPS_DATA_DIR=/data
@@ -83,17 +74,15 @@ docker run -d \
   -e WATCHPARTY_URL='https://watch.example.com' \
   -e MEDIAOPS_DATA_DIR='/data' \
   -v /path/to/mediaops-data:/data:rw \
-  ghcr.io/miakkia/mediaops:dev
+  ghcr.io/miakkia/mediaops:latest
 ```
 
-No inbound application port is currently required. MediaOps connects outbound to Discord and configured services.
+No inbound application port is currently required.
 
 ## Updating
 
-For the development image:
-
 ```bash
-docker pull ghcr.io/miakkia/mediaops:dev
+docker pull ghcr.io/miakkia/mediaops:latest
 ```
 
 Then recreate/restart the container using the same persistent `/data` mapping and environment configuration. Runtime state survives image replacement because it lives outside the image.
