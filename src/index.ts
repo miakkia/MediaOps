@@ -13,6 +13,18 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 
+import {
+  getInteractionLocale,
+} from './i18n/discord-locale.js';
+
+import {
+  t,
+} from './i18n/index.js';
+
+import {
+  handleWatchPartyButton,
+} from './watchparty/interactions.js';
+
 const token = process.env.DISCORD_TOKEN?.trim();
 
 if (!token) {
@@ -21,23 +33,31 @@ if (!token) {
 
 interface CommandModule {
   data: SlashCommandBuilder;
+
   execute: (
     interaction: ChatInputCommandInteraction,
   ) => Promise<void>;
 }
 
-function isCommandModule(value: unknown): value is CommandModule {
+function isCommandModule(
+  value: unknown,
+): value is CommandModule {
   if (!value || typeof value !== 'object') {
     return false;
   }
 
-  const module = value as Record<string, unknown>;
+  const module =
+    value as Record<string, unknown>;
 
-  if (!module.data || typeof module.data !== 'object') {
+  if (
+    !module.data ||
+    typeof module.data !== 'object'
+  ) {
     return false;
   }
 
-  const data = module.data as Record<string, unknown>;
+  const data =
+    module.data as Record<string, unknown>;
 
   return (
     typeof data.toJSON === 'function' &&
@@ -45,32 +65,53 @@ function isCommandModule(value: unknown): value is CommandModule {
   );
 }
 
-const commandsDirectory = join(import.meta.dirname, 'commands');
+const commandsDirectory =
+  join(
+    import.meta.dirname,
+    'commands',
+  );
 
-const entries = await readdir(commandsDirectory, {
-  withFileTypes: true,
-});
+const entries =
+  await readdir(
+    commandsDirectory,
+    {
+      withFileTypes: true,
+    },
+  );
 
-const commandFiles = entries
-  .filter(entry => {
-    if (!entry.isFile()) {
-      return false;
-    }
+const commandFiles =
+  entries
+    .filter(entry => {
+      if (!entry.isFile()) {
+        return false;
+      }
 
-    const extension = extname(entry.name);
+      const extension =
+        extname(entry.name);
 
-    return extension === '.ts' || extension === '.js';
-  })
-  .map(entry => entry.name)
-  .sort();
+      return (
+        extension === '.ts' ||
+        extension === '.js'
+      );
+    })
+    .map(entry => entry.name)
+    .sort();
 
-const commands = new Map<string, CommandModule>();
+const commands =
+  new Map<string, CommandModule>();
 
 for (const fileName of commandFiles) {
-  const filePath = join(commandsDirectory, fileName);
-  const moduleUrl = pathToFileURL(filePath).href;
+  const filePath =
+    join(
+      commandsDirectory,
+      fileName,
+    );
 
-  const importedModule: unknown = await import(moduleUrl);
+  const moduleUrl =
+    pathToFileURL(filePath).href;
+
+  const importedModule: unknown =
+    await import(moduleUrl);
 
   if (!isCommandModule(importedModule)) {
     throw new Error(
@@ -78,8 +119,11 @@ for (const fileName of commandFiles) {
     );
   }
 
-  const commandData = importedModule.data.toJSON();
-  const commandName = commandData.name;
+  const commandData =
+    importedModule.data.toJSON();
+
+  const commandName =
+    commandData.name;
 
   if (!commandName) {
     throw new Error(
@@ -93,73 +137,128 @@ for (const fileName of commandFiles) {
     );
   }
 
-  commands.set(commandName, importedModule);
+  commands.set(
+    commandName,
+    importedModule,
+  );
 }
 
 if (commands.size === 0) {
-  throw new Error('No Discord commands were found.');
+  throw new Error(
+    'No Discord commands were found.',
+  );
 }
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
-  ],
-});
+const client =
+  new Client({
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMembers,
+    ],
+  });
 
-client.once(Events.ClientReady, readyClient => {
-  console.log(
-    `Solitario Butler connected as ${readyClient.user.tag}`,
-  );
-
-  console.log(
-    `Loaded ${commands.size} Discord commands: ` +
-      [...commands.keys()].join(', '),
-  );
-});
-
-client.on(Events.InteractionCreate, async interaction => {
-  if (!interaction.isChatInputCommand()) {
-    return;
-  }
-
-  const command = commands.get(interaction.commandName);
-
-  if (!command) {
-    console.warn(
-      `Unknown Discord command received: ${interaction.commandName}`,
+client.once(
+  Events.ClientReady,
+  readyClient => {
+    console.log(
+      `Solitario Butler connected as ${readyClient.user.tag}`,
     );
 
-    return;
-  }
-
-  try {
-    await command.execute(interaction);
-  } catch (error) {
-    console.error(
-      `Discord command failed: ${interaction.commandName}`,
-      error,
+    console.log(
+      `Loaded ${commands.size} Discord commands: ` +
+        [...commands.keys()].join(', '),
     );
+  },
+);
 
-    const safeMessage =
-      'An unexpected error occurred while running this command.';
+client.on(
+  Events.InteractionCreate,
+  async interaction => {
+    if (interaction.isButton()) {
+      try {
+        const handled =
+          await handleWatchPartyButton(
+            interaction,
+          );
+
+        if (!handled) {
+          console.warn(
+            `Unhandled Discord button interaction: ${interaction.customId}`,
+          );
+        }
+      } catch (error) {
+        console.error(
+          'Discord button interaction failed:',
+          error,
+        );
+      }
+
+      return;
+    }
+
+    if (!interaction.isChatInputCommand()) {
+      return;
+    }
+
+    const command =
+      commands.get(
+        interaction.commandName,
+      );
+
+    if (!command) {
+      console.warn(
+        `Unknown Discord command received: ${interaction.commandName}`,
+      );
+
+      return;
+    }
 
     try {
-      if (interaction.deferred || interaction.replied) {
-        await interaction.editReply(safeMessage);
-      } else {
-        await interaction.reply({
-          content: safeMessage,
-          flags: MessageFlags.Ephemeral,
-        });
-      }
-    } catch (replyError) {
-      console.error(
-        `Unable to send command error response for ${interaction.commandName}`,
-        replyError,
+      await command.execute(
+        interaction,
       );
+    } catch (error) {
+      console.error(
+        `Discord command failed: ${interaction.commandName}`,
+        error,
+      );
+
+      const locale =
+        getInteractionLocale(
+          interaction,
+        );
+
+      const safeMessage =
+        t(
+          locale,
+          'common.unexpectedError',
+        );
+
+      try {
+        if (
+          interaction.deferred ||
+          interaction.replied
+        ) {
+          await interaction.editReply(
+            safeMessage,
+          );
+        } else {
+          await interaction.reply({
+            content:
+              safeMessage,
+
+            flags:
+              MessageFlags.Ephemeral,
+          });
+        }
+      } catch (replyError) {
+        console.error(
+          `Unable to send command error response for ${interaction.commandName}`,
+          replyError,
+        );
+      }
     }
-  }
-});
+  },
+);
 
 await client.login(token);
