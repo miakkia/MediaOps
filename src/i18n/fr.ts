@@ -74,6 +74,11 @@ export const fr = {
       description:
         'Choisit un film Emby au hasard pour une Watch Party.',
     },
+    watchpartyUpcoming: {
+      description:
+        'Affiche les prochaines Watch Parties planifiées.',
+    },
+
   },
 
   health: {
@@ -269,5 +274,19 @@ export const fr = {
       unavailable:
         'Cette Watch Party ne peut plus être annulée.',
     },
+    upcoming: {
+      title:
+        '**Prochaines Watch Parties**',
+
+      empty:
+        'Il n’y a aucune Watch Party à venir.',
+
+      guildOnly:
+        'Cette commande peut seulement être utilisée dans un serveur Discord.',
+
+      error:
+        'Impossible de charger les prochaines Watch Parties pour le moment.',
+    },
+
   },
 } satisfies TranslationSchema;

@@ -257,6 +257,149 @@ export async function getWatchParties(): Promise<
   return [...store.parties];
 }
 
+export async function getUpcomingWatchParties(
+  guildId?: string,
+): Promise<ScheduledWatchParty[]> {
+  const parties =
+    await getWatchParties();
+
+  const now =
+    Date.now();
+
+  return parties
+    .filter(party => {
+      if (
+        guildId &&
+        party.guildId !== guildId
+      ) {
+        return false;
+      }
+
+      if (
+        party.status !== 'scheduled' &&
+        party.status !== 'ready'
+      ) {
+        return false;
+      }
+
+      const scheduledTime =
+        new Date(
+          party.scheduledAt,
+        ).getTime();
+
+      return (
+        !Number.isNaN(
+          scheduledTime,
+        ) &&
+        scheduledTime >= now
+      );
+    })
+    .sort(
+      (a, b) =>
+        new Date(
+          a.scheduledAt,
+        ).getTime() -
+        new Date(
+          b.scheduledAt,
+        ).getTime(),
+    );
+}
+
+export async function refreshWatchPartyLifecycle():
+  Promise<ScheduledWatchParty[]> {
+  const store =
+    await loadWatchPartyStore();
+
+  const now =
+    Date.now();
+
+  let changed =
+    false;
+
+  const updatedParties =
+    store.parties.map(party => {
+      if (
+        party.status === 'cancelled' ||
+        party.status === 'auto_cancelled' ||
+        party.status === 'expired' ||
+        party.status === 'active'
+      ) {
+        return party;
+      }
+
+      const scheduledTime =
+        new Date(
+          party.scheduledAt,
+        ).getTime();
+
+      if (
+        Number.isNaN(
+          scheduledTime,
+        )
+      ) {
+        return party;
+      }
+
+      const readyAt =
+        scheduledTime -
+        30 * 60 * 1000;
+
+      const expireAt =
+        scheduledTime +
+        6 * 60 * 60 * 1000;
+
+      let nextStatus: WatchPartyStatus =
+        party.status;
+
+      if (
+        party.status === 'scheduled' &&
+        now >= readyAt &&
+        now < scheduledTime
+      ) {
+        nextStatus =
+          'ready';
+      }
+
+      if (
+        (
+          party.status === 'scheduled' ||
+          party.status === 'ready'
+        ) &&
+        now >= expireAt
+      ) {
+        nextStatus =
+          'expired';
+      }
+
+      if (
+        nextStatus ===
+        party.status
+      ) {
+        return party;
+      }
+
+      changed =
+        true;
+
+      return {
+        ...party,
+        status: nextStatus,
+        updatedAt:
+          new Date().toISOString(),
+      };
+    });
+
+  if (changed) {
+    await saveWatchPartyStore({
+      version: 1,
+      parties:
+        updatedParties,
+    });
+  }
+
+  return updatedParties;
+}
+
 export async function createScheduledWatchParty(
   input: CreateScheduledWatchPartyInput,
 ): Promise<ScheduledWatchParty> {
