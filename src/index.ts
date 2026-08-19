@@ -6,6 +6,10 @@ import {
 } from 'discord.js';
 
 import {
+  execute as executeHealth,
+} from './commands/health.js';
+
+import {
   execute as executePing,
 } from './commands/ping.js';
 
@@ -33,6 +37,11 @@ client.on(Events.InteractionCreate, async interaction => {
 
   if (interaction.commandName === 'ping') {
     await executePing(interaction);
+    return;
+  }
+
+  if (interaction.commandName === 'health') {
+    await executeHealth(interaction);
   }
 });
 
