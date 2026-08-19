@@ -4,52 +4,123 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 
-import { searchEmbySeries } from '../services/emby.js';
+import {
+  getInteractionLocale,
+} from '../i18n/discord-locale.js';
 
-export const data = new SlashCommandBuilder()
-  .setName('tv')
-  .setDescription('Search for a TV series in the Emby library.')
-  .addStringOption(option =>
-    option
-      .setName('title')
-      .setDescription('TV series title to search for.')
-      .setRequired(true)
-      .setMaxLength(100),
-  );
+import {
+  t,
+} from '../i18n/index.js';
+
+import {
+  searchEmbySeries,
+} from '../services/emby.js';
+
+export const data =
+  new SlashCommandBuilder()
+    .setName('tv')
+    .setDescription(
+      t(
+        'en',
+        'commands.tv.description',
+      ),
+    )
+    .setDescriptionLocalizations({
+      fr:
+        t(
+          'fr',
+          'commands.tv.description',
+        ),
+    })
+    .addStringOption(option =>
+      option
+        .setName('title')
+        .setDescription(
+          t(
+            'en',
+            'commands.tv.titleOptionDescription',
+          ),
+        )
+        .setDescriptionLocalizations({
+          fr:
+            t(
+              'fr',
+              'commands.tv.titleOptionDescription',
+            ),
+        })
+        .setRequired(true)
+        .setMaxLength(100),
+    );
 
 export async function execute(
   interaction: ChatInputCommandInteraction,
 ): Promise<void> {
-  const title = interaction.options.getString('title', true);
+  const locale =
+    getInteractionLocale(
+      interaction,
+    );
+
+  const title =
+    interaction.options.getString(
+      'title',
+      true,
+    );
 
   await interaction.deferReply({
-    flags: MessageFlags.Ephemeral,
+    flags:
+      MessageFlags.Ephemeral,
   });
 
   try {
-    const series = await searchEmbySeries(title);
+    const series =
+      await searchEmbySeries(
+        title,
+      );
 
     if (series.length === 0) {
       await interaction.editReply(
-        `No TV series found for **${title}**.`,
+        t(
+          locale,
+          'emby.tv.notFound',
+          {
+            title,
+          },
+        ),
       );
+
       return;
     }
 
-    const results = series.map(item => {
-      const year = item.year ? ` (${item.year})` : '';
+    const results =
+      series.map(item => {
+        const year =
+          item.year !== undefined
+            ? ` (${item.year})`
+            : '';
 
-      return `• **${item.name}**${year}`;
-    });
+        return (
+          `• **${item.name}**${year}`
+        );
+      });
 
     await interaction.editReply(
-      `📺 **TV series results**\n\n${results.join('\n')}`,
+      `${t(
+        locale,
+        'emby.tv.results',
+      )}\n\n` +
+      results.join('\n'),
     );
   } catch (error) {
-    console.error('Emby TV series search failed:', error);
+    console.error(
+      'Emby TV series search failed:',
+      error,
+    );
 
     await interaction.editReply(
-      'Unable to search the Emby library right now.',
+      t(
+        locale,
+        'emby.unavailable',
+      ),
     );
   }
 }

@@ -25,46 +25,82 @@ import {
   createWatchPartyRsvpRow,
 } from '../watchparty/components.js';
 
-export const data = new SlashCommandBuilder()
-  .setName('watchparty-schedule')
-  .setDescription(
-    'Schedule a Watch Party for a movie in Emby.',
-  )
-  .addStringOption(option =>
-    option
-      .setName('title')
-      .setDescription(
-        'Movie title to search for.',
-      )
-      .setRequired(true)
-      .setMaxLength(100),
-  )
-  .addStringOption(option =>
-    option
-      .setName('datetime')
-      .setDescription(
-        'ISO date and time, e.g. 2026-08-20T21:00:00-04:00',
-      )
-      .setRequired(true)
-      .setMaxLength(40),
-  );
+export const data =
+  new SlashCommandBuilder()
+    .setName('watchparty-schedule')
+    .setDescription(
+      t(
+        'en',
+        'commands.watchpartySchedule.description',
+      ),
+    )
+    .setDescriptionLocalizations({
+      fr:
+        t(
+          'fr',
+          'commands.watchpartySchedule.description',
+        ),
+    })
+    .addStringOption(option =>
+      option
+        .setName('title')
+        .setDescription(
+          t(
+            'en',
+            'commands.watchpartySchedule.titleOptionDescription',
+          ),
+        )
+        .setDescriptionLocalizations({
+          fr:
+            t(
+              'fr',
+              'commands.watchpartySchedule.titleOptionDescription',
+            ),
+        })
+        .setRequired(true)
+        .setMaxLength(100),
+    )
+    .addStringOption(option =>
+      option
+        .setName('datetime')
+        .setDescription(
+          t(
+            'en',
+            'commands.watchpartySchedule.dateTimeOptionDescription',
+          ),
+        )
+        .setDescriptionLocalizations({
+          fr:
+            t(
+              'fr',
+              'commands.watchpartySchedule.dateTimeOptionDescription',
+            ),
+        })
+        .setRequired(true)
+        .setMaxLength(40),
+    );
 
 export async function execute(
   interaction: ChatInputCommandInteraction,
 ): Promise<void> {
   const locale =
-    getInteractionLocale(interaction);
+    getInteractionLocale(
+      interaction,
+    );
 
   if (
     !interaction.guildId ||
     !interaction.channelId
   ) {
     await interaction.reply({
-      content: t(
-        locale,
-        'watchparty.scheduling.serverOnly',
-      ),
-      flags: MessageFlags.Ephemeral,
+      content:
+        t(
+          locale,
+          'watchparty.scheduling.serverOnly',
+        ),
+
+      flags:
+        MessageFlags.Ephemeral,
     });
 
     return;
@@ -83,12 +119,15 @@ export async function execute(
     );
 
   await interaction.deferReply({
-    flags: MessageFlags.Ephemeral,
+    flags:
+      MessageFlags.Ephemeral,
   });
 
   try {
     const movies =
-      await searchEmbyMovies(title);
+      await searchEmbyMovies(
+        title,
+      );
 
     if (movies.length === 0) {
       await interaction.editReply(
@@ -104,7 +143,8 @@ export async function execute(
       return;
     }
 
-    const movie = movies[0];
+    const movie =
+      movies[0];
 
     if (!movie) {
       await interaction.editReply(
@@ -118,7 +158,9 @@ export async function execute(
     }
 
     const scheduledDate =
-      new Date(dateTime);
+      new Date(
+        dateTime,
+      );
 
     if (
       Number.isNaN(
@@ -175,7 +217,8 @@ export async function execute(
 
     const timestamp =
       Math.floor(
-        scheduledDate.getTime() / 1000,
+        scheduledDate.getTime() /
+          1000,
       );
 
     const year =
@@ -186,13 +229,20 @@ export async function execute(
     const rsvpRow =
       createWatchPartyRsvpRow(
         party.id,
+
         t(
           locale,
           'watchparty.scheduling.going',
         ),
+
         t(
           locale,
           'watchparty.scheduling.notGoing',
+        ),
+
+        t(
+          locale,
+          'watchparty.cancel.button',
         ),
       );
 

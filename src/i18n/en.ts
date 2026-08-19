@@ -3,6 +3,63 @@ export interface TranslationSchema {
     unexpectedError: string;
   };
 
+  commands: {
+    ping: {
+      description: string;
+    };
+
+    health: {
+      description: string;
+    };
+
+    movie: {
+      description: string;
+      titleOptionDescription: string;
+    };
+
+    tv: {
+      description: string;
+      titleOptionDescription: string;
+    };
+
+    latest: {
+      description: string;
+    };
+
+    watchparty: {
+      description: string;
+    };
+
+    watchpartyStart: {
+      description: string;
+      codeOptionDescription: string;
+    };
+
+    watchpartyStatus: {
+      description: string;
+      codeOptionDescription: string;
+    };
+
+    watchpartySchedule: {
+      description: string;
+      titleOptionDescription: string;
+      dateTimeOptionDescription: string;
+    };
+
+    watchpartyRandom: {
+      description: string;
+    };
+  };
+
+  health: {
+    botOnline: string;
+    embyOnline: string;
+    embyFailed: string;
+    server: string;
+    version: string;
+    unknown: string;
+  };
+
   emby: {
     unavailable: string;
 
@@ -39,6 +96,13 @@ export interface TranslationSchema {
 
     validationError: string;
     statusError: string;
+
+    random: {
+      title: string;
+      empty: string;
+      noOverview: string;
+      error: string;
+    };
 
     scheduling: {
       title: string;
@@ -85,33 +149,137 @@ export const en = {
       'An unexpected error occurred while running this command.',
   },
 
+  commands: {
+    ping: {
+      description:
+        'Check if Solitario Butler is online.',
+    },
+
+    health: {
+      description:
+        'Check Solitario Butler and Emby health.',
+    },
+
+    movie: {
+      description:
+        'Search for a movie in the Emby library.',
+
+      titleOptionDescription:
+        'Movie title to search for.',
+    },
+
+    tv: {
+      description:
+        'Search for a TV series in the Emby library.',
+
+      titleOptionDescription:
+        'TV series title to search for.',
+    },
+
+    latest: {
+      description:
+        'Show the latest movies and TV series added to Emby.',
+    },
+
+    watchparty: {
+      description:
+        'Open the Watch Party service.',
+    },
+
+    watchpartyStart: {
+      description:
+        'Validate and open an existing Watch Party.',
+
+      codeOptionDescription:
+        'The 5-character Watch Party code.',
+    },
+
+    watchpartyStatus: {
+      description:
+        'Check whether a Watch Party is still active.',
+
+      codeOptionDescription:
+        'The 5-character Watch Party code.',
+    },
+
+    watchpartySchedule: {
+      description:
+        'Schedule a Watch Party for a movie in Emby.',
+
+      titleOptionDescription:
+        'Movie title to search for.',
+
+      dateTimeOptionDescription:
+        'ISO date and time, e.g. 2026-08-20T21:00:00-04:00',
+    },
+
+    watchpartyRandom: {
+      description:
+        'Pick a random movie from Emby for a Watch Party.',
+    },
+  },
+
+  health: {
+    botOnline:
+      '🟢 Solitario Butler is online.',
+
+    embyOnline:
+      '🟢 Emby is online.',
+
+    embyFailed:
+      '🔴 Emby health check failed.',
+
+    server:
+      'Server',
+
+    version:
+      'Version',
+
+    unknown:
+      'Unknown',
+  },
+
   emby: {
     unavailable:
       'Unable to communicate with the Emby server right now.',
 
     movie: {
-      results: '🎬 **Movie results**',
-      notFound: 'No movie found for **{title}**.',
+      results:
+        '🎬 **Movie results**',
+
+      notFound:
+        'No movie found for **{title}**.',
     },
 
     tv: {
-      results: '📺 **TV series results**',
-      notFound: 'No TV series found for **{title}**.',
+      results:
+        '📺 **TV series results**',
+
+      notFound:
+        'No TV series found for **{title}**.',
     },
 
     latest: {
-      title: '🆕 **Latest additions**',
-      empty: 'No recent movies or TV series were found.',
+      title:
+        '🆕 **Latest additions**',
+
+      empty:
+        'No recent movies or TV series were found.',
+
       error:
         'Unable to retrieve the latest Emby additions right now.',
     },
   },
 
   watchparty: {
-    title: '🎉 **SolitarioHomeCinema Watch Party**',
+    title:
+      '🎉 **SolitarioHomeCinema Watch Party**',
 
-    openButton: 'Open Watch Party',
-    joinButton: 'Join Watch Party',
+    openButton:
+      'Open Watch Party',
+
+    joinButton:
+      'Join Watch Party',
 
     instructions:
       '1. Open Watch Party.\n' +
@@ -141,25 +309,60 @@ export const en = {
     statusError:
       'Unable to check the Watch Party status right now.',
 
+    random: {
+      title:
+        '🎲 **Random Watch Party Pick**',
+
+      empty:
+        '🎲 No movies are available in the Emby library.',
+
+      noOverview:
+        'No overview available.',
+
+      error:
+        'Unable to pick a random movie right now.',
+    },
+
     scheduling: {
-      title: '🎬 **Watch Party Scheduled**',
-      movie: 'Movie',
-      going: 'I’m going',
-      notGoing: 'I’m not going',
-      participants: 'Participants',
-      organizer: 'Organizer',
-      scheduledFor: 'Scheduled for',
-      relativeTime: 'Starts',
+      title:
+        '🎬 **Watch Party Scheduled**',
+
+      movie:
+        'Movie',
+
+      going:
+        'I’m going',
+
+      notGoing:
+        'I’m not going',
+
+      participants:
+        'Participants',
+
+      organizer:
+        'Organizer',
+
+      scheduledFor:
+        'Scheduled for',
+
+      relativeTime:
+        'Starts',
+
       serverOnly:
         'Watch Party scheduling is only available inside a Discord server.',
+
       movieSelectionError:
         'Unable to select an Emby movie.',
+
       invalidDate:
         'The supplied date and time are invalid.',
+
       pastDate:
         'The Watch Party must be scheduled for a future date and time.',
+
       scheduleError:
         'Unable to schedule the Watch Party right now.',
+
       confirmation:
         '✅ Watch Party scheduled successfully.',
     },

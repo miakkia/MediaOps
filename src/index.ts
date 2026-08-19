@@ -25,10 +25,29 @@ import {
   handleWatchPartyButton,
 } from './watchparty/interactions.js';
 
-const token = process.env.DISCORD_TOKEN?.trim();
+import {
+  handleWatchPartyRandomButton,
+} from './watchparty/random-interactions.js';
+
+import {
+  handleWatchPartyRandomModal,
+} from './watchparty/random-modal-interactions.js';
+
+import {
+  handleWatchPartySetupButton,
+} from './watchparty/setup-interactions.js';
+
+import {
+  handleWatchPartySetupModal,
+} from './watchparty/setup-modal-interactions.js';
+
+const token =
+  process.env.DISCORD_TOKEN?.trim();
 
 if (!token) {
-  throw new Error('DISCORD_TOKEN is missing from environment variables.');
+  throw new Error(
+    'DISCORD_TOKEN is missing from environment variables.',
+  );
 }
 
 interface CommandModule {
@@ -42,7 +61,10 @@ interface CommandModule {
 function isCommandModule(
   value: unknown,
 ): value is CommandModule {
-  if (!value || typeof value !== 'object') {
+  if (
+    !value ||
+    typeof value !== 'object'
+  ) {
     return false;
   }
 
@@ -87,20 +109,31 @@ const commandFiles =
       }
 
       const extension =
-        extname(entry.name);
+        extname(
+          entry.name,
+        );
 
       return (
         extension === '.ts' ||
         extension === '.js'
       );
     })
-    .map(entry => entry.name)
+    .map(
+      entry =>
+        entry.name,
+    )
     .sort();
 
 const commands =
-  new Map<string, CommandModule>();
+  new Map<
+    string,
+    CommandModule
+  >();
 
-for (const fileName of commandFiles) {
+for (
+  const fileName of
+  commandFiles
+) {
   const filePath =
     join(
       commandsDirectory,
@@ -108,12 +141,20 @@ for (const fileName of commandFiles) {
     );
 
   const moduleUrl =
-    pathToFileURL(filePath).href;
+    pathToFileURL(
+      filePath,
+    ).href;
 
   const importedModule: unknown =
-    await import(moduleUrl);
+    await import(
+      moduleUrl
+    );
 
-  if (!isCommandModule(importedModule)) {
+  if (
+    !isCommandModule(
+      importedModule,
+    )
+  ) {
     throw new Error(
       `Invalid Discord command module: ${fileName}`,
     );
@@ -131,7 +172,11 @@ for (const fileName of commandFiles) {
     );
   }
 
-  if (commands.has(commandName)) {
+  if (
+    commands.has(
+      commandName,
+    )
+  ) {
     throw new Error(
       `Duplicate Discord command name: ${commandName}`,
     );
@@ -143,7 +188,9 @@ for (const fileName of commandFiles) {
   );
 }
 
-if (commands.size === 0) {
+if (
+  commands.size === 0
+) {
   throw new Error(
     'No Discord commands were found.',
   );
@@ -166,7 +213,8 @@ client.once(
 
     console.log(
       `Loaded ${commands.size} Discord commands: ` +
-        [...commands.keys()].join(', '),
+      [...commands.keys()]
+        .join(', '),
     );
   },
 );
@@ -174,14 +222,36 @@ client.once(
 client.on(
   Events.InteractionCreate,
   async interaction => {
-    if (interaction.isButton()) {
+    if (
+      interaction.isButton()
+    ) {
       try {
-        const handled =
+        const setupHandled =
+          await handleWatchPartySetupButton(
+            interaction,
+          );
+
+        if (setupHandled) {
+          return;
+        }
+
+        const randomHandled =
+          await handleWatchPartyRandomButton(
+            interaction,
+          );
+
+        if (randomHandled) {
+          return;
+        }
+
+        const watchPartyHandled =
           await handleWatchPartyButton(
             interaction,
           );
 
-        if (!handled) {
+        if (
+          !watchPartyHandled
+        ) {
           console.warn(
             `Unhandled Discord button interaction: ${interaction.customId}`,
           );
@@ -196,7 +266,44 @@ client.on(
       return;
     }
 
-    if (!interaction.isChatInputCommand()) {
+    if (
+      interaction.isModalSubmit()
+    ) {
+      try {
+        const setupHandled =
+          await handleWatchPartySetupModal(
+            interaction,
+          );
+
+        if (setupHandled) {
+          return;
+        }
+
+        const randomHandled =
+          await handleWatchPartyRandomModal(
+            interaction,
+          );
+
+        if (
+          !randomHandled
+        ) {
+          console.warn(
+            `Unhandled Discord modal interaction: ${interaction.customId}`,
+          );
+        }
+      } catch (error) {
+        console.error(
+          'Discord modal interaction failed:',
+          error,
+        );
+      }
+
+      return;
+    }
+
+    if (
+      !interaction.isChatInputCommand()
+    ) {
       return;
     }
 
@@ -261,4 +368,6 @@ client.on(
   },
 );
 
-await client.login(token);
+await client.login(
+  token,
+);
