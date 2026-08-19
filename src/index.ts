@@ -26,6 +26,10 @@ import {
 } from './watchparty/interactions.js';
 
 import {
+  startWatchPartyLifecycle,
+} from './watchparty/lifecycle.js';
+
+import {
   handleWatchPartyRandomButton,
 } from './watchparty/random-interactions.js';
 
@@ -216,6 +220,8 @@ client.once(
       [...commands.keys()]
         .join(', '),
     );
+
+    startWatchPartyLifecycle();
   },
 );
 
