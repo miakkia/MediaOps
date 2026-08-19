@@ -31,9 +31,12 @@ MediaOps is currently in active development. Until the first stable public relea
 - Production TypeScript build targeting `dist/`.
 - Multi-stage Docker image with a dedicated non-root runtime user.
 - Automated GHCR image publication through GitHub Actions.
+- Development, stable/latest, commit-SHA and semantic-version GHCR tagging strategy.
 - Persistent Docker runtime data under `/data`.
-- Validated deployment of `ghcr.io/miakkia/mediaops:dev` on Unraid without copying source code to the server.
+- Validated deployment on Unraid without copying source code to the server.
 - Preconfigured Unraid Docker template with appdata and environment variables.
+- Unraid Community Apps repository profile (`ca_profile.xml`).
+- MediaOps application icon integration for Unraid metadata.
 - Docker, GHCR and Unraid installation documentation.
 - Project roadmap covering multi-provider support and Unraid Community Apps.
 - Architecture, product scope, provider model, security model, Discord feature, development, vision and deployment documentation.
@@ -55,7 +58,7 @@ MediaOps is currently in active development. Until the first stable public relea
 - Discord command and interaction text progressively moved into the i18n layer.
 - Media item model expanded with original-title and sort-title metadata for better matching.
 - Discord and Watch Party consumers now use the generic media provider boundary instead of direct Emby service imports.
-- README and deployment documentation now reflect the working GHCR/Unraid path.
+- README and deployment documentation now reflect the working GHCR/Unraid path and Community Apps packaging.
 
 ## Development history
 
@@ -70,6 +73,6 @@ The current Unreleased work was built through the following milestones:
 - **#7** — add latest media and Watch Party integration
 - **#8** — add Watch Party scheduling, RSVP and cancellation
 - **#9** — add Watch Party random picker and setup panel
-- **Current branch** — introduce the MediaProvider abstraction and production Docker/GHCR deployment path
+- **Current branch** — introduce the MediaProvider abstraction, production Docker/GHCR deployment path and Unraid Community Apps packaging foundation
 
 A versioned changelog section will be created when MediaOps begins tagged public releases.
