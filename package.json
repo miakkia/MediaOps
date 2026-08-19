@@ -2,21 +2,33 @@
   "name": "mediaops",
   "version": "1.0.0",
   "description": "MediaOps is an open-source platform that brings together Discord, media servers, request systems, watch parties, notifications, automation and community management into one modern solution for homelab enthusiasts and media server administrators.",
-  "main": "index.js",
+  "type": "module",
+  "main": "dist/index.js",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx src/index.ts",
+    "deploy-commands": "tsx src/deploy-commands.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run typecheck"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/miakkia/MediaOps.git"
   },
-  "keywords": [],
+  "keywords": [
+    "discord",
+    "emby",
+    "media-server",
+    "watch-party",
+    "self-hosted",
+    "homelab"
+  ],
   "author": "",
-  "license": "ISC",
-  "type": "module",
+  "license": "GPL-3.0-only",
   "bugs": {
     "url": "https://github.com/miakkia/MediaOps/issues"
   },
