@@ -122,6 +122,7 @@ export interface TranslationSchema {
       invalidDate: string;
       pastDate: string;
       scheduleError: string;
+      channelAccessError: string;
       confirmation: string;
     };
 
@@ -378,6 +379,9 @@ export const en = {
 
       scheduleError:
         'Unable to schedule the Watch Party right now.',
+
+      channelAccessError:
+        'MediaOps cannot post the Watch Party announcement in this channel. Check the bot’s channel permissions.',
 
       confirmation:
         '✅ Watch Party scheduled successfully.',

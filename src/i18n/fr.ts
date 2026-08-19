@@ -225,6 +225,9 @@ export const fr = {
       scheduleError:
         'Impossible de planifier la Watch Party pour le moment.',
 
+      channelAccessError:
+        'MediaOps ne peut pas publier l’annonce de la Watch Party dans ce salon. Vérifie les permissions du bot pour ce salon.',
+
       confirmation:
         '✅ Watch Party planifiée avec succès.',
     },
