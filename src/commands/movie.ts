@@ -13,8 +13,8 @@ import {
 } from '../i18n/index.js';
 
 import {
-  searchEmbyMovies,
-} from '../services/emby.js';
+  mediaProvider,
+} from '../providers/media-provider-instance.js';
 
 export const data =
   new SlashCommandBuilder()
@@ -72,11 +72,10 @@ export async function execute(
   });
 
   try {
-    const movies =
-      await searchEmbyMovies(
-        title,
-      );
-
+      const movies =
+         await mediaProvider.searchMovies(
+           title,
+  );
     if (movies.length === 0) {
       await interaction.editReply(
         t(

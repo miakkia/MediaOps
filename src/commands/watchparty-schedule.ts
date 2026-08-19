@@ -13,8 +13,8 @@ import {
 } from '../i18n/index.js';
 
 import {
-  searchEmbyMovies,
-} from '../services/emby.js';
+  mediaProvider,
+} from '../providers/media-provider-instance.js';
 
 import {
   createScheduledWatchParty,
@@ -125,7 +125,7 @@ export async function execute(
 
   try {
     const movies =
-      await searchEmbyMovies(
+    await mediaProvider.searchMovies(
         title,
       );
 

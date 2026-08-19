@@ -13,8 +13,8 @@ import {
 } from '../i18n/index.js';
 
 import {
-  searchEmbySeries,
-} from '../services/emby.js';
+  mediaProvider,
+} from '../providers/media-provider-instance.js';
 
 export const data =
   new SlashCommandBuilder()
@@ -73,7 +73,7 @@ export async function execute(
 
   try {
     const series =
-      await searchEmbySeries(
+      await mediaProvider.searchSeries(
         title,
       );
 

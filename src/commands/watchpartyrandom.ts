@@ -16,8 +16,8 @@ import {
 } from '../i18n/index.js';
 
 import {
-  getRandomEmbyMovie,
-} from '../services/emby.js';
+  mediaProvider,
+} from '../providers/media-provider-instance.js';
 
 const RANDOM_BUTTON_ID =
   'watchpartyrandom:another';
@@ -57,7 +57,7 @@ export async function execute(
 
   try {
     const movie =
-      await getRandomEmbyMovie();
+      await mediaProvider.getRandomMovie()
 
     if (!movie) {
       await interaction.editReply(

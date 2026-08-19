@@ -12,8 +12,8 @@ import {
 } from '../i18n/index.js';
 
 import {
-  getEmbyMovieById,
-} from '../services/emby.js';
+  mediaProvider,
+} from '../providers/media-provider-instance.js';
 
 import {
   getRandomScheduleDateTime,
@@ -172,7 +172,7 @@ export async function handleWatchPartyRandomModal(
     }
 
     const movie =
-      await getEmbyMovieById(
+      await mediaProvider.getMovieById(
         movieId,
       );
 

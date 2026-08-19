@@ -14,8 +14,8 @@ import {
 } from '../i18n/index.js';
 
 import {
-  getRandomEmbyMovie,
-} from '../services/emby.js';
+  mediaProvider,
+} from '../providers/media-provider-instance.js';
 
 import {
   createRandomScheduleModal,
@@ -115,7 +115,7 @@ export async function handleWatchPartyRandomButton(
 
     try {
       const movie =
-        await getRandomEmbyMovie();
+        await mediaProvider.getRandomMovie()
 
       if (!movie) {
         await interaction.editReply({

@@ -13,8 +13,8 @@ import {
 } from '../i18n/index.js';
 
 import {
-  getLatestEmbyItems,
-} from '../services/emby.js';
+  mediaProvider,
+} from '../providers/media-provider-instance.js';
 
 export const data =
   new SlashCommandBuilder()
@@ -48,7 +48,7 @@ export async function execute(
 
   try {
     const items =
-      await getLatestEmbyItems();
+      await mediaProvider.getLatestItems();
 
     if (items.length === 0) {
       await interaction.editReply(
