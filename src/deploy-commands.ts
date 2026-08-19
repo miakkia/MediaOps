@@ -1,6 +1,8 @@
 import 'dotenv/config';
+
 import { REST, Routes } from 'discord.js';
 
+import { data as healthCommand } from './commands/health.js';
 import { data as pingCommand } from './commands/ping.js';
 
 const token = process.env.DISCORD_TOKEN;
@@ -15,6 +17,7 @@ if (!token || !clientId || !guildId) {
 
 const commands = [
   pingCommand.toJSON(),
+  healthCommand.toJSON(),
 ];
 
 const rest = new REST().setToken(token);
