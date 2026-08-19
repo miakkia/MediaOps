@@ -17,6 +17,10 @@ MediaOps is currently in active development. Until the first stable public relea
 - Watch Party service integration.
 - Watch Party code validation and status flows.
 - Persistent scheduled Watch Party state.
+- Upcoming Watch Party discovery through `/watchparty-upcoming`.
+- Automatic Watch Party lifecycle scheduler.
+- Persistent one-time Watch Party reminders before scheduled start.
+- Configurable automated-message locale through `MEDIAOPS_LOCALE`.
 - Scheduled Watch Party announcements with Discord timestamps.
 - Going / Not Going RSVP controls.
 - Organizer-only Watch Party cancellation.
@@ -52,6 +56,11 @@ MediaOps is currently in active development. Until the first stable public relea
 - Docker runtime executes as a dedicated non-root user.
 - Docker deployment requires no privileged mode, Docker socket, media-library mounts or inbound application ports for current features.
 
+### Fixed
+
+- Failed Watch Party announcements are rolled back to `auto_cancelled` so they do not remain visible as valid upcoming sessions.
+- Discord `50001 Missing Access` scheduling failures now return a clear channel-permission message.
+
 ### Changed
 
 - Shared Watch Party scheduling logic extracted so manual and random scheduling use the same workflow.
@@ -73,6 +82,6 @@ The current Unreleased work was built through the following milestones:
 - **#7** — add latest media and Watch Party integration
 - **#8** — add Watch Party scheduling, RSVP and cancellation
 - **#9** — add Watch Party random picker and setup panel
-- **Current branch** — introduce the MediaProvider abstraction, production Docker/GHCR deployment path and Unraid Community Apps packaging foundation
+- **Current branch** — add Watch Party lifecycle automation, upcoming-session discovery, persistent reminders and scheduling rollback handling
 
 A versioned changelog section will be created when MediaOps begins tagged public releases.

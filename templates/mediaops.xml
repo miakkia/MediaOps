@@ -36,7 +36,6 @@
 
   <Config Name="Emby API Key" Target="EMBY_API_KEY" Default="" Description="Emby API key used by MediaOps. Keep this value secret." Type="Variable" Display="always" Required="true" Mask="true"/>
 
-  <Config Name="Watch Party URL" Target="WATCHPARTY_URL" Default="" Description="Base/public URL of the Watch Party service used by MediaOps." Type="Variable" Display="always" Required="true" Mask="false"/>
-
+  <Config Name="Watch Party URL" Target="WATCHPARTY_URL" Default="" Description="Base/public URL of the Watch Party service used by MediaOps." Type="Variable" Display="always" Required="true" Mask="false"/>  <Config Name="MediaOps Locale" Target="MEDIAOPS_LOCALE" Default="en" Description="Default language for automated MediaOps messages. Supported values: en or fr." Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="MediaOps Data Directory" Target="MEDIAOPS_DATA_DIR" Default="/data" Description="Container path used for MediaOps-owned persistent runtime data. Leave at /data for standard Unraid deployments." Type="Variable" Display="advanced" Required="true" Mask="false"/>
 </Container>

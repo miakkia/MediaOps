@@ -20,6 +20,9 @@ MediaOps currently provides:
 - guided scheduling with Discord modals;
 - a bilingual EN/FR public Watch Party setup panel;
 - persistent Watch Party runtime state;
+- automatic Watch Party lifecycle refresh and expiration handling;
+- upcoming Watch Party discovery;
+- persistent one-time Watch Party reminders before scheduled start time;
 - a provider-independent media interface with Emby as the first adapter;
 - a production Docker build published through GitHub Container Registry (GHCR);
 - validated deployment on Unraid without copying the source repository to the server.
@@ -39,6 +42,7 @@ MediaOps currently provides:
 | `/watchparty-schedule` | Schedule a Watch Party |
 | `/watchpartyrandom` | Pick, reroll, choose, and schedule a random movie |
 | `/watchparty-setup` | Publish the bilingual self-service Watch Party panel |
+| `/watchparty-upcoming` | Show upcoming scheduled Watch Parties |
 
 See [`docs/DISCORD_FEATURES.md`](docs/DISCORD_FEATURES.md) for detailed interaction flows.
 
@@ -109,6 +113,7 @@ DISCORD_GUILD_ID=
 EMBY_URL=
 EMBY_API_KEY=
 WATCHPARTY_URL=
+MEDIAOPS_LOCALE=en
 MEDIAOPS_DATA_DIR=/data
 ```
 
