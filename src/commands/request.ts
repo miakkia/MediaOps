@@ -158,8 +158,7 @@ export async function execute(
           (item, index) => {
             const requestable =
               !item.available &&
-              !item.requested &&
-              item.mediaType === 'movie';
+              !item.requested;
 
             return new ButtonBuilder()
               .setCustomId(
@@ -170,9 +169,7 @@ export async function execute(
                   ? `#${index + 1} Available`
                   : item.requested
                     ? `#${index + 1} Requested`
-                    : item.mediaType === 'movie'
-                      ? `Request #${index + 1}`
-                      : `#${index + 1} TV soon`,
+                    : `Request #${index + 1}`,
               )
               .setStyle(
                 requestable

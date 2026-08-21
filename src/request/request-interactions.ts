@@ -100,19 +100,6 @@ export async function handleRequestButton(
     );
 
   if (selected) {
-    if (
-      selected.mediaType !== 'movie'
-    ) {
-      await interaction.reply({
-        content:
-          '📺 TV request submission is not available yet.',
-        flags:
-          MessageFlags.Ephemeral,
-      });
-
-      return true;
-    }
-
     const confirmRow =
       new ActionRowBuilder<ButtonBuilder>()
         .addComponents(
@@ -141,7 +128,9 @@ export async function handleRequestButton(
 
     await interaction.reply({
       content:
-        '⚠️ Confirm that you want to submit this movie request to Ombi.',
+        selected.mediaType === 'movie'
+          ? '⚠️ Confirm that you want to submit this movie request to Ombi.'
+          : '⚠️ Confirm that you want to request all available seasons of this TV series from Ombi.',
 
       components: [
         confirmRow,

@@ -78,3 +78,21 @@ export interface OmbiNotificationPreference {
   value?: string | null;
   id?: number;
 }
+
+
+export interface OmbiTvRequestPayload {
+  theMovieDbId: number;
+
+  requestAll: boolean;
+  firstSeason: boolean;
+  latestSeason: boolean;
+
+  seasons: Array<{
+    seasonNumber: number;
+    episodes: Array<{
+      episodeNumber: number;
+    }>;
+  }>;
+
+  languageCode?: string;
+}

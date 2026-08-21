@@ -16,6 +16,7 @@ import type {
   OmbiRequestResponse,
   OmbiSearchMovieResult,
   OmbiSearchTvResult,
+  OmbiTvRequestPayload,
   OmbiUser,
 } from './ombi-types.js';
 
@@ -533,9 +534,156 @@ export class OmbiRequestProvider
       };
     }
 
-    throw new Error(
-      'Ombi TV request submission is not implemented yet.',
-    );
+    const tvId =
+      Number.parseInt(
+        item.providerId,
+        10,
+      );
+
+    if (
+      !Number.isInteger(
+        tvId,
+      )
+    ) {
+      throw new Error(
+        'Invalid Ombi TV identifier.',
+      );
+    }
+
+    const payload:
+      OmbiTvRequestPayload = {
+        theMovieDbId:
+          tvId,
+
+        requestAll:
+          true,
+
+        firstSeason:
+          false,
+
+        latestSeason:
+          false,
+
+        seasons: [],
+
+        languageCode:
+          'en',
+      };
+
+    const response =
+      await this.client.post<
+        OmbiRequestResponse
+      >(
+        '/api/v2/Requests/tv',
+        payload,
+        ombiUserName
+          ? {
+              userName:
+                ombiUserName,
+            }
+          : undefined,
+      );
+
+    const success =
+      response.result === true &&
+      response.isError !== true;
+
+    const requestId =
+      response.requestId;
+
+    if (
+      !success ||
+      requestId === undefined ||
+      requestId <= 0
+    ) {
+      return {
+        success: false,
+
+        providerRequestId:
+          requestId !== undefined &&
+          requestId > 0
+            ? String(
+                requestId,
+              )
+            : undefined,
+
+        status:
+          'unknown',
+
+        message:
+          response.errorMessage ??
+          response.message ??
+          'Ombi did not create the TV request.',
+      };
+    }
+
+    if (!autoApprove) {
+      return {
+        success: true,
+
+        providerRequestId:
+          String(
+            requestId,
+          ),
+
+        status:
+          'pending',
+
+        message:
+          response.message ??
+          'TV request submitted to Ombi for approval.',
+      };
+    }
+
+    const approval =
+      await this.client.post<
+        OmbiRequestResponse
+      >(
+        '/api/v1/Request/tv/approve',
+        {
+          id:
+            requestId,
+        },
+      );
+
+    const approved =
+      approval.result === true &&
+      approval.isError !== true;
+
+    if (!approved) {
+      return {
+        success: true,
+
+        providerRequestId:
+          String(
+            requestId,
+          ),
+
+        status:
+          'pending',
+
+        message:
+          approval.errorMessage ??
+          approval.message ??
+          'The TV request was created, but automatic approval failed.',
+      };
+    }
+
+    return {
+      success: true,
+
+      providerRequestId:
+        String(
+          requestId,
+        ),
+
+      status:
+        'approved',
+
+      message:
+        approval.message ??
+        'TV request submitted and automatically approved.',
+    };
   }
 
   async getRequestStatus(
