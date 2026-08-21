@@ -9,6 +9,10 @@ import {
 } from '../i18n/discord-locale.js';
 
 import {
+  buildInfo,
+} from '../build-info.js';
+
+import {
   t,
 } from '../i18n/index.js';
 
@@ -67,6 +71,8 @@ export async function execute(
           'health.botOnline',
         )}\n` +
 
+        `MediaOps: ${buildInfo.version} • ${buildInfo.channel} • ${buildInfo.commit}\n` +
+
         `${t(
           locale,
           'health.embyOnline',
@@ -97,6 +103,8 @@ export async function execute(
           locale,
           'health.botOnline',
         )}\n` +
+
+        `MediaOps: ${buildInfo.version} • ${buildInfo.channel} • ${buildInfo.commit}\n` +
 
         `${t(
           locale,
