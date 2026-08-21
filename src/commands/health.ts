@@ -20,6 +20,11 @@ import {
   mediaProvider,
 } from '../providers/media-provider-instance.js';
 
+import {
+  requestProvider,
+  requestProviderName,
+} from '../providers/request-provider-instance.js';
+
 
 export const data =
   new SlashCommandBuilder()
@@ -46,9 +51,18 @@ export async function execute(
       interaction,
     );
 
+  const lines: string[] = [
+    t(
+      locale,
+      'health.botOnline',
+    ),
+
+    `MediaOps: ${buildInfo.version} • ${buildInfo.channel} • ${buildInfo.commit}`,
+  ];
+
   try {
-      const info =
-        await mediaProvider.getSystemInfo();
+    const info =
+      await mediaProvider.getSystemInfo();
 
     const serverName =
       info.serverName ??
@@ -64,55 +78,73 @@ export async function execute(
         'health.unknown',
       );
 
-    await interaction.reply({
-      content:
-        `${t(
-          locale,
-          'health.botOnline',
-        )}\n` +
+    lines.push(
+      t(
+        locale,
+        'health.embyOnline',
+      ),
 
-        `MediaOps: ${buildInfo.version} • ${buildInfo.channel} • ${buildInfo.commit}\n` +
+      `${t(
+        locale,
+        'health.server',
+      )}: ${serverName}`,
 
-        `${t(
-          locale,
-          'health.embyOnline',
-        )}\n` +
-
-        `${t(
-          locale,
-          'health.server',
-        )}: ${serverName}\n` +
-
-        `${t(
-          locale,
-          'health.version',
-        )}: ${version}`,
-
-      flags:
-        MessageFlags.Ephemeral,
-    });
+      `${t(
+        locale,
+        'health.version',
+      )}: ${version}`,
+    );
   } catch (error) {
     console.error(
-      'Emby health check failed:',
+      'Media provider health check failed:',
       error,
     );
 
-    await interaction.reply({
-      content:
-        `${t(
-          locale,
-          'health.botOnline',
-        )}\n` +
-
-        `MediaOps: ${buildInfo.version} • ${buildInfo.channel} • ${buildInfo.commit}\n` +
-
-        `${t(
-          locale,
-          'health.embyFailed',
-        )}`,
-
-      flags:
-        MessageFlags.Ephemeral,
-    });
+    lines.push(
+      t(
+        locale,
+        'health.embyFailed',
+      ),
+    );
   }
+
+  if (
+    requestProviderName !== 'none'
+  ) {
+    lines.push(
+      '',
+      `Request Provider: ${requestProvider?.name ?? requestProviderName}`,
+    );
+
+    if (requestProvider) {
+      try {
+        await requestProvider.healthCheck();
+
+        lines.push(
+          `${requestProvider.name}: Online`,
+        );
+      } catch (error) {
+        console.error(
+          'Request provider health check failed:',
+          error,
+        );
+
+        lines.push(
+          `${requestProvider.name}: Unavailable`,
+        );
+      }
+    } else {
+      lines.push(
+        `${requestProviderName}: Not configured`,
+      );
+    }
+  }
+
+  await interaction.reply({
+    content:
+      lines.join('\n'),
+
+    flags:
+      MessageFlags.Ephemeral,
+  });
 }
