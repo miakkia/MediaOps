@@ -22,6 +22,10 @@ import {
 } from './i18n/index.js';
 
 import {
+  handleRequestButton,
+} from './request/request-interactions.js';
+
+import {
   handleWatchPartyButton,
 } from './watchparty/interactions.js';
 
@@ -234,6 +238,15 @@ client.on(
       interaction.isButton()
     ) {
       try {
+        const requestHandled =
+          await handleRequestButton(
+            interaction,
+          );
+
+        if (requestHandled) {
+          return;
+        }
+
         const setupHandled =
           await handleWatchPartySetupButton(
             interaction,

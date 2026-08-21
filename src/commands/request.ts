@@ -1,4 +1,7 @@
 import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   ChatInputCommandInteraction,
   MessageFlags,
   SlashCommandBuilder,
@@ -91,8 +94,7 @@ function formatResult(
 
   return (
     `**${index + 1}. ${item.title}**${year}\n` +
-    `${getStatusLabel(item)} • ` +
-    `ID: \`${item.providerId}\``
+    `${getStatusLabel(item)} • ID: \`${item.providerId}\``
   );
 }
 
@@ -150,15 +152,56 @@ export async function execute(
         5,
       );
 
-    const providerName =
-      requestProvider.name;
-
-    await interaction.editReply(
-      `🔎 **${providerName} search results**\n\n` +
+    const buttons =
       displayedResults
-        .map(formatResult)
-        .join('\n\n'),
-    );
+        .map(
+          (item, index) => {
+            const requestable =
+              !item.available &&
+              !item.requested &&
+              item.mediaType === 'movie';
+
+            return new ButtonBuilder()
+              .setCustomId(
+                `request-select:${item.mediaType}:${item.providerId}`,
+              )
+              .setLabel(
+                item.available
+                  ? `#${index + 1} Available`
+                  : item.requested
+                    ? `#${index + 1} Requested`
+                    : item.mediaType === 'movie'
+                      ? `Request #${index + 1}`
+                      : `#${index + 1} TV soon`,
+              )
+              .setStyle(
+                requestable
+                  ? ButtonStyle.Primary
+                  : ButtonStyle.Secondary,
+              )
+              .setDisabled(
+                !requestable,
+              );
+          },
+        );
+
+    const row =
+      new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(
+          buttons,
+        );
+
+    await interaction.editReply({
+      content:
+        `🔎 **${requestProvider.name} search results**\n\n` +
+        displayedResults
+          .map(formatResult)
+          .join('\n\n'),
+
+      components: [
+        row,
+      ],
+    });
   } catch (error) {
     console.error(
       'Request provider search failed:',

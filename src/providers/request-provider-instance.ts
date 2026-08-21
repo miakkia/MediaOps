@@ -7,6 +7,10 @@ import {
 } from './ombi/ombi-client.js';
 
 import {
+  ombiConfig,
+} from './ombi/ombi-config.js';
+
+import {
   OmbiRequestProvider,
 } from './ombi/ombi-request-provider.js';
 
@@ -30,6 +34,10 @@ function createConfiguredRequestProvider():
   if (configuredProvider === 'ombi') {
     return new OmbiRequestProvider(
       createOmbiClientFromEnvironment(),
+      {
+        autoApprove:
+          ombiConfig.autoApprove,
+      },
     );
   }
 

@@ -12,6 +12,7 @@ import {
 } from './ombi-client.js';
 
 import type {
+  OmbiRequestResponse,
   OmbiSearchMovieResult,
   OmbiSearchTvResult,
 } from './ombi-types.js';
@@ -145,6 +146,10 @@ function mapSeries(
   };
 }
 
+interface OmbiRequestProviderOptions {
+  autoApprove: boolean;
+}
+
 export class OmbiRequestProvider
   implements RequestProvider {
   readonly name =
@@ -153,6 +158,9 @@ export class OmbiRequestProvider
   constructor(
     private readonly client:
       OmbiClient,
+
+    private readonly options:
+      OmbiRequestProviderOptions,
   ) {}
 
   async healthCheck():
@@ -168,7 +176,7 @@ export class OmbiRequestProvider
       movies: true,
       series: true,
       requestStatus: true,
-      autoApproval: false,
+      autoApproval: true,
     };
   }
 
@@ -223,13 +231,176 @@ export class OmbiRequestProvider
   }
 
   async request(
-    _item: RequestSearchResult,
-    _options?: {
+    item: RequestSearchResult,
+    options?: {
       autoApprove?: boolean;
     },
   ): Promise<RequestSubmissionResult> {
+    if (item.available) {
+      return {
+        success: false,
+        providerRequestId:
+          undefined,
+        status:
+          'available',
+        message:
+          'This media is already available.',
+      };
+    }
+
+    if (item.requested) {
+      return {
+        success: false,
+        providerRequestId:
+          undefined,
+        status:
+          'requested',
+        message:
+          'This media has already been requested.',
+      };
+    }
+
+    const autoApprove =
+      options?.autoApprove ??
+      this.options.autoApprove;
+
+    void autoApprove;
+
+    if (item.mediaType === 'movie') {
+      const movieId =
+        Number.parseInt(
+          item.providerId,
+          10,
+        );
+
+      if (
+        !Number.isInteger(
+          movieId,
+        )
+      ) {
+        throw new Error(
+          'Invalid Ombi movie identifier.',
+        );
+      }
+
+      const response =
+        await this.client.post<
+          OmbiRequestResponse
+        >(
+          '/api/v1/Request/movie',
+          {
+            theMovieDbId:
+              movieId,
+          },
+        );
+
+      const success =
+        response.result === true &&
+        response.isError !== true;
+
+      const requestId =
+        response.requestId;
+
+      if (
+        !success ||
+        requestId === undefined ||
+        requestId <= 0
+      ) {
+        return {
+          success: false,
+
+          providerRequestId:
+            requestId !== undefined &&
+            requestId > 0
+              ? String(
+                  requestId,
+                )
+              : undefined,
+
+          status:
+            'unknown',
+
+          message:
+            response.errorMessage ??
+            response.message ??
+            'Ombi did not create the request.',
+        };
+      }
+
+      if (!autoApprove) {
+        return {
+          success: true,
+
+          providerRequestId:
+            String(
+              requestId,
+            ),
+
+          status:
+            'pending',
+
+          message:
+            response.message ??
+            'Request submitted to Ombi for approval.',
+        };
+      }
+
+      const approval =
+        await this.client.post<
+          OmbiRequestResponse
+        >(
+          '/api/v1/Request/movie/approve',
+          {
+            id:
+              requestId,
+
+            is4K:
+              false,
+          },
+        );
+
+      const approved =
+        approval.result === true &&
+        approval.isError !== true;
+
+      if (!approved) {
+        return {
+          success: true,
+
+          providerRequestId:
+            String(
+              requestId,
+            ),
+
+          status:
+            'pending',
+
+          message:
+            approval.errorMessage ??
+            approval.message ??
+            'The request was created, but automatic approval failed.',
+        };
+      }
+
+      return {
+        success: true,
+
+        providerRequestId:
+          String(
+            requestId,
+          ),
+
+        status:
+          'approved',
+
+        message:
+          approval.message ??
+          'Request submitted and automatically approved.',
+      };
+    }
+
     throw new Error(
-      'Ombi request submission is not implemented yet.',
+      'Ombi TV request submission is not implemented yet.',
     );
   }
 
