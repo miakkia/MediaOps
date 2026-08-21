@@ -110,3 +110,12 @@ export interface OmbiTvRequestPayload {
 
   languageCode?: string;
 }
+
+
+export interface OmbiMultiSearchResult {
+  id: string;
+  title?: string;
+  mediaType?: string;
+  poster?: string | null;
+  overview?: string | null;
+}

@@ -12,6 +12,7 @@ import {
 } from './ombi-client.js';
 
 import type {
+  OmbiMultiSearchResult,
   OmbiNotificationPreference,
   OmbiRequestResponse,
   OmbiSearchMovieResult,
@@ -150,6 +151,65 @@ function mapSeries(
   };
 }
 
+function mapMultiSearchSeries(
+  item: OmbiMultiSearchResult,
+): RequestSearchResult | undefined {
+  if (
+    !item.id ||
+    !item.title ||
+    item.mediaType?.toLowerCase() !== 'tv'
+  ) {
+    return undefined;
+  }
+
+  const titleMatch =
+    item.title.match(
+      /^(.*?)(?:\s+\((\d{4})\))?$/,
+    );
+
+  const title =
+    titleMatch?.[1]?.trim() ||
+    item.title;
+
+  const year =
+    titleMatch?.[2]
+      ? Number.parseInt(
+          titleMatch[2],
+          10,
+        )
+      : undefined;
+
+  return {
+    providerId:
+      item.id,
+
+    mediaType:
+      'series',
+
+    title,
+
+    originalTitle:
+      undefined,
+
+    year,
+
+    overview:
+      item.overview ?? undefined,
+
+    posterUrl:
+      item.poster ?? undefined,
+
+    status:
+      'unavailable',
+
+    requested:
+      false,
+
+    available:
+      false,
+  };
+}
+
 interface OmbiRequestProviderOptions {
   autoApprove: boolean;
 }
@@ -227,16 +287,31 @@ export class OmbiRequestProvider
     }
 
     const results =
-      await this.client.get<
-        OmbiSearchTvResult[]
+      await this.client.post<
+        OmbiMultiSearchResult[]
       >(
-        `/api/v1/Search/tv/${encodeURIComponent(
+        `/api/v2/Search/multi/${encodeURIComponent(
           normalizedQuery,
         )}`,
+        {
+          movies:
+            false,
+
+          tvShows:
+            true,
+
+          music:
+            false,
+
+          people:
+            false,
+        },
       );
 
     return results
-      .map(mapSeries)
+      .map(
+        mapMultiSearchSeries,
+      )
       .filter(
         (
           item,
