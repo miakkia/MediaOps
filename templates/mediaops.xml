@@ -36,7 +36,7 @@
 
   <Config Name="Emby API Key" Target="EMBY_API_KEY" Default="" Description="Emby API key used by MediaOps. Keep this value secret." Type="Variable" Display="always" Required="true" Mask="true"/>
 
-  <Config Name="Ombi Auto Approve" Target="OMBI_AUTO_APPROVE" Default="false" Description="Automatically approve requests submitted to Ombi by MediaOps. Set to true to bypass manual Ombi approval." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Ombi Auto Approve" Target="OMBI_AUTO_APPROVE" Default="false" Description="Automatically approve movie and TV requests submitted through MediaOps. Set to false to require manual approval in Ombi. Recommended: false." Type="Variable" Display="advanced" Required="true" Mask="false"/>
 
   <Config Name="Watch Party URL" Target="WATCHPARTY_URL" Default="" Description="Base/public URL of the Watch Party service used by MediaOps." Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="MediaOps Locale" Target="MEDIAOPS_LOCALE" Default="en" Description="Default language for automated MediaOps messages. Supported values: en or fr." Type="Variable" Display="always" Required="true" Mask="false"/>
