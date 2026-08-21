@@ -12,9 +12,11 @@ import {
 } from './ombi-client.js';
 
 import type {
+  OmbiNotificationPreference,
   OmbiRequestResponse,
   OmbiSearchMovieResult,
   OmbiSearchTvResult,
+  OmbiUser,
 } from './ombi-types.js';
 
 function parseYear(
@@ -152,6 +154,17 @@ interface OmbiRequestProviderOptions {
 
 export class OmbiRequestProvider
   implements RequestProvider {
+  private readonly discordUserCache =
+    new Map<
+      string,
+      {
+        userName: string;
+        expiresAt: number;
+      }
+    >();
+
+  private readonly discordUserCacheTtlMs =
+    5 * 60 * 1000;
   readonly name =
     'Ombi';
 
@@ -230,10 +243,104 @@ export class OmbiRequestProvider
       );
   }
 
+  private async resolveOmbiUserNameForDiscord(
+    discordUserId: string,
+  ): Promise<string | undefined> {
+    const cached =
+      this.discordUserCache.get(
+        discordUserId,
+      );
+
+    const now =
+      Date.now();
+
+    if (
+      cached &&
+      cached.expiresAt > now
+    ) {
+      return cached.userName;
+    }
+
+    const users =
+      await this.client.get<
+        OmbiUser[]
+      >(
+        '/api/v1/Identity/Users',
+      );
+
+    for (const user of users) {
+      if (
+        !user.id ||
+        !user.userName
+      ) {
+        continue;
+      }
+
+      let preferences:
+        OmbiNotificationPreference[];
+
+      try {
+        preferences =
+          await this.client.get<
+            OmbiNotificationPreference[]
+          >(
+            '/api/v1/Identity/notificationpreferences/' +
+              encodeURIComponent(
+                user.id,
+              ),
+            {
+              userName:
+                user.userName,
+            },
+          );
+      } catch (error) {
+        console.warn(
+          `Unable to inspect Ombi notification preferences for ${user.userName}:`,
+          error,
+        );
+
+        continue;
+      }
+
+      const discordPreference =
+        preferences.find(
+          preference =>
+            preference.agent === 1 &&
+            preference.value?.trim() ===
+              discordUserId,
+        );
+
+      if (!discordPreference) {
+        continue;
+      }
+
+      this.discordUserCache.set(
+        discordUserId,
+        {
+          userName:
+            user.userName,
+
+          expiresAt:
+            now +
+            this.discordUserCacheTtlMs,
+        },
+      );
+
+      return user.userName;
+    }
+
+    return undefined;
+  }
+
   async request(
     item: RequestSearchResult,
     options?: {
       autoApprove?: boolean;
+
+      requester?: {
+        source: 'discord';
+        id: string;
+      };
     },
   ): Promise<RequestSubmissionResult> {
     if (item.available) {
@@ -264,7 +371,28 @@ export class OmbiRequestProvider
       options?.autoApprove ??
       this.options.autoApprove;
 
-    void autoApprove;
+    let ombiUserName:
+      string | undefined;
+
+    if (
+      options?.requester?.source ===
+        'discord'
+    ) {
+      ombiUserName =
+        await this.resolveOmbiUserNameForDiscord(
+          options.requester.id,
+        );
+
+      if (ombiUserName) {
+        console.log(
+          `Resolved Discord user ${options.requester.id} to Ombi user ${ombiUserName}`,
+        );
+      } else {
+        console.warn(
+          `No Ombi user mapping found for Discord user ${options.requester.id}; falling back to API identity.`,
+        );
+      }
+    }
 
     if (item.mediaType === 'movie') {
       const movieId =
@@ -292,6 +420,12 @@ export class OmbiRequestProvider
             theMovieDbId:
               movieId,
           },
+          ombiUserName
+            ? {
+                userName:
+                  ombiUserName,
+              }
+            : undefined,
         );
 
       const success =

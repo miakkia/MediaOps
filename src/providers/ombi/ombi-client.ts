@@ -129,21 +129,30 @@ export class OmbiClient {
 
   async get<T>(
     path: string,
+    options?: {
+      userName?: string;
+    },
   ): Promise<T> {
     return this.request<T>(
       'GET',
       path,
+      undefined,
+      options,
     );
   }
 
   async post<T>(
     path: string,
     body?: unknown,
+    options?: {
+      userName?: string;
+    },
   ): Promise<T> {
     return this.request<T>(
       'POST',
       path,
       body,
+      options,
     );
   }
 
@@ -151,6 +160,9 @@ export class OmbiClient {
     method: 'GET' | 'POST',
     path: string,
     body?: unknown,
+    options?: {
+      userName?: string;
+    },
   ): Promise<T> {
     const url =
       new URL(
@@ -180,6 +192,13 @@ export class OmbiClient {
 
             Accept:
               'application/json',
+
+            ...(options?.userName
+              ? {
+                  UserName:
+                    options.userName,
+                }
+              : {}),
 
             ...(body !== undefined
               ? {

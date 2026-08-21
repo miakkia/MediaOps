@@ -70,6 +70,11 @@ export interface RequestProvider {
     item: RequestSearchResult,
     options?: {
       autoApprove?: boolean;
+
+      requester?: {
+        source: 'discord';
+        id: string;
+      };
     },
   ): Promise<RequestSubmissionResult>;
 

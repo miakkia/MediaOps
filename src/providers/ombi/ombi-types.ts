@@ -63,3 +63,18 @@ export interface OmbiRequestResponse {
 
   requestId?: number;
 }
+
+
+export interface OmbiUser {
+  id: string;
+  userName: string;
+  alias?: string | null;
+}
+
+export interface OmbiNotificationPreference {
+  userId: string;
+  agent: number;
+  enabled: boolean;
+  value?: string | null;
+  id?: number;
+}

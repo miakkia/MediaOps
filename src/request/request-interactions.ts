@@ -204,6 +204,15 @@ export async function handleRequestButton(
     const result =
       await requestProvider.request(
         item,
+        {
+          requester: {
+            source:
+              'discord',
+
+            id:
+              interaction.user.id,
+          },
+        },
       );
 
     if (!result.success) {
