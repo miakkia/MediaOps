@@ -106,34 +106,35 @@ function mapSeries(
 ): RequestSearchResult | undefined {
   if (
     item.id === undefined ||
-    !item.name
+    !item.title
   ) {
     return undefined;
   }
 
   return {
     providerId:
+      item.theMovieDbId ??
       String(item.id),
 
     mediaType:
       'series',
 
     title:
-      item.name,
+      item.title,
 
     originalTitle:
-      item.originalName,
+      undefined,
 
     year:
       parseYear(
-        item.firstAirDate,
+        item.firstAired,
       ),
 
     overview:
       item.overview,
 
     posterUrl:
-      item.posterPath,
+      item.posterPath ?? undefined,
 
     status:
       getStatus(

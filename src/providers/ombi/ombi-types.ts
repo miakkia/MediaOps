@@ -34,13 +34,18 @@ export interface OmbiSearchMovieResult {
 export interface OmbiSearchTvResult {
   id?: number;
 
-  name?: string;
-  originalName?: string;
+  title?: string;
+
+  aliases?: string[] | null;
+
+  seriesId?: number;
+
+  firstAired?: string;
 
   overview?: string;
 
-  firstAirDate?: string;
-  posterPath?: string;
+  posterPath?: string | null;
+  backdropPath?: string | null;
 
   approved?: boolean;
   denied?: boolean | null;
@@ -49,6 +54,15 @@ export interface OmbiSearchTvResult {
   requestId?: number;
 
   available?: boolean;
+
+  theTvDbId?: string | null;
+  theMovieDbId?: string | null;
+
+  embyUrl?: string | null;
+  plexUrl?: string | null;
+  jellyfinUrl?: string | null;
+
+  quality?: string | null;
 }
 
 export interface OmbiRequestResponse {
