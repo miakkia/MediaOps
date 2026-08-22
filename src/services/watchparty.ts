@@ -109,3 +109,107 @@ export function getWatchPartyJoinUrl(
 
   return url.toString();
 }
+
+export interface CreatedWatchPartyRoom {
+  partyId: string;
+  url: string;
+}
+
+export async function createWatchPartyRoom():
+  Promise<CreatedWatchPartyRoom> {
+  let response: Response;
+
+  try {
+    response =
+      await fetch(
+        `${baseUrl}/api/party/create`,
+        {
+          method:
+            'POST',
+
+          headers: {
+            Accept:
+              'application/json',
+
+            'Content-Type':
+              'application/json',
+          },
+
+          body:
+            '{}',
+
+          redirect:
+            'error',
+
+          signal:
+            AbortSignal.timeout(
+              DEFAULT_TIMEOUT_MS,
+            ),
+        },
+      );
+  } catch (error) {
+    if (
+      error instanceof DOMException &&
+      error.name === 'TimeoutError'
+    ) {
+      throw new Error(
+        'Watch Party room creation timed out.',
+      );
+    }
+
+    throw error;
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      `Watch Party room creation failed with HTTP ${response.status}.`,
+    );
+  }
+
+  const data: unknown =
+    await response.json();
+
+  if (
+    !data ||
+    typeof data !== 'object'
+  ) {
+    throw new Error(
+      'Watch Party returned an invalid create response.',
+    );
+  }
+
+  const record =
+    data as Record<string, unknown>;
+
+  const partyId =
+    record.party_id;
+
+  const returnedUrl =
+    record.url;
+
+  if (
+    typeof partyId !== 'string' ||
+    !partyId.trim()
+  ) {
+    const message =
+      typeof record.message === 'string'
+        ? record.message
+        : 'Watch Party did not return a party code.';
+
+    throw new Error(
+      message,
+    );
+  }
+
+  return {
+    partyId:
+      partyId
+        .trim()
+        .toUpperCase(),
+
+    url:
+      typeof returnedUrl === 'string'
+        ? returnedUrl
+        : '',
+  };
+}

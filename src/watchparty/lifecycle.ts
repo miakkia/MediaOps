@@ -7,13 +7,20 @@ import {
 } from '../i18n/index.js';
 
 import {
+  createWatchPartyRoom,
+  getWatchPartyJoinUrl,
+} from '../services/watchparty.js';
+
+import {
   getWatchParties,
   refreshWatchPartyLifecycle,
+  setWatchPartyCode,
   setWatchPartyReminderSentAt,
+  setWatchPartyStatus,
 } from '../storage/watchparty-store.js';
 
 const LIFECYCLE_INTERVAL_MS =
-  60 * 1000;
+  5 * 1000;
 
 const REMINDER_LEAD_TIME_MS =
   15 * 60 * 1000;
@@ -132,6 +139,106 @@ async function sendWatchPartyReminders(
   }
 }
 
+async function openScheduledWatchParties(
+  client: Client,
+): Promise<void> {
+  const parties =
+    await getWatchParties();
+
+  const now =
+    Date.now();
+
+  for (const party of parties) {
+    if (
+      party.status !== 'scheduled' &&
+      party.status !== 'ready'
+    ) {
+      continue;
+    }
+
+    if (party.partyCode) {
+      continue;
+    }
+
+    const scheduledTime =
+      new Date(
+        party.scheduledAt,
+      ).getTime();
+
+    if (
+      Number.isNaN(
+        scheduledTime,
+      ) ||
+      now < scheduledTime
+    ) {
+      continue;
+    }
+
+    try {
+      const room =
+        await createWatchPartyRoom();
+
+      /*
+       * Persist the party code BEFORE posting to Discord.
+       * If Discord fails, the next lifecycle pass must not
+       * accidentally create a second Watch Party room.
+       */
+      await setWatchPartyCode(
+        party.id,
+        room.partyId,
+      );
+
+      await setWatchPartyStatus(
+        party.id,
+        'active',
+      );
+
+      const channel =
+        await client.channels.fetch(
+          party.channelId,
+        );
+
+      if (
+        !channel ||
+        !channel.isSendable()
+      ) {
+        console.warn(
+          `Watch Party launch channel is unavailable: ${party.channelId}`,
+        );
+
+        continue;
+      }
+
+      const joinUrl =
+        getWatchPartyJoinUrl(
+          room.partyId,
+        );
+
+      const year =
+        party.mediaYear !== undefined
+          ? ` (${party.mediaYear})`
+          : '';
+
+      await channel.send({
+        content:
+          '🎬 **Watch Party ouverte / Watch Party is open!**\n\n' +
+          `**${party.mediaTitle}**${year}\n` +
+          `Code: \`${room.partyId}\`\n` +
+          `➡️ ${joinUrl}`,
+      });
+
+      console.log(
+        `Scheduled Watch Party ${party.id} opened automatically as ${room.partyId}`,
+      );
+    } catch (error) {
+      console.error(
+        `Automatic Watch Party creation failed for ${party.id}:`,
+        error,
+      );
+    }
+  }
+}
+
 async function runLifecycleRefresh(
   client: Client,
 ): Promise<void> {
@@ -139,6 +246,10 @@ async function runLifecycleRefresh(
     await refreshWatchPartyLifecycle();
 
     await sendWatchPartyReminders(
+      client,
+    );
+
+    await openScheduledWatchParties(
       client,
     );
   } catch (error) {
