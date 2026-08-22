@@ -24,6 +24,25 @@ const AUTO_CANCEL_GRACE_MS =
 const ACTIVE_EXPIRY_MS =
   6 * 60 * 60 * 1000;
 
+const DEFAULT_RETENTION_DAYS = 30;
+
+function getRetentionMs(): number {
+  const raw =
+    process.env.WATCHPARTY_RETENTION_DAYS?.trim();
+
+  if (!raw) {
+    return DEFAULT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  }
+
+  const days = Number(raw);
+
+  if (!Number.isFinite(days) || days < 1) {
+    return DEFAULT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  }
+
+  return Math.floor(days) * 24 * 60 * 60 * 1000;
+}
+
 export type WatchPartyStatus =
   | 'scheduled'
   | 'ready'
@@ -397,6 +416,45 @@ export async function refreshWatchPartyLifecycle():
   }
 
   return updatedParties;
+}
+
+export async function cleanupWatchPartyHistory(): Promise<number> {
+  const store =
+    await loadWatchPartyStore();
+
+  const cutoff =
+    Date.now() - getRetentionMs();
+
+  const retained =
+    store.parties.filter(party => {
+      if (
+        party.status !== 'cancelled' &&
+        party.status !== 'auto_cancelled' &&
+        party.status !== 'expired'
+      ) {
+        return true;
+      }
+
+      const referenceTime =
+        new Date(party.updatedAt).getTime();
+
+      return (
+        Number.isNaN(referenceTime) ||
+        referenceTime >= cutoff
+      );
+    });
+
+  const removed =
+    store.parties.length - retained.length;
+
+  if (removed > 0) {
+    await saveWatchPartyStore({
+      version: 1,
+      parties: retained,
+    });
+  }
+
+  return removed;
 }
 
 export async function createScheduledWatchParty(
