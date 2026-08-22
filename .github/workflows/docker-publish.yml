@@ -65,6 +65,19 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set build channel
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            echo "MEDIAOPS_BUILD_CHANNEL=latest" >> "$GITHUB_ENV"
+          elif [[ "${GITHUB_REF}" == refs/heads/feat/* || "${GITHUB_REF}" == refs/heads/fix/* || "${GITHUB_REF}" == refs/heads/chore/* ]]; then
+            echo "MEDIAOPS_BUILD_CHANNEL=dev" >> "$GITHUB_ENV"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "MEDIAOPS_BUILD_CHANNEL=release" >> "$GITHUB_ENV"
+          else
+            echo "MEDIAOPS_BUILD_CHANNEL=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          fi
+
       - name: Generate image metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -85,5 +98,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            MEDIAOPS_BUILD_SHA=${{ github.sha }}
+            MEDIAOPS_BUILD_CHANNEL=${{ env.MEDIAOPS_BUILD_CHANNEL }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
