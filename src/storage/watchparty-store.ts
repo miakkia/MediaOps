@@ -17,6 +17,13 @@ const STORE_PATH = join(
 
 const TEMP_STORE_PATH = `${STORE_PATH}.tmp`;
 
+const READY_LEAD_TIME_MS =
+  30 * 60 * 1000;
+const AUTO_CANCEL_GRACE_MS =
+  30 * 60 * 1000;
+const ACTIVE_EXPIRY_MS =
+  6 * 60 * 60 * 1000;
+
 export type WatchPartyStatus =
   | 'scheduled'
   | 'ready'
@@ -266,9 +273,6 @@ export async function getUpcomingWatchParties(
   const parties =
     await getWatchParties();
 
-  const now =
-    Date.now();
-
   return parties
     .filter(party => {
       if (
@@ -278,23 +282,10 @@ export async function getUpcomingWatchParties(
         return false;
       }
 
-      if (
-        party.status !== 'scheduled' &&
-        party.status !== 'ready'
-      ) {
-        return false;
-      }
-
-      const scheduledTime =
-        new Date(
-          party.scheduledAt,
-        ).getTime();
-
       return (
-        !Number.isNaN(
-          scheduledTime,
-        ) &&
-        scheduledTime >= now
+        party.status === 'scheduled' ||
+        party.status === 'ready' ||
+        party.status === 'active'
       );
     })
     .sort(
@@ -324,8 +315,7 @@ export async function refreshWatchPartyLifecycle():
       if (
         party.status === 'cancelled' ||
         party.status === 'auto_cancelled' ||
-        party.status === 'expired' ||
-        party.status === 'active'
+        party.status === 'expired'
       ) {
         return party;
       }
@@ -345,11 +335,13 @@ export async function refreshWatchPartyLifecycle():
 
       const readyAt =
         scheduledTime -
-        30 * 60 * 1000;
-
+        READY_LEAD_TIME_MS;
+      const autoCancelAt =
+        scheduledTime +
+        AUTO_CANCEL_GRACE_MS;
       const expireAt =
         scheduledTime +
-        6 * 60 * 60 * 1000;
+        ACTIVE_EXPIRY_MS;
 
       let nextStatus: WatchPartyStatus =
         party.status;
@@ -359,8 +351,7 @@ export async function refreshWatchPartyLifecycle():
         now >= readyAt &&
         now < scheduledTime
       ) {
-        nextStatus =
-          'ready';
+        nextStatus = 'ready';
       }
 
       if (
@@ -368,21 +359,26 @@ export async function refreshWatchPartyLifecycle():
           party.status === 'scheduled' ||
           party.status === 'ready'
         ) &&
-        now >= expireAt
+        !party.partyCode &&
+        now >= autoCancelAt
       ) {
-        nextStatus =
-          'expired';
+        nextStatus = 'auto_cancelled';
       }
 
       if (
-        nextStatus ===
-        party.status
+        party.status === 'active' &&
+        now >= expireAt
+      ) {
+        nextStatus = 'expired';
+      }
+
+      if (
+        nextStatus === party.status
       ) {
         return party;
       }
 
-      changed =
-        true;
+      changed = true;
 
       return {
         ...party,
