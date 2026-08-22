@@ -16,7 +16,7 @@ import {
 } from '../i18n/index.js';
 
 import {
-  getWatchPartyUrl,
+  createWatchParty,
 } from '../services/watchparty.js';
 
 export const data =
@@ -44,53 +44,63 @@ export async function execute(
       interaction,
     );
 
-  const watchPartyUrl =
-    getWatchPartyUrl();
-
-  const openButton =
-    new ButtonBuilder()
-      .setLabel(
-        t(
-          locale,
-          'watchparty.openButton',
-        ),
-      )
-      .setEmoji('🌐')
-      .setStyle(
-        ButtonStyle.Link,
-      )
-      .setURL(
-        watchPartyUrl,
-      );
-
-  const row =
-    new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        openButton,
-      );
-
-  await interaction.reply({
-    content:
-      `${t(
-        locale,
-        'watchparty.title',
-      )}\n\n` +
-
-      `${t(
-        locale,
-        'watchparty.instructions',
-      )}\n\n` +
-
-      t(
-        locale,
-        'watchparty.securityNotice',
-      ),
-
-    components: [
-      row,
-    ],
-
+  await interaction.deferReply({
     flags:
       MessageFlags.Ephemeral,
   });
+
+  try {
+    const party =
+      await createWatchParty();
+
+    const openButton =
+      new ButtonBuilder()
+        .setLabel(
+          t(
+            locale,
+            'watchparty.openButton',
+          ),
+        )
+        .setEmoji('🎬')
+        .setStyle(
+          ButtonStyle.Link,
+        )
+        .setURL(
+          party.joinUrl,
+        );
+
+    const row =
+      new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(
+          openButton,
+        );
+
+    await interaction.editReply({
+      content:
+        `${t(
+          locale,
+          'watchparty.title',
+        )}\n\n` +
+        `**${party.partyCode}**\n\n` +
+        t(
+          locale,
+          'watchparty.securityNotice',
+        ),
+      components: [
+        row,
+      ],
+    });
+  } catch (error) {
+    console.error(
+      'Watch Party creation failed:',
+      error,
+    );
+
+    await interaction.editReply(
+      t(
+        locale,
+        'watchparty.validationError',
+      ),
+    );
+  }
 }
