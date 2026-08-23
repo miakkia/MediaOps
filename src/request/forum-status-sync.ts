@@ -2,7 +2,7 @@ import type { Message, ThreadChannel } from 'discord.js';
 
 export type ForumRequestStatus = 'requested' | 'processing' | 'available' | 'failed' | 'denied';
 
-interface ForumSyncConfig {
+export interface ForumSyncConfig {
   forumChannelId: string;
   movieTagId: string;
   seriesTagId: string;
