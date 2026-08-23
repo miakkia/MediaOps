@@ -11,6 +11,7 @@ import {
 } from '../services/watchparty.js';
 
 import {
+  cleanupWatchPartyHistory,
   getWatchParties,
   refreshWatchPartyLifecycle,
   setWatchPartyCode,
@@ -241,9 +242,16 @@ async function runLifecycleRefresh(
       client,
     );
 
-    // Re-evaluate after room creation so newly active parties are persisted
-    // consistently before the next scheduler pass.
     await refreshWatchPartyLifecycle();
+
+    const removed =
+      await cleanupWatchPartyHistory();
+
+    if (removed > 0) {
+      console.log(
+        `Watch Party cleanup removed ${removed} old record(s).`,
+      );
+    }
   } catch (error) {
     console.error(
       'Watch Party lifecycle refresh failed:',
