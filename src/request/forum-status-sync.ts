@@ -31,9 +31,8 @@ export function getForumSyncConfig(): ForumSyncConfig | undefined {
     deniedTagId: env('MEDIA_TAG_DENIED'),
   };
 
-  // Fail closed: Forum synchronization is disabled unless every identifier is
-  // explicitly configured. This prevents an incomplete deployment from
-  // managing arbitrary Discord threads.
+  // Forum synchronization is opt-in and remains disabled unless every
+  // required identifier is explicitly configured.
   return Object.values(config).every(Boolean) ? config : undefined;
 }
 
@@ -53,8 +52,8 @@ export function normalizeForumRequestStatus(value: string): ForumRequestStatus |
 }
 
 export function statusFromForumMessage(message: Message): ForumRequestStatus | undefined {
-  // Only a deliberately structured embed field is accepted. Free-form message
-  // content is never interpreted as an instruction to manage a Forum thread.
+  // Only the structured status field emitted by the configured integration is
+  // considered. Free-form Discord message text is never treated as an action.
   for (const embed of message.embeds) {
     const field = embed.fields.find(item => item.name.trim().toLowerCase() === 'status');
     if (!field) continue;
@@ -145,12 +144,28 @@ export function isManagedForumThread(
   return statusTags.length === 1;
 }
 
+async function closeTerminalThread(
+  thread: ThreadChannel,
+  status: ForumRequestStatus,
+): Promise<void> {
+  if (!isTerminalForumRequestStatus(status)) return;
+
+  // Lock first so a completed request cannot receive new user replies during
+  // the small window before Discord removes it from the active Forum view.
+  if (!thread.locked) {
+    await thread.setLocked(true, `Media request completed: ${status}`);
+  }
+  if (!thread.archived) {
+    await thread.setArchived(true, `Media request completed: ${status}`);
+  }
+}
+
 async function syncThread(
   thread: ThreadChannel,
   status: ForumRequestStatus,
   config: ForumSyncConfig,
 ): Promise<void> {
-  if (thread.archived) return;
+  if (thread.archived || thread.locked) return;
   if (!isManagedForumThread(thread.appliedTags, config)) return;
 
   const current = currentForumStatus(thread.appliedTags, config);
@@ -158,23 +173,20 @@ async function syncThread(
 
   const tags = desiredForumTags(thread.appliedTags, status, config);
   await thread.setAppliedTags(tags, `Media request status: ${status}`);
-
-  if (isTerminalForumRequestStatus(status) && !thread.archived) {
-    await thread.setArchived(true, `Media request completed: ${status}`);
-  }
+  await closeTerminalThread(thread, status);
 }
 
 export async function handleRequestForumMessage(message: Message): Promise<boolean> {
   const config = getForumSyncConfig();
   if (!config) return false;
 
-  // Strict source allow-list: only the one configured Ombi router webhook may
-  // drive Forum state. Messages from users, bots, or any other webhook are
-  // ignored even if they contain a convincing-looking Status embed.
+  // The Forum automation is intentionally narrow: only the configured webhook
+  // in the configured Forum can drive state, and only already-managed threads
+  // with an unambiguous media/status tag set are eligible.
   if (message.webhookId !== config.webhookId) return false;
   if (!message.channel.isThread()) return false;
   if (message.channel.parentId !== config.forumChannelId) return false;
-  if (message.channel.archived) return false;
+  if (message.channel.archived || message.channel.locked) return false;
   if (!isManagedForumThread(message.channel.appliedTags, config)) return false;
 
   const status = statusFromForumMessage(message);
