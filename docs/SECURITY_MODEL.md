@@ -47,6 +47,20 @@ MediaOps validates or constrains:
 
 Administrative commands should require appropriate Discord permissions.
 
+### Media Request Forum boundary
+
+Optional request-Forum synchronization is deliberately narrower than general Discord message handling.
+
+The feature is disabled unless its complete Forum configuration is present. When enabled, MediaOps accepts request-state events only from the configured integration source in the configured Forum and only for threads that already match the expected managed-request shape. Free-form user message text is not interpreted as a request-state command.
+
+Request-state transitions are constrained so completed request states remain terminal. Terminal request posts are locked before being removed from the active Forum view, preserving history while preventing ordinary follow-up replies.
+
+`MEDIA_REQUESTS_WEBHOOK_ID` is a non-secret identifier used for source allow-listing. The webhook URL/token remains outside MediaOps and must still be treated as a credential by the companion router deployment.
+
+Discord gateway intents and channel permissions should be enabled only when required by configured features. Enabling message-content access does not replace Discord channel permissions and should not be paired with unnecessary broad server permissions.
+
+Public documentation intentionally describes the supported security guarantees and administrator requirements without publishing credential values or deployment-specific internals. Because MediaOps is open source, security controls must remain effective even when an attacker can read the implementation.
+
 ## Provider API trust boundary
 
 MediaOps must not trust provider JSON simply because the request succeeded.
@@ -190,6 +204,8 @@ Before a public release or major integration change, verify:
 - external responses are validated;
 - Discord custom IDs cannot inject arbitrary data;
 - privileged actions enforce authorization;
+- optional Forum automation remains explicitly scoped to its configured source and Forum;
+- completed Forum requests cannot be silently rewritten through normal integration events;
 - logs do not print credentials;
 - container permissions remain minimal;
 - dependency audit is reviewed;
