@@ -1,6 +1,6 @@
 import type { Client } from 'discord.js';
 
-import type { MediaItem } from '../providers/media-provider.js';
+import type { MediaItem, MediaProvider } from '../providers/media-provider.js';
 import {
   listTrackedRequests,
   updateTrackedRequest,
@@ -31,17 +31,26 @@ function matchesTrackedRequest(
   return year === undefined || item.year === undefined || item.year === year;
 }
 
+async function isAvailableWithProvider(
+  provider: MediaProvider,
+  title: string,
+  year: number | undefined,
+  mediaType: 'movie' | 'series',
+): Promise<boolean> {
+  const results = mediaType === 'movie'
+    ? await provider.searchMovies(title)
+    : await provider.searchSeries(title);
+
+  return results.some(item => matchesTrackedRequest(item, title, year));
+}
+
 async function isAvailableOnMediaServer(
   title: string,
   year: number | undefined,
   mediaType: 'movie' | 'series',
 ): Promise<boolean> {
   const { mediaProvider } = await import('../providers/media-provider-instance.js');
-  const results = mediaType === 'movie'
-    ? await mediaProvider.searchMovies(title)
-    : await mediaProvider.searchSeries(title);
-
-  return results.some(item => matchesTrackedRequest(item, title, year));
+  return isAvailableWithProvider(mediaProvider, title, year, mediaType);
 }
 
 async function checkTrackedRequests(client: Client): Promise<void> {
@@ -103,4 +112,9 @@ export function startRequestTracker(client: Client): void {
   timer.unref();
 }
 
-export { checkTrackedRequests, isAvailableOnMediaServer, matchesTrackedRequest };
+export {
+  checkTrackedRequests,
+  isAvailableOnMediaServer,
+  isAvailableWithProvider,
+  matchesTrackedRequest,
+};
