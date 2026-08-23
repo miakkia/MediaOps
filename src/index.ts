@@ -81,6 +81,7 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
   ],
 });
 
@@ -94,7 +95,10 @@ client.once(Events.ClientReady, readyClient => {
 
 client.on(Events.MessageCreate, async message => {
   try {
-    await handleRequestForumMessage(message);
+    const synchronized = await handleRequestForumMessage(message);
+    if (synchronized) {
+      console.log(`Synchronized media request Forum thread ${message.channelId}.`);
+    }
   } catch (error) {
     console.error('Request Forum synchronization failed:', error);
   }
