@@ -12,6 +12,9 @@ import type {
   RequestSearchResult,
 } from '../providers/request-provider.js';
 import { requestProvider } from '../providers/request-provider-instance.js';
+import {
+  storeRequestSelection,
+} from '../request/request-selection-store.js';
 
 export const data = new SlashCommandBuilder()
   .setName('request')
@@ -73,8 +76,16 @@ export async function execute(
     const displayedResults = results.slice(0, 5);
     const buttons = displayedResults.map((item, index) => {
       const requestable = !item.available && !item.requested;
+      const token = requestable
+        ? storeRequestSelection(interaction.user.id, item)
+        : undefined;
+
       return new ButtonBuilder()
-        .setCustomId(`request-select:${item.mediaType}:${item.providerId}`)
+        .setCustomId(
+          token
+            ? `request-select-token:${token}`
+            : `request-disabled:${index + 1}`,
+        )
         .setLabel(
           item.available
             ? `#${index + 1} Available`
