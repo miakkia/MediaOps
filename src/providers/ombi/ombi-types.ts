@@ -53,4 +53,8 @@ export interface OmbiMultiSearchResult {
   mediaType?: string;
   poster?: string | null;
   overview?: string | null;
+  releaseDate?: string | null;
+  firstAirDate?: string | null;
+  firstAired?: string | null;
+  year?: number | string | null;
 }
