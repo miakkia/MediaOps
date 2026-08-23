@@ -7,6 +7,7 @@ on:
       - 'feat/**'
       - 'fix/**'
       - 'chore/**'
+      - 'harden/**'
     tags:
       - 'v*'
   pull_request:
@@ -40,8 +41,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
 
       - name: Build application
         run: npm run build
@@ -70,7 +77,7 @@ jobs:
         run: |
           if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
             echo "MEDIAOPS_BUILD_CHANNEL=latest" >> "$GITHUB_ENV"
-          elif [[ "${GITHUB_REF}" == refs/heads/feat/* || "${GITHUB_REF}" == refs/heads/fix/* || "${GITHUB_REF}" == refs/heads/chore/* ]]; then
+          elif [[ "${GITHUB_REF}" == refs/heads/feat/* || "${GITHUB_REF}" == refs/heads/fix/* || "${GITHUB_REF}" == refs/heads/chore/* || "${GITHUB_REF}" == refs/heads/harden/* ]]; then
             echo "MEDIAOPS_BUILD_CHANNEL=dev" >> "$GITHUB_ENV"
           elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             echo "MEDIAOPS_BUILD_CHANNEL=release" >> "$GITHUB_ENV"
@@ -84,7 +91,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=dev,enable=${{ startsWith(github.ref, 'refs/heads/feat/') || startsWith(github.ref, 'refs/heads/fix/') || startsWith(github.ref, 'refs/heads/chore/') }}
+            type=raw,value=dev,enable=${{ startsWith(github.ref, 'refs/heads/feat/') || startsWith(github.ref, 'refs/heads/fix/') || startsWith(github.ref, 'refs/heads/chore/') || startsWith(github.ref, 'refs/heads/harden/') }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha
             type=semver,pattern={{version}}
