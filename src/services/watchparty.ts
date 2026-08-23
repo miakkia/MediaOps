@@ -223,9 +223,5 @@ export function getWatchPartyJoinUrl(
 ): string {
   const normalizedPartyCode = normalizePartyCode(partyCode);
 
-  const url = new URL(baseUrl);
-
-  url.searchParams.set('party', normalizedPartyCode);
-
-  return url.toString();
+  return `${baseUrl}/party/${encodeURIComponent(normalizedPartyCode)}`;
 }
