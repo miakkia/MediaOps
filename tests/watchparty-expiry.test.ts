@@ -4,15 +4,30 @@ import test from 'node:test';
 import {
   getWatchPartyCloseWindowAt,
   getWatchPartyExpireAt,
+  WATCHPARTY_ABSOLUTE_FAILSAFE_MINUTES,
 } from '../src/watchparty/expiry.js';
 
-test('expires 45 minutes after the Emby runtime', () => {
+test('absolute failsafe expires 4.5 hours after scheduled start', () => {
   const scheduledAt = '2026-08-23T01:30:00.000Z';
   const expireAt = getWatchPartyExpireAt(scheduledAt, 130);
 
+  assert.equal(WATCHPARTY_ABSOLUTE_FAILSAFE_MINUTES, 270);
   assert.equal(
     expireAt,
-    new Date('2026-08-23T04:25:00.000Z').getTime(),
+    new Date('2026-08-23T06:00:00.000Z').getTime(),
+  );
+});
+
+test('absolute failsafe does not depend on movie runtime', () => {
+  const scheduledAt = '2026-08-23T01:30:00.000Z';
+
+  assert.equal(
+    getWatchPartyExpireAt(scheduledAt, 90),
+    getWatchPartyExpireAt(scheduledAt, 240),
+  );
+  assert.equal(
+    getWatchPartyExpireAt(scheduledAt, undefined),
+    new Date('2026-08-23T06:00:00.000Z').getTime(),
   );
 });
 
@@ -26,12 +41,12 @@ test('close window opens at theoretical movie end', () => {
   );
 });
 
-test('falls back to six hours when runtime is unavailable', () => {
-  const scheduledAt = '2026-08-23T01:30:00.000Z';
-  const expireAt = getWatchPartyExpireAt(scheduledAt, undefined);
-
+test('close window remains unavailable when runtime is unknown', () => {
   assert.equal(
-    expireAt,
-    new Date('2026-08-23T07:30:00.000Z').getTime(),
+    getWatchPartyCloseWindowAt(
+      '2026-08-23T01:30:00.000Z',
+      undefined,
+    ),
+    undefined,
   );
 });
