@@ -56,7 +56,16 @@ export async function updateTrackedRequest(
   const items = await readAll();
   const index = items.findIndex(item => item.providerRequestId === providerRequestId);
   if (index < 0) return undefined;
-  items[index] = { ...items[index], ...patch };
+
+  const current = items[index];
+  if (!current) return undefined;
+
+  const updated: TrackedRequest = {
+    ...current,
+    ...patch,
+  };
+
+  items[index] = updated;
   await writeAll(items);
-  return items[index];
+  return updated;
 }
