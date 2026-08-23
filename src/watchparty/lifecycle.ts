@@ -19,6 +19,10 @@ import {
   setWatchPartyStatus,
 } from '../storage/watchparty-store.js';
 
+import {
+  synchronizeDiscordScheduledEventForParty,
+} from './discord-events.js';
+
 const LIFECYCLE_INTERVAL_MS =
   60 * 1000;
 
@@ -228,6 +232,19 @@ async function openScheduledWatchParties(
   }
 }
 
+async function synchronizeDiscordScheduledEvents(
+  client: Client,
+): Promise<void> {
+  const parties = await getWatchParties();
+
+  for (const party of parties) {
+    await synchronizeDiscordScheduledEventForParty(
+      client,
+      party,
+    );
+  }
+}
+
 async function runLifecycleRefresh(
   client: Client,
 ): Promise<void> {
@@ -243,6 +260,13 @@ async function runLifecycleRefresh(
     );
 
     await refreshWatchPartyLifecycle();
+
+    // Keep Scheduled Events aligned after all Watch Party state transitions.
+    // Any Discord API error is isolated inside the event integration and must
+    // not stop room creation, RSVP, reminders, or retention cleanup.
+    await synchronizeDiscordScheduledEvents(
+      client,
+    );
 
     const removed =
       await cleanupWatchPartyHistory();
