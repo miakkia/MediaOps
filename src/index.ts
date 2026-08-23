@@ -16,6 +16,7 @@ import {
 import { getInteractionLocale } from './i18n/discord-locale.js';
 import { t } from './i18n/index.js';
 import { handleRequestButton } from './request/request-interactions.js';
+import { startRequestTracker } from './request/request-tracker.js';
 import { handleWatchPartyButton } from './watchparty/interactions.js';
 import { startWatchPartyLifecycle } from './watchparty/lifecycle.js';
 import { handleWatchPartyRandomButton } from './watchparty/random-interactions.js';
@@ -81,6 +82,7 @@ client.once(Events.ClientReady, readyClient => {
   console.log(`Solitario Butler connected as ${readyClient.user.tag}`);
   console.log(`Loaded ${commands.size} Discord commands: ${[...commands.keys()].join(', ')}`);
   startWatchPartyLifecycle(readyClient);
+  startRequestTracker(readyClient);
 });
 
 client.on(Events.InteractionCreate, async interaction => {
