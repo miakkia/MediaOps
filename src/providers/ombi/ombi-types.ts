@@ -58,3 +58,27 @@ export interface OmbiMultiSearchResult {
   firstAired?: string | null;
   year?: number | string | null;
 }
+
+export interface OmbiTvSearchDetail {
+  title?: string;
+  firstAired?: string | null;
+  fullyAvailable?: boolean;
+  partlyAvailable?: boolean;
+  requested?: boolean;
+  requestId?: number;
+  available?: boolean;
+  theMovieDbId?: string | number | null;
+  theTvDbId?: string | number | null;
+  embyUrl?: string | null;
+  seasonRequests?: Array<{
+    seasonNumber?: number;
+    seasonAvailable?: boolean;
+    childRequestId?: number;
+    episodes?: Array<{
+      episodeNumber?: number;
+      requested?: boolean;
+      approved?: boolean;
+      available?: boolean;
+    }>;
+  }>;
+}
