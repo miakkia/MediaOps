@@ -7,9 +7,16 @@ import {
 } from '../i18n/index.js';
 
 import {
+  createWatchParty,
+} from '../services/watchparty.js';
+
+import {
+  cleanupWatchPartyHistory,
   getWatchParties,
   refreshWatchPartyLifecycle,
+  setWatchPartyCode,
   setWatchPartyReminderSentAt,
+  setWatchPartyStatus,
 } from '../storage/watchparty-store.js';
 
 const LIFECYCLE_INTERVAL_MS =
@@ -132,6 +139,95 @@ async function sendWatchPartyReminders(
   }
 }
 
+async function openScheduledWatchParties(
+  client: Client,
+): Promise<void> {
+  const parties =
+    await getWatchParties();
+
+  const now =
+    Date.now();
+
+  for (const party of parties) {
+    if (
+      party.status !== 'scheduled' &&
+      party.status !== 'ready'
+    ) {
+      continue;
+    }
+
+    if (party.partyCode) {
+      continue;
+    }
+
+    const scheduledTime =
+      new Date(
+        party.scheduledAt,
+      ).getTime();
+
+    if (
+      Number.isNaN(scheduledTime) ||
+      now < scheduledTime
+    ) {
+      continue;
+    }
+
+    try {
+      const room =
+        await createWatchParty();
+
+      // Persist first so a Discord failure cannot create duplicate rooms.
+      await setWatchPartyCode(
+        party.id,
+        room.partyCode,
+      );
+
+      await setWatchPartyStatus(
+        party.id,
+        'active',
+      );
+
+      const channel =
+        await client.channels.fetch(
+          party.channelId,
+        );
+
+      if (
+        !channel ||
+        !channel.isSendable()
+      ) {
+        console.warn(
+          `Watch Party launch channel is unavailable: ${party.channelId}`,
+        );
+
+        continue;
+      }
+
+      const year =
+        party.mediaYear !== undefined
+          ? ` (${party.mediaYear})`
+          : '';
+
+      await channel.send({
+        content:
+          '🎬 **Watch Party ouverte / Watch Party is open!**\n\n' +
+          `**${party.mediaTitle}**${year}\n` +
+          `Code: \`${room.partyCode}\`\n` +
+          `➡️ ${room.joinUrl}`,
+      });
+
+      console.log(
+        `Scheduled Watch Party ${party.id} opened automatically as ${room.partyCode}`,
+      );
+    } catch (error) {
+      console.error(
+        `Automatic Watch Party creation failed for ${party.id}:`,
+        error,
+      );
+    }
+  }
+}
+
 async function runLifecycleRefresh(
   client: Client,
 ): Promise<void> {
@@ -141,6 +237,21 @@ async function runLifecycleRefresh(
     await sendWatchPartyReminders(
       client,
     );
+
+    await openScheduledWatchParties(
+      client,
+    );
+
+    await refreshWatchPartyLifecycle();
+
+    const removed =
+      await cleanupWatchPartyHistory();
+
+    if (removed > 0) {
+      console.log(
+        `Watch Party cleanup removed ${removed} old record(s).`,
+      );
+    }
   } catch (error) {
     console.error(
       'Watch Party lifecycle refresh failed:',

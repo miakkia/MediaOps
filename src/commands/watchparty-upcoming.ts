@@ -104,14 +104,23 @@ export async function execute(
             ).length;
 
           const status =
-            party.status === 'ready'
-              ? '🟢'
-              : '🗓️';
+            party.status === 'active'
+              ? '🎬'
+              : party.status === 'ready'
+                ? '🟢'
+                : '🗓️';
+
+          const code =
+            party.status === 'active' &&
+            party.partyCode
+              ? `\n   🔑 \`${party.partyCode}\``
+              : '';
 
           return (
             `${status} **${party.mediaTitle}**${year}\n` +
             `   <t:${timestamp}:F> • <t:${timestamp}:R>\n` +
-            `   👥 ${going} going`
+            `   👥 ${going} going` +
+            code
           );
         });
 
