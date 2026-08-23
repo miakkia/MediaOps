@@ -48,25 +48,52 @@ Use one Path entry:
 | Discord Guild ID | `DISCORD_GUILD_ID` | empty | Discord server/guild ID |
 | Emby URL | `EMBY_URL` | empty | URL reachable from the container |
 | Emby API Key | `EMBY_API_KEY` | empty | Secret |
+| Request Provider | `REQUEST_PROVIDER` | `none` | Use `ombi` to enable request workflows |
+| Ombi URL | `OMBI_URL` | empty | Required when request provider is Ombi |
+| Ombi API Key | `OMBI_API_KEY` | empty | Secret |
+| Ombi Auto Approve | `OMBI_AUTO_APPROVE` | `false` | Optional request approval behavior |
 | Watch Party URL | `WATCHPARTY_URL` | empty | Base/public URL for Watch Party |
 | MediaOps Locale | `MEDIAOPS_LOCALE` | `en` | Automated message language; supported: `en`, `fr` |
+| MediaOps Timezone | `MEDIAOPS_TIMEZONE` | `America/Toronto` | IANA timezone |
 | MediaOps Data Directory | `MEDIAOPS_DATA_DIR` | `/data` | Advanced; leave at `/data` |
+
+### Optional Media Request Forum variables
+
+The Forum integration is optional. Configure every field below to enable it; leaving the set incomplete keeps synchronization disabled.
+
+| Name | Key | Default | Notes |
+| --- | --- | --- | --- |
+| Media Requests Forum ID | `MEDIA_REQUESTS_FORUM_ID` | empty | Discord Forum channel ID |
+| Media Requests Webhook ID | `MEDIA_REQUESTS_WEBHOOK_ID` | empty | Allowed webhook ID only; not the URL/token |
+| Requested Tag ID | `MEDIA_TAG_REQUESTED` | empty | Status tag |
+| Processing Tag ID | `MEDIA_TAG_PROCESSING` | empty | Status tag |
+| Available Tag ID | `MEDIA_TAG_AVAILABLE` | empty | Terminal status tag |
+| Failed Tag ID | `MEDIA_TAG_FAILED` | empty | Terminal status tag |
+| Denied Tag ID | `MEDIA_TAG_DENIED` | empty | Terminal status tag |
+| Movie Tag ID | `MEDIA_TAG_MOVIE` | empty | Media type tag |
+| Series Tag ID | `MEDIA_TAG_SERIES` | empty | Media type tag |
+
+When this feature is enabled, configure the matching Forum/tags in Discord and enable only the Discord gateway intent and channel permissions required for the integration. Do not give the bot Administrator permission when narrower Forum permissions are sufficient.
+
+See [`REQUEST_FORUM.md`](REQUEST_FORUM.md) for the full workflow and security notes.
 
 Unraid already provides its own timezone environment value, so the standard template does not define a duplicate `TZ` entry.
 
 ## Preconfigured template
 
-The repository includes `templates/mediaops.xml`, a version-2 Unraid template. It predefines the GHCR image, bridge networking, non-privileged mode, appdata mapping and all current MediaOps variables. Sensitive values are left empty and marked masked where supported.
+The repository includes `templates/mediaops.xml`, a version-2 Unraid template. It predefines the GHCR image, bridge networking, non-privileged mode, appdata mapping and current MediaOps variables. Sensitive values are left empty and marked masked where supported.
 
 The intended installation flow is:
 
 1. install/select the MediaOps template;
 2. enter Discord credentials and IDs;
 3. enter the Emby URL and API key;
-4. enter the Watch Party URL;
-5. choose `MEDIAOPS_LOCALE=en` or `fr`;
-6. leave `MEDIA_PROVIDER=emby` and `MEDIAOPS_DATA_DIR=/data` unless documented otherwise;
-7. Apply and inspect the container logs.
+4. configure Ombi if request support is desired;
+5. configure the optional Media Request Forum only if that workflow is desired;
+6. enter the Watch Party URL;
+7. choose `MEDIAOPS_LOCALE=en` or `fr`;
+8. leave `MEDIA_PROVIDER=emby` and `MEDIAOPS_DATA_DIR=/data` unless documented otherwise;
+9. Apply and inspect the container logs.
 
 ## First start
 
@@ -76,17 +103,20 @@ A successful startup currently looks similar to:
 
 ```text
 Solitario Butler connected as <bot tag>
-Loaded 12 Discord commands: health, latest, movie, ping, tv, watchparty-schedule, watchparty-setup, watchparty-start, watchparty-status, watchparty-upcoming, watchparty, watchpartyrandom
+Loaded Discord commands: ...
+Watch Party lifecycle scheduler started.
 ```
 
 Then validate at minimum:
 
 1. `/health`
 2. `/movie`
-3. `/watchpartyrandom`
-4. a scheduled Watch Party flow
-5. `/watchparty-upcoming`
-6. automatic Watch Party reminder delivery
+3. `/request` if a request provider is enabled
+4. one Forum request lifecycle if Forum synchronization is enabled
+5. `/watchpartyrandom`
+6. a scheduled Watch Party flow
+7. `/watchparty-upcoming`
+8. automatic Watch Party reminder delivery
 
 This deployment path has been validated on Unraid using the GHCR image and persistent appdata mapping.
 
@@ -122,9 +152,10 @@ MediaOps should remain a narrow integration service:
 - no Docker socket;
 - no Movies/Series/Downloads mounts;
 - no inbound ports unless a future feature requires one;
-- Discord and Emby secrets supplied only at runtime;
-- persistent access limited to MediaOps-owned appdata.
-
+- Discord and provider secrets supplied only at runtime;
+- persistent access limited to MediaOps-owned appdata;
+- optional Forum automation scoped to its configured Forum and integration source;
+- least-privilege Discord permissions and intents.
 
 ## Watch Party lifecycle and reminders
 
