@@ -36,31 +36,14 @@ function parseLocalDateTime(
     return undefined;
   }
 
-  const [
-    yearText,
-    monthText,
-    dayText,
-  ] = date.split('-');
+  const [yearText, monthText, dayText] = date.split('-');
+  const [hourText, minuteText] = time.split(':');
 
-  const [
-    hourText,
-    minuteText,
-  ] = time.split(':');
-
-  const year =
-    Number(yearText);
-
-  const month =
-    Number(monthText);
-
-  const day =
-    Number(dayText);
-
-  const hour =
-    Number(hourText);
-
-  const minute =
-    Number(minuteText);
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
 
   if (
     !Number.isInteger(year) ||
@@ -85,16 +68,15 @@ function parseLocalDateTime(
     return undefined;
   }
 
-  const localDate =
-    new Date(
-      year,
-      month - 1,
-      day,
-      hour,
-      minute,
-      0,
-      0,
-    );
+  const localDate = new Date(
+    year,
+    month - 1,
+    day,
+    hour,
+    minute,
+    0,
+    0,
+  );
 
   if (
     localDate.getFullYear() !== year ||
@@ -112,112 +94,60 @@ function parseLocalDateTime(
 export async function handleWatchPartyRandomModal(
   interaction: ModalSubmitInteraction,
 ): Promise<boolean> {
-  const movieId =
-    parseRandomScheduleModalId(
-      interaction.customId,
-    );
+  const movieId = parseRandomScheduleModalId(interaction.customId);
 
   if (!movieId) {
     return false;
   }
 
-  const locale =
-    getInteractionLocale(
-      interaction,
-    );
+  const locale = getInteractionLocale(interaction);
 
   await interaction.deferReply({
-    flags:
-      MessageFlags.Ephemeral,
+    flags: MessageFlags.Ephemeral,
   });
 
   try {
-    const {
-      date,
-      time,
-    } =
-      getRandomScheduleDateTime(
-        interaction.fields,
-      );
-
-    const scheduledDate =
-      parseLocalDateTime(
-        date,
-        time,
-      );
+    const { date, time } = getRandomScheduleDateTime(interaction.fields);
+    const scheduledDate = parseLocalDateTime(date, time);
 
     if (!scheduledDate) {
       await interaction.editReply(
-        t(
-          locale,
-          'watchparty.scheduling.invalidDate',
-        ),
+        t(locale, 'watchparty.scheduling.invalidDate'),
       );
-
       return true;
     }
 
-    if (
-      scheduledDate.getTime() <=
-      Date.now()
-    ) {
+    if (scheduledDate.getTime() <= Date.now()) {
       await interaction.editReply(
-        t(
-          locale,
-          'watchparty.scheduling.pastDate',
-        ),
+        t(locale, 'watchparty.scheduling.pastDate'),
       );
-
       return true;
     }
 
-    const movie =
-      await mediaProvider.getMovieById(
-        movieId,
-      );
+    const movie = await mediaProvider.getMovieById(movieId);
 
     if (!movie) {
       await interaction.editReply(
-        t(
-          locale,
-          'watchparty.scheduling.movieSelectionError',
-        ),
+        t(locale, 'watchparty.scheduling.movieSelectionError'),
       );
-
       return true;
     }
 
-    const context =
-      getSchedulingContext(
-        interaction,
-      );
+    const context = getSchedulingContext(interaction);
 
     await scheduleWatchParty({
-      guildId:
-        context.guildId,
-
-      channelId:
-        context.channelId,
-
-      organizerDiscordId:
-        context.organizerDiscordId,
-
+      guildId: context.guildId,
+      channelId: context.channelId,
+      organizerDiscordId: context.organizerDiscordId,
       movie,
-
-      scheduledAt:
-        scheduledDate.toISOString(),
-
+      scheduledAt: scheduledDate.toISOString(),
       locale,
-
-      channel:
-        context.channel,
+      guild: context.guild,
+      channel: context.channel,
     });
 
     await interaction.editReply(
-      t(
-        locale,
-        'watchparty.scheduling.confirmation',
-      ),
+      t(locale, 'watchparty.scheduling.confirmation'),
     );
 
     return true;
@@ -228,10 +158,7 @@ export async function handleWatchPartyRandomModal(
     );
 
     await interaction.editReply(
-      t(
-        locale,
-        'watchparty.scheduling.scheduleError',
-      ),
+      t(locale, 'watchparty.scheduling.scheduleError'),
     );
 
     return true;
