@@ -59,6 +59,24 @@ When a Discord user has a matching Ombi Discord notification preference, MediaOp
 
 Successful requests are persisted under the MediaOps data directory and periodically checked for availability. When the requested title becomes available, MediaOps sends the requester a one-time Discord DM.
 
+## Optional Media Request Forum
+
+MediaOps can also maintain a Discord Forum as a searchable request history when the companion Ombi Discord Router is configured.
+
+Each media item keeps one Forum post. The media-type tag stays attached while the status tag moves through the supported lifecycle:
+
+```text
+Movie / Series + Requested
+        -> Processing
+        -> Available / Failed / Denied
+```
+
+Completed states are terminal. MediaOps locks completed posts and removes them from the active Forum view without deleting their history.
+
+Forum synchronization is optional and configuration-driven. It does not replace `/request`, and normal Discord messages are not treated as request-state commands.
+
+See [`REQUEST_FORUM.md`](REQUEST_FORUM.md) for setup, required tags, permissions, and security behavior.
+
 ## Public Watch Party panel
 
 The setup panel is intentionally small and self-service oriented. It exposes three primary actions:
@@ -159,13 +177,14 @@ Administrative setup actions should require appropriate Discord permissions. Nor
 
 Request selection tokens are bound to the Discord user who created them. Watch Party cancellation validates the organizer against persistent server-side state rather than trusting a button identifier alone.
 
+Optional Forum automation is scoped to the configured Forum and configured integration source. Administrators should grant only the Discord channel permissions and gateway intents required by enabled features.
+
 ## Planned Discord features
 
 Likely next additions include:
 
 - controlled Watch Party room dissolution near the end-of-session grace window;
 - configurable Discord roles for scheduling/admin actions;
-- richer request status transitions beyond final availability;
 - additional media and request provider adapters;
 - richer status/help panels;
 - optional hosted-bot onboarding.
