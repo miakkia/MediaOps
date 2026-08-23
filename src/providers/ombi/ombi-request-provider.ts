@@ -192,15 +192,19 @@ export class OmbiRequestProvider implements RequestProvider {
         options.requester.id,
       );
 
-      if (ombiUserName) {
-        console.log(
-          `Resolved Discord user ${options.requester.id} to Ombi user ${ombiUserName}`,
-        );
-      } else {
-        console.warn(
-          `No Ombi user mapping found for Discord user ${options.requester.id}; falling back to API identity.`,
-        );
+      if (!ombiUserName) {
+        return {
+          success: false,
+          providerRequestId: undefined,
+          status: 'unknown',
+          message:
+            'Your Discord account is not mapped to an Ombi user. The request was not submitted so requester ownership is not lost.',
+        };
       }
+
+      console.log(
+        `Resolved Discord user ${options.requester.id} to Ombi user ${ombiUserName}`,
+      );
     }
 
     const userOptions = ombiUserName
