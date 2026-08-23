@@ -98,3 +98,77 @@ test('failed automatic approval leaves created request pending', async () => {
     '/api/v1/Request/movie/approve',
   ]);
 });
+
+test('Discord requester is submitted to Ombi under the mapped Ombi username', async () => {
+  const requestPosts: Array<{
+    path: string;
+    userName: string | undefined;
+  }> = [];
+
+  const client = {
+    async get<T>(
+      path: string,
+    ): Promise<T> {
+      if (path === '/api/v1/Identity/Users') {
+        return [
+          {
+            id: 'ombi-user-1',
+            userName: 'Miakia',
+          },
+        ] as T;
+      }
+
+      if (path.includes('/api/v1/Identity/notificationpreferences/')) {
+        return [
+          {
+            userId: 'ombi-user-1',
+            agent: 1,
+            enabled: true,
+            value: 'discord-user-123',
+          },
+        ] as T;
+      }
+
+      return undefined as T;
+    },
+
+    async post<T>(
+      path: string,
+      _body?: unknown,
+      options?: { userName?: string },
+    ): Promise<T> {
+      requestPosts.push({
+        path,
+        userName: options?.userName,
+      });
+
+      return {
+        result: true,
+        requestId: 42,
+      } as T;
+    },
+  } as unknown as OmbiClient;
+
+  const provider = new OmbiRequestProvider(
+    client,
+    { autoApprove: false },
+  );
+
+  const result = await provider.request(
+    movie(),
+    {
+      requester: {
+        source: 'discord',
+        id: 'discord-user-123',
+      },
+    },
+  );
+
+  assert.equal(result.status, 'pending');
+  assert.deepEqual(requestPosts, [
+    {
+      path: '/api/v1/Request/movie',
+      userName: 'Miakia',
+    },
+  ]);
+});
