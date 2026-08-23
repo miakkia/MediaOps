@@ -4,6 +4,7 @@ export type ForumRequestStatus = 'requested' | 'processing' | 'available' | 'fai
 
 export interface ForumSyncConfig {
   forumChannelId: string;
+  webhookId: string;
   movieTagId: string;
   seriesTagId: string;
   requestedTagId: string;
@@ -20,6 +21,7 @@ function env(name: string): string {
 export function getForumSyncConfig(): ForumSyncConfig | undefined {
   const config: ForumSyncConfig = {
     forumChannelId: env('MEDIA_REQUESTS_FORUM_ID'),
+    webhookId: env('MEDIA_REQUESTS_WEBHOOK_ID'),
     movieTagId: env('MEDIA_TAG_MOVIE'),
     seriesTagId: env('MEDIA_TAG_SERIES'),
     requestedTagId: env('MEDIA_TAG_REQUESTED'),
@@ -29,6 +31,9 @@ export function getForumSyncConfig(): ForumSyncConfig | undefined {
     deniedTagId: env('MEDIA_TAG_DENIED'),
   };
 
+  // Fail closed: Forum synchronization is disabled unless every identifier is
+  // explicitly configured. This prevents an incomplete deployment from
+  // managing arbitrary Discord threads.
   return Object.values(config).every(Boolean) ? config : undefined;
 }
 
@@ -48,6 +53,8 @@ export function normalizeForumRequestStatus(value: string): ForumRequestStatus |
 }
 
 export function statusFromForumMessage(message: Message): ForumRequestStatus | undefined {
+  // Only a deliberately structured embed field is accepted. Free-form message
+  // content is never interpreted as an instruction to manage a Forum thread.
   for (const embed of message.embeds) {
     const field = embed.fields.find(item => item.name.trim().toLowerCase() === 'status');
     if (!field) continue;
@@ -67,8 +74,53 @@ function statusTag(config: ForumSyncConfig, status: ForumRequestStatus): string 
   }
 }
 
+function configuredStatusTags(config: ForumSyncConfig): readonly string[] {
+  return [
+    config.requestedTagId,
+    config.processingTagId,
+    config.availableTagId,
+    config.failedTagId,
+    config.deniedTagId,
+  ];
+}
+
+export function currentForumStatus(
+  currentTags: readonly string[],
+  config: ForumSyncConfig,
+): ForumRequestStatus | undefined {
+  const matches: ForumRequestStatus[] = [];
+  if (currentTags.includes(config.requestedTagId)) matches.push('requested');
+  if (currentTags.includes(config.processingTagId)) matches.push('processing');
+  if (currentTags.includes(config.availableTagId)) matches.push('available');
+  if (currentTags.includes(config.failedTagId)) matches.push('failed');
+  if (currentTags.includes(config.deniedTagId)) matches.push('denied');
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+export function hasExactlyOneMediaTag(
+  currentTags: readonly string[],
+  config: ForumSyncConfig,
+): boolean {
+  return Number(currentTags.includes(config.movieTagId))
+    + Number(currentTags.includes(config.seriesTagId)) === 1;
+}
+
 export function isTerminalForumRequestStatus(status: ForumRequestStatus): boolean {
   return status === 'available' || status === 'failed' || status === 'denied';
+}
+
+export function isAllowedForumStatusTransition(
+  current: ForumRequestStatus,
+  next: ForumRequestStatus,
+): boolean {
+  if (current === next) return true;
+  if (isTerminalForumRequestStatus(current)) return false;
+
+  if (current === 'requested') {
+    return ['processing', 'available', 'failed', 'denied'].includes(next);
+  }
+
+  return current === 'processing' && ['available', 'failed', 'denied'].includes(next);
 }
 
 export function desiredForumTags(
@@ -82,11 +134,28 @@ export function desiredForumTags(
   return [mediaTag, statusTag(config, status)];
 }
 
+export function isManagedForumThread(
+  currentTags: readonly string[],
+  config: ForumSyncConfig,
+): boolean {
+  if (!hasExactlyOneMediaTag(currentTags, config)) return false;
+
+  const statusTags = configuredStatusTags(config)
+    .filter(tag => currentTags.includes(tag));
+  return statusTags.length === 1;
+}
+
 async function syncThread(
   thread: ThreadChannel,
   status: ForumRequestStatus,
   config: ForumSyncConfig,
 ): Promise<void> {
+  if (thread.archived) return;
+  if (!isManagedForumThread(thread.appliedTags, config)) return;
+
+  const current = currentForumStatus(thread.appliedTags, config);
+  if (!current || !isAllowedForumStatusTransition(current, status)) return;
+
   const tags = desiredForumTags(thread.appliedTags, status, config);
   await thread.setAppliedTags(tags, `Media request status: ${status}`);
 
@@ -99,11 +168,20 @@ export async function handleRequestForumMessage(message: Message): Promise<boole
   const config = getForumSyncConfig();
   if (!config) return false;
 
-  if (!message.webhookId || !message.channel.isThread()) return false;
+  // Strict source allow-list: only the one configured Ombi router webhook may
+  // drive Forum state. Messages from users, bots, or any other webhook are
+  // ignored even if they contain a convincing-looking Status embed.
+  if (message.webhookId !== config.webhookId) return false;
+  if (!message.channel.isThread()) return false;
   if (message.channel.parentId !== config.forumChannelId) return false;
+  if (message.channel.archived) return false;
+  if (!isManagedForumThread(message.channel.appliedTags, config)) return false;
 
   const status = statusFromForumMessage(message);
   if (!status) return false;
+
+  const current = currentForumStatus(message.channel.appliedTags, config);
+  if (!current || !isAllowedForumStatusTransition(current, status)) return false;
 
   await syncThread(message.channel, status, config);
   return true;
