@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  currentForumStatus,
   desiredForumTags,
+  hasExactlyOneMediaTag,
+  isAllowedForumStatusTransition,
+  isManagedForumThread,
   isTerminalForumRequestStatus,
   normalizeForumRequestStatus,
   type ForumSyncConfig,
@@ -10,6 +14,7 @@ import {
 
 const config: ForumSyncConfig = {
   forumChannelId: 'forum',
+  webhookId: 'ombi-webhook',
   movieTagId: 'movie',
   seriesTagId: 'series',
   requestedTagId: 'requested',
@@ -48,4 +53,34 @@ test('only completed request states are terminal', () => {
   assert.equal(isTerminalForumRequestStatus('available'), true);
   assert.equal(isTerminalForumRequestStatus('failed'), true);
   assert.equal(isTerminalForumRequestStatus('denied'), true);
+});
+
+test('requires exactly one configured media type tag', () => {
+  assert.equal(hasExactlyOneMediaTag(['movie', 'requested'], config), true);
+  assert.equal(hasExactlyOneMediaTag(['series', 'requested'], config), true);
+  assert.equal(hasExactlyOneMediaTag(['movie', 'series', 'requested'], config), false);
+  assert.equal(hasExactlyOneMediaTag(['requested'], config), false);
+});
+
+test('requires exactly one configured status tag on managed threads', () => {
+  assert.equal(isManagedForumThread(['movie', 'requested'], config), true);
+  assert.equal(isManagedForumThread(['series', 'processing'], config), true);
+  assert.equal(isManagedForumThread(['movie', 'requested', 'processing'], config), false);
+  assert.equal(isManagedForumThread(['movie'], config), false);
+});
+
+test('reads the current status only when exactly one status tag is present', () => {
+  assert.equal(currentForumStatus(['movie', 'requested'], config), 'requested');
+  assert.equal(currentForumStatus(['series', 'processing'], config), 'processing');
+  assert.equal(currentForumStatus(['movie', 'requested', 'processing'], config), undefined);
+});
+
+test('allows forward request transitions and blocks terminal rewrites', () => {
+  assert.equal(isAllowedForumStatusTransition('requested', 'processing'), true);
+  assert.equal(isAllowedForumStatusTransition('requested', 'available'), true);
+  assert.equal(isAllowedForumStatusTransition('processing', 'available'), true);
+  assert.equal(isAllowedForumStatusTransition('processing', 'failed'), true);
+  assert.equal(isAllowedForumStatusTransition('available', 'processing'), false);
+  assert.equal(isAllowedForumStatusTransition('failed', 'requested'), false);
+  assert.equal(isAllowedForumStatusTransition('denied', 'available'), false);
 });
