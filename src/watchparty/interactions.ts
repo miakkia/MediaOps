@@ -23,6 +23,10 @@ import {
 } from './components.js';
 
 import {
+  cancelDiscordScheduledEventForParty,
+} from './discord-events.js';
+
+import {
   buildScheduledWatchPartyMessage,
 } from './message.js';
 
@@ -140,6 +144,15 @@ export async function handleWatchPartyButton(
           party.id,
           'cancelled',
         );
+
+      // Discord Scheduled Events are supplementary. Their API state must never
+      // prevent the existing Watch Party cancellation from succeeding.
+      if (interaction.guild) {
+        await cancelDiscordScheduledEventForParty(
+          interaction.guild,
+          party.id,
+        );
+      }
 
       const renderedMessage =
         buildScheduledWatchPartyMessage(
