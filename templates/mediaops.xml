@@ -31,6 +31,16 @@
   <Config Name="Ombi API Key" Target="OMBI_API_KEY" Default="" Description="Ombi API key used to search and create requests. Required when REQUEST_PROVIDER=ombi." Type="Variable" Display="always" Required="false" Mask="true"/>
   <Config Name="Ombi Auto Approve" Target="OMBI_AUTO_APPROVE" Default="false" Description="true automatically approves newly created requests; false leaves them pending for an Ombi administrator." Type="Variable" Display="always" Required="false" Mask="false"/>
 
+  <Config Name="Media Requests Forum ID" Target="MEDIA_REQUESTS_FORUM_ID" Default="" Description="Optional Discord Forum channel used for Ombi request lifecycle synchronization." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Media Requests Webhook ID" Target="MEDIA_REQUESTS_WEBHOOK_ID" Default="" Description="Exact Discord webhook ID allowed to drive Forum status changes. This is an ID, not the secret webhook URL/token." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Requested Tag ID" Target="MEDIA_TAG_REQUESTED" Default="" Description="Forum tag ID representing a newly requested item." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Processing Tag ID" Target="MEDIA_TAG_PROCESSING" Default="" Description="Forum tag ID representing a request in processing." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Available Tag ID" Target="MEDIA_TAG_AVAILABLE" Default="" Description="Forum tag ID representing an available request." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Failed Tag ID" Target="MEDIA_TAG_FAILED" Default="" Description="Forum tag ID representing a failed request." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Denied Tag ID" Target="MEDIA_TAG_DENIED" Default="" Description="Forum tag ID representing a denied request." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Movie Tag ID" Target="MEDIA_TAG_MOVIE" Default="" Description="Forum tag ID identifying movie requests." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Series Tag ID" Target="MEDIA_TAG_SERIES" Default="" Description="Forum tag ID identifying TV series requests." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
   <Config Name="Watch Party URL" Target="WATCHPARTY_URL" Default="" Description="Public URL of the Watch Party service." Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="Watch Party Internal URL" Target="WATCHPARTY_INTERNAL_URL" Default="" Description="Optional LAN/internal Watch Party URL used by MediaOps API calls." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Watch Party Emby User" Target="WATCHPARTY_EMBY_USER" Default="" Description="Dedicated non-admin Emby account used to create and host Watch Parties." Type="Variable" Display="advanced" Required="false" Mask="false"/>
