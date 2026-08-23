@@ -1,6 +1,5 @@
 import type { Client } from 'discord.js';
 
-import { mediaProvider } from '../providers/media-provider-instance.js';
 import type { MediaItem } from '../providers/media-provider.js';
 import {
   listTrackedRequests,
@@ -37,6 +36,7 @@ async function isAvailableOnMediaServer(
   year: number | undefined,
   mediaType: 'movie' | 'series',
 ): Promise<boolean> {
+  const { mediaProvider } = await import('../providers/media-provider-instance.js');
   const results = mediaType === 'movie'
     ? await mediaProvider.searchMovies(title)
     : await mediaProvider.searchSeries(title);
