@@ -16,6 +16,7 @@ import {
 import { getInteractionLocale } from './i18n/discord-locale.js';
 import { t } from './i18n/index.js';
 import { handleRequestButton } from './request/request-interactions.js';
+import { handleRequestForumMessage } from './request/forum-status-sync.js';
 import { startRequestTracker } from './request/request-tracker.js';
 import { handleWatchPartyButton } from './watchparty/interactions.js';
 import { startWatchPartyLifecycle } from './watchparty/lifecycle.js';
@@ -76,7 +77,11 @@ if (commands.size === 0) {
 }
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+  ],
 });
 
 client.once(Events.ClientReady, readyClient => {
@@ -85,6 +90,14 @@ client.once(Events.ClientReady, readyClient => {
   startWatchPartyLifecycle(readyClient);
   startRuntimeAwareWatchPartyExpiry();
   startRequestTracker(readyClient);
+});
+
+client.on(Events.MessageCreate, async message => {
+  try {
+    await handleRequestForumMessage(message);
+  } catch (error) {
+    console.error('Request Forum synchronization failed:', error);
+  }
 });
 
 client.on(Events.InteractionCreate, async interaction => {
