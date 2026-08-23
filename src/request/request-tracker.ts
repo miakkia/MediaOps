@@ -1,6 +1,7 @@
 import type { Client } from 'discord.js';
 
-import { requestProvider } from '../providers/request-provider-instance.js';
+import { mediaProvider } from '../providers/media-provider-instance.js';
+import type { MediaItem } from '../providers/media-provider.js';
 import {
   listTrackedRequests,
   updateTrackedRequest,
@@ -8,28 +9,60 @@ import {
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
 
-async function checkTrackedRequests(client: Client): Promise<void> {
-  if (!requestProvider) return;
+function normalizeTitle(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
 
+function matchesTrackedRequest(
+  item: MediaItem,
+  title: string,
+  year: number | undefined,
+): boolean {
+  const targetTitle = normalizeTitle(title);
+  const titleMatches = [item.name, item.originalTitle, item.sortName]
+    .filter((value): value is string => Boolean(value))
+    .some(value => normalizeTitle(value) === targetTitle);
+
+  if (!titleMatches) return false;
+
+  return year === undefined || item.year === undefined || item.year === year;
+}
+
+async function isAvailableOnMediaServer(
+  title: string,
+  year: number | undefined,
+  mediaType: 'movie' | 'series',
+): Promise<boolean> {
+  const results = mediaType === 'movie'
+    ? await mediaProvider.searchMovies(title)
+    : await mediaProvider.searchSeries(title);
+
+  return results.some(item => matchesTrackedRequest(item, title, year));
+}
+
+async function checkTrackedRequests(client: Client): Promise<void> {
   const tracked = await listTrackedRequests();
 
   for (const request of tracked) {
     if (request.availableNotifiedAt) continue;
 
     try {
-      const results = await requestProvider.search(
+      const available = await isAvailableOnMediaServer(
         request.title,
+        request.year,
         request.mediaType,
       );
 
-      const match = results.find(item => item.providerId === request.providerId);
-      if (!match?.available) continue;
+      if (!available) continue;
 
-      const now = new Date().toISOString();
+      const availableAt = new Date().toISOString();
       await updateTrackedRequest(request.providerRequestId, {
         status: 'available',
-        updatedAt: now,
-        availableNotifiedAt: now,
+        updatedAt: availableAt,
       });
 
       try {
@@ -38,9 +71,16 @@ async function checkTrackedRequests(client: Client): Promise<void> {
         await user.send(
           `🎉 **${request.title}${year}** is now available on the media server.`,
         );
+
+        const notifiedAt = new Date().toISOString();
+        await updateTrackedRequest(request.providerRequestId, {
+          status: 'available',
+          updatedAt: notifiedAt,
+          availableNotifiedAt: notifiedAt,
+        });
       } catch (error) {
         console.warn(
-          `Unable to notify Discord user ${request.discordUserId} that request ${request.providerRequestId} is available:`,
+          `Unable to notify Discord user ${request.discordUserId} that request ${request.providerRequestId} is available; notification will be retried:`,
           error,
         );
       }
@@ -63,4 +103,4 @@ export function startRequestTracker(client: Client): void {
   timer.unref();
 }
 
-export { checkTrackedRequests };
+export { checkTrackedRequests, isAvailableOnMediaServer, matchesTrackedRequest };
