@@ -17,9 +17,17 @@ import type {
   OmbiUser,
 } from './ombi-types.js';
 
-function parseYear(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const year = Number.parseInt(value.slice(0, 4), 10);
+function parseYear(value: string | number | null | undefined): number | undefined {
+  if (value === undefined || value === null) return undefined;
+
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value > 0 ? value : undefined;
+  }
+
+  const match = value.trim().match(/\b(\d{4})\b/);
+  if (!match?.[1]) return undefined;
+
+  const year = Number.parseInt(match[1], 10);
   return Number.isFinite(year) ? year : undefined;
 }
 
@@ -41,9 +49,16 @@ function mapMovie(item: OmbiSearchMovieResult): RequestSearchResult | undefined 
 
 function mapSeries(item: OmbiMultiSearchResult): RequestSearchResult | undefined {
   if (!item.id || !item.title || item.mediaType?.toLowerCase() !== 'tv') return undefined;
+
   const titleMatch = item.title.match(/^(.*?)(?:\s+\((\d{4})\))?$/);
   const title = titleMatch?.[1]?.trim() || item.title;
-  const year = titleMatch?.[2] ? Number.parseInt(titleMatch[2], 10) : undefined;
+  const year =
+    parseYear(item.firstAirDate) ??
+    parseYear(item.firstAired) ??
+    parseYear(item.releaseDate) ??
+    parseYear(item.year) ??
+    parseYear(titleMatch?.[2]);
+
   return {
     providerId: item.id,
     mediaType: 'series',
