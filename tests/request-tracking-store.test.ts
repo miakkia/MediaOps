@@ -46,3 +46,38 @@ test('persists and updates tracked requests without duplication', async () => {
     await rm(dataDir, { recursive: true, force: true });
   }
 });
+
+test('serializes concurrent request writes without losing records', async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'mediaops-requests-concurrent-'));
+
+  try {
+    const store = await loadStore(dataDir);
+    const now = new Date().toISOString();
+
+    await Promise.all(
+      Array.from({ length: 20 }, (_, index) =>
+        store.saveTrackedRequest({
+          providerRequestId: String(3000 + index),
+          providerId: String(5000 + index),
+          mediaType: index % 2 === 0 ? 'movie' : 'series',
+          title: `Concurrent Request ${index}`,
+          year: 2026,
+          discordUserId: `discord-${index}`,
+          status: 'pending',
+          createdAt: now,
+          updatedAt: now,
+          availableNotifiedAt: undefined,
+        }),
+      ),
+    );
+
+    const items = await store.listTrackedRequests();
+    assert.equal(items.length, 20);
+    assert.equal(new Set(items.map(item => item.providerRequestId)).size, 20);
+
+    const raw = JSON.parse(await readFile(join(dataDir, 'requests.json'), 'utf8'));
+    assert.equal(raw.length, 20);
+  } finally {
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
