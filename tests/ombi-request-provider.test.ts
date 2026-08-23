@@ -38,6 +38,64 @@ function createFakeClient() {
   return { client, posts };
 }
 
+test('TV search maps first-air year from Ombi metadata', async () => {
+  const client = {
+    async get<T>(): Promise<T> {
+      return undefined as T;
+    },
+    async post<T>(path: string): Promise<T> {
+      if (path.startsWith('/api/v2/Search/multi/')) {
+        return [
+          {
+            id: 'tmdb-1437',
+            title: 'Dead Like Me',
+            mediaType: 'tv',
+            firstAirDate: '2003-06-27',
+            poster: null,
+            overview: 'A grim reaper comedy-drama.',
+          },
+        ] as T;
+      }
+
+      return undefined as T;
+    },
+  } as unknown as OmbiClient;
+
+  const provider = new OmbiRequestProvider(client, { autoApprove: false });
+  const results = await provider.search('Dead Like Me', 'series');
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0]?.title, 'Dead Like Me');
+  assert.equal(results[0]?.year, 2003);
+});
+
+test('TV search falls back to a year embedded in the title', async () => {
+  const client = {
+    async get<T>(): Promise<T> {
+      return undefined as T;
+    },
+    async post<T>(path: string): Promise<T> {
+      if (path.startsWith('/api/v2/Search/multi/')) {
+        return [
+          {
+            id: '42',
+            title: 'Example Show (2019)',
+            mediaType: 'tv',
+          },
+        ] as T;
+      }
+
+      return undefined as T;
+    },
+  } as unknown as OmbiClient;
+
+  const provider = new OmbiRequestProvider(client, { autoApprove: false });
+  const results = await provider.search('Example Show', 'series');
+
+  assert.equal(results[0]?.title, 'Example Show');
+  assert.equal(results[0]?.year, 2019);
+});
+
 test('OMBI_AUTO_APPROVE=false creates request without approval call', async () => {
   const { client, posts } = createFakeClient();
   const provider = new OmbiRequestProvider(client, { autoApprove: false });
