@@ -26,9 +26,9 @@
   <Config Name="Emby URL" Target="EMBY_URL" Default="" Description="Emby base URL reachable from this container." Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="Emby API Key" Target="EMBY_API_KEY" Default="" Description="Emby API key used by MediaOps." Type="Variable" Display="always" Required="true" Mask="true"/>
 
-  <Config Name="Request Provider" Target="REQUEST_PROVIDER" Default="ombi" Description="Request backend. Use ombi to enable /request." Type="Variable" Display="always" Required="false" Mask="false"/>
-  <Config Name="Ombi URL" Target="OMBI_URL" Default="" Description="Ombi base URL reachable from MediaOps." Type="Variable" Display="always" Required="false" Mask="false"/>
-  <Config Name="Ombi API Key" Target="OMBI_API_KEY" Default="" Description="Ombi API key used to search and create requests." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Request Provider" Target="REQUEST_PROVIDER" Default="none" Description="Optional request backend. Use ombi to enable /request after configuring Ombi URL and API key." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Ombi URL" Target="OMBI_URL" Default="" Description="Ombi base URL reachable from MediaOps. Required when REQUEST_PROVIDER=ombi." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Ombi API Key" Target="OMBI_API_KEY" Default="" Description="Ombi API key used to search and create requests. Required when REQUEST_PROVIDER=ombi." Type="Variable" Display="always" Required="false" Mask="true"/>
   <Config Name="Ombi Auto Approve" Target="OMBI_AUTO_APPROVE" Default="false" Description="true automatically approves newly created requests; false leaves them pending for an Ombi administrator." Type="Variable" Display="always" Required="false" Mask="false"/>
 
   <Config Name="Watch Party URL" Target="WATCHPARTY_URL" Default="" Description="Public URL of the Watch Party service." Type="Variable" Display="always" Required="true" Mask="false"/>
