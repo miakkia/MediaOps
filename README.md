@@ -19,6 +19,9 @@ MediaOps currently provides:
 - secure, short-lived, user-bound request selection tokens with confirmation before submission;
 - persistent request tracking under `/data/requests.json`;
 - automatic request availability checks and one-time Discord DM notification when requested media becomes available;
+- optional Discord Forum request history synchronized through the companion Ombi Discord Router;
+- automatic Forum status-tag updates while preserving Movie/Series media type;
+- completed Forum requests retained as history while being locked and removed from the active Forum view;
 - Watch Party links and code validation;
 - authenticated Discord-created Watch Party rooms using a dedicated non-admin Emby account;
 - scheduled Watch Party announcements;
@@ -97,6 +100,14 @@ With Ombi configured, `/request` searches for a movie or TV series and presents 
 
 `OMBI_AUTO_APPROVE=false` leaves requests pending for an Ombi administrator. `OMBI_AUTO_APPROVE=true` asks Ombi to approve the newly created request automatically. Request attribution and auto-approval are separate behaviors: enabling or disabling auto-approval does not change which Ombi user is recorded as the requester when a Discord-to-Ombi mapping exists.
 
+### Optional request Forum
+
+A Discord Forum can be used as a persistent, searchable request history when the companion Ombi Discord Router is enabled. One Forum post represents one media item; the Movie/Series tag remains while the request-state tag is synchronized through Requested, Processing, Available, Failed, or Denied.
+
+Completed posts are retained rather than deleted. MediaOps locks terminal posts and removes them from the active Forum view according to Discord thread behavior.
+
+See [`docs/REQUEST_FORUM.md`](docs/REQUEST_FORUM.md) for setup, permissions, lifecycle, and security behavior.
+
 ## Watch Party lifecycle
 
 Scheduled Watch Parties use persistent state under `/data`.
@@ -172,6 +183,17 @@ OMBI_URL=
 OMBI_API_KEY=
 OMBI_AUTO_APPROVE=false
 
+# Optional Discord Forum request synchronization
+MEDIA_REQUESTS_FORUM_ID=
+MEDIA_REQUESTS_WEBHOOK_ID=
+MEDIA_TAG_REQUESTED=
+MEDIA_TAG_PROCESSING=
+MEDIA_TAG_AVAILABLE=
+MEDIA_TAG_FAILED=
+MEDIA_TAG_DENIED=
+MEDIA_TAG_MOVIE=
+MEDIA_TAG_SERIES=
+
 WATCHPARTY_URL=
 WATCHPARTY_INTERNAL_URL=
 WATCHPARTY_EMBY_USER=
@@ -185,7 +207,7 @@ MEDIAOPS_DATA_DIR=/data
 
 The included Unraid template predefines these fields so installation is a fill-in-the-required-values workflow rather than manual container construction.
 
-Never commit or publish real Discord tokens, passwords, or media/request-provider API keys.
+Never commit or publish real Discord tokens, passwords, webhook URLs/tokens, or media/request-provider API keys.
 
 ## Persistent data
 
@@ -212,6 +234,8 @@ Key principles:
 - no Docker socket access;
 - provider responses and Discord interaction input are validated;
 - request-selection actions are user-bound and time-limited;
+- optional Forum automation is configuration-scoped and fail-closed;
+- completed Forum request states are treated as terminal;
 - provider requests use bounded timeouts;
 - runtime state is kept outside source control;
 - Watch Party creation uses a dedicated non-admin Emby account;
@@ -251,6 +275,7 @@ Use `.env.example` as a configuration reference. Never commit a real `.env` file
 - [`docs/VISION.md`](docs/VISION.md) — product direction and long-term identity
 - [`docs/PRODUCT_SCOPE.md`](docs/PRODUCT_SCOPE.md) — product boundaries
 - [`docs/DISCORD_FEATURES.md`](docs/DISCORD_FEATURES.md) — current Discord capabilities and UX
+- [`docs/REQUEST_FORUM.md`](docs/REQUEST_FORUM.md) — optional Ombi-to-Discord Forum request history
 - [`docs/ARCHITECTURE_PRINCIPLES.md`](docs/ARCHITECTURE_PRINCIPLES.md) — architectural rules
 - [`docs/PROVIDER_MODEL.md`](docs/PROVIDER_MODEL.md) — provider boundaries and future adapters
 - [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md) — trust boundaries and security goals
