@@ -1,5 +1,6 @@
 import type {
   ChatInputCommandInteraction,
+  Guild,
   ModalSubmitInteraction,
   TextBasedChannel,
 } from 'discord.js';
@@ -22,6 +23,10 @@ import {
   createWatchPartyRsvpRow,
 } from './components.js';
 
+import {
+  createDiscordScheduledEventForParty,
+} from './discord-events.js';
+
 interface ScheduleWatchPartyInput {
   guildId: string;
   channelId: string;
@@ -32,6 +37,8 @@ interface ScheduleWatchPartyInput {
   scheduledAt: string;
 
   locale: SupportedLocale;
+
+  guild: Guild;
 
   channel:
     | TextBasedChannel
@@ -169,6 +176,14 @@ export async function scheduleWatchParty(
     party.id,
     publicMessage.id,
   );
+
+  // Scheduled Events are an enhancement, never a prerequisite for the
+  // existing Watch Party announcement/RSVP workflow. If Discord refuses the
+  // event because of permissions or API state, the Watch Party remains valid.
+  await createDiscordScheduledEventForParty(
+    input.guild,
+    party,
+  );
 }
 
 export function getSchedulingContext(
@@ -179,6 +194,7 @@ export function getSchedulingContext(
   guildId: string;
   channelId: string;
   organizerDiscordId: string;
+  guild: Guild;
   channel: TextBasedChannel;
 } {
   const guildId =
@@ -187,12 +203,16 @@ export function getSchedulingContext(
   const channelId =
     interaction.channelId;
 
+  const guild =
+    interaction.guild;
+
   const channel =
     interaction.channel;
 
   if (
     !guildId ||
     !channelId ||
+    !guild ||
     !channel ||
     !channel.isTextBased()
   ) {
@@ -208,6 +228,7 @@ export function getSchedulingContext(
     organizerDiscordId:
       interaction.user.id,
 
+    guild,
     channel,
   };
 }
