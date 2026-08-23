@@ -154,7 +154,6 @@ export class OmbiRequestProvider implements RequestProvider {
       const discordPreference = preferences.find(
         preference =>
           preference.agent === 1 &&
-          preference.enabled !== false &&
           preference.value?.trim() === discordUserId,
       );
 
