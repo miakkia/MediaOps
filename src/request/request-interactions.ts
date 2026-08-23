@@ -11,10 +11,18 @@ import type {
   RequestSearchResult,
 } from '../providers/request-provider.js';
 import { requestProvider } from '../providers/request-provider-instance.js';
+import {
+  consumeRequestSelection,
+  getRequestSelection,
+} from './request-selection-store.js';
 
 const SELECT_PREFIX = 'request-select:';
 const CONFIRM_PREFIX = 'request-confirm:';
 const CANCEL_PREFIX = 'request-cancel:';
+
+const SELECT_TOKEN_PREFIX = 'request-select-token:';
+const CONFIRM_TOKEN_PREFIX = 'request-confirm-token:';
+const CANCEL_TOKEN_PREFIX = 'request-cancel-token:';
 
 export function parseRequestCustomId(
   customId: string,
@@ -31,6 +39,18 @@ export function parseRequestCustomId(
   }
 
   return { mediaType, providerId };
+}
+
+function parseTokenCustomId(
+  customId: string,
+  prefix: string,
+): string | undefined {
+  if (!customId.startsWith(prefix)) {
+    return undefined;
+  }
+
+  const token = customId.slice(prefix.length).trim();
+  return token || undefined;
 }
 
 function createMinimalItem(
@@ -51,43 +71,32 @@ function createMinimalItem(
   };
 }
 
-export async function handleRequestButton(
+function formatMediaTitle(item: RequestSearchResult): string {
+  return item.year !== undefined
+    ? `${item.title} (${item.year})`
+    : item.title;
+}
+
+function buildConfirmRow(
+  confirmCustomId: string,
+  cancelCustomId: string,
+): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(confirmCustomId)
+      .setLabel('Confirm request')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(cancelCustomId)
+      .setLabel('Cancel')
+      .setStyle(ButtonStyle.Secondary),
+  );
+}
+
+async function submitRequest(
   interaction: ButtonInteraction,
+  item: RequestSearchResult,
 ): Promise<boolean> {
-  const selected = parseRequestCustomId(interaction.customId, SELECT_PREFIX);
-
-  if (selected) {
-    const confirmRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`${CONFIRM_PREFIX}${selected.mediaType}:${selected.providerId}`)
-        .setLabel('Confirm request')
-        .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId(`${CANCEL_PREFIX}${selected.mediaType}:${selected.providerId}`)
-        .setLabel('Cancel')
-        .setStyle(ButtonStyle.Secondary),
-    );
-
-    await interaction.reply({
-      content:
-        selected.mediaType === 'movie'
-          ? '⚠️ Confirm that you want to submit this movie request to Ombi.'
-          : '⚠️ Confirm that you want to request all available seasons of this TV series from Ombi.',
-      components: [confirmRow],
-      flags: MessageFlags.Ephemeral,
-    });
-    return true;
-  }
-
-  const cancelled = parseRequestCustomId(interaction.customId, CANCEL_PREFIX);
-  if (cancelled) {
-    await interaction.update({ content: '❎ Request cancelled.', components: [] });
-    return true;
-  }
-
-  const confirmed = parseRequestCustomId(interaction.customId, CONFIRM_PREFIX);
-  if (!confirmed) return false;
-
   if (!requestProvider) {
     await interaction.update({
       content: '❌ No request provider is configured.',
@@ -100,7 +109,7 @@ export async function handleRequestButton(
 
   try {
     const result = await requestProvider.request(
-      createMinimalItem(confirmed.mediaType, confirmed.providerId),
+      item,
       {
         requester: {
           source: 'discord',
@@ -127,7 +136,8 @@ export async function handleRequestButton(
       : '';
 
     await interaction.editReply({
-      content: statusLabel + requestId,
+      content:
+        `**${formatMediaTitle(item)}**\n${statusLabel}${requestId}`,
       components: [],
     });
   } catch (error) {
@@ -139,4 +149,123 @@ export async function handleRequestButton(
   }
 
   return true;
+}
+
+export async function handleRequestButton(
+  interaction: ButtonInteraction,
+): Promise<boolean> {
+  const selectedToken = parseTokenCustomId(
+    interaction.customId,
+    SELECT_TOKEN_PREFIX,
+  );
+
+  if (selectedToken) {
+    const item = getRequestSelection(
+      selectedToken,
+      interaction.user.id,
+    );
+
+    if (!item) {
+      await interaction.reply({
+        content:
+          '⌛ This request selection expired. Run `/request` again.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return true;
+    }
+
+    await interaction.reply({
+      content:
+        item.mediaType === 'movie'
+          ? `⚠️ Confirm request for **${formatMediaTitle(item)}**.`
+          : `⚠️ Confirm request for **${formatMediaTitle(item)}**. All available seasons will be requested.`,
+      components: [
+        buildConfirmRow(
+          `${CONFIRM_TOKEN_PREFIX}${selectedToken}`,
+          `${CANCEL_TOKEN_PREFIX}${selectedToken}`,
+        ),
+      ],
+      flags: MessageFlags.Ephemeral,
+    });
+    return true;
+  }
+
+  const cancelledToken = parseTokenCustomId(
+    interaction.customId,
+    CANCEL_TOKEN_PREFIX,
+  );
+
+  if (cancelledToken) {
+    consumeRequestSelection(
+      cancelledToken,
+      interaction.user.id,
+    );
+
+    await interaction.update({
+      content: '❎ Request cancelled.',
+      components: [],
+    });
+    return true;
+  }
+
+  const confirmedToken = parseTokenCustomId(
+    interaction.customId,
+    CONFIRM_TOKEN_PREFIX,
+  );
+
+  if (confirmedToken) {
+    const item = consumeRequestSelection(
+      confirmedToken,
+      interaction.user.id,
+    );
+
+    if (!item) {
+      await interaction.update({
+        content:
+          '⌛ This request selection expired. Run `/request` again.',
+        components: [],
+      });
+      return true;
+    }
+
+    return submitRequest(
+      interaction,
+      item,
+    );
+  }
+
+  // Legacy custom IDs are still accepted so buttons created by an older
+  // MediaOps build continue working during rolling updates.
+  const selected = parseRequestCustomId(interaction.customId, SELECT_PREFIX);
+
+  if (selected) {
+    await interaction.reply({
+      content:
+        selected.mediaType === 'movie'
+          ? '⚠️ Confirm that you want to submit this movie request to Ombi.'
+          : '⚠️ Confirm that you want to request all available seasons of this TV series from Ombi.',
+      components: [
+        buildConfirmRow(
+          `${CONFIRM_PREFIX}${selected.mediaType}:${selected.providerId}`,
+          `${CANCEL_PREFIX}${selected.mediaType}:${selected.providerId}`,
+        ),
+      ],
+      flags: MessageFlags.Ephemeral,
+    });
+    return true;
+  }
+
+  const cancelled = parseRequestCustomId(interaction.customId, CANCEL_PREFIX);
+  if (cancelled) {
+    await interaction.update({ content: '❎ Request cancelled.', components: [] });
+    return true;
+  }
+
+  const confirmed = parseRequestCustomId(interaction.customId, CONFIRM_PREFIX);
+  if (!confirmed) return false;
+
+  return submitRequest(
+    interaction,
+    createMinimalItem(confirmed.mediaType, confirmed.providerId),
+  );
 }
