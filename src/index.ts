@@ -21,6 +21,7 @@ import { handleWatchPartyButton } from './watchparty/interactions.js';
 import { startWatchPartyLifecycle } from './watchparty/lifecycle.js';
 import { handleWatchPartyRandomButton } from './watchparty/random-interactions.js';
 import { handleWatchPartyRandomModal } from './watchparty/random-modal-interactions.js';
+import { startRuntimeAwareWatchPartyExpiry } from './watchparty/runtime-expiry-lifecycle.js';
 import { handleWatchPartySetupButton } from './watchparty/setup-interactions.js';
 import { handleWatchPartySetupModal } from './watchparty/setup-modal-interactions.js';
 
@@ -82,6 +83,7 @@ client.once(Events.ClientReady, readyClient => {
   console.log(`Solitario Butler connected as ${readyClient.user.tag}`);
   console.log(`Loaded ${commands.size} Discord commands: ${[...commands.keys()].join(', ')}`);
   startWatchPartyLifecycle(readyClient);
+  startRuntimeAwareWatchPartyExpiry();
   startRequestTracker(readyClient);
 });
 
