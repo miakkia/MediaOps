@@ -245,6 +245,53 @@ async function synchronizeDiscordScheduledEvents(
   }
 }
 
+async function cleanupFinishedWatchPartyPosts(
+  client: Client,
+): Promise<void> {
+  const parties = await getWatchParties();
+
+  for (const party of parties) {
+    if (
+      party.status !== 'cancelled' &&
+      party.status !== 'expired'
+    ) {
+      continue;
+    }
+
+    if (!party.messageId) {
+      continue;
+    }
+
+    try {
+      const channel = await client.channels.fetch(
+        party.channelId,
+      );
+
+      if (!channel || !channel.isTextBased()) {
+        continue;
+      }
+
+      const message = await channel.messages.fetch(
+        party.messageId,
+      ).catch(() => null);
+
+      if (!message) {
+        continue;
+      }
+
+      await message.delete();
+      console.log(
+        `Removed finished Watch Party post ${party.messageId} for ${party.id}.`,
+      );
+    } catch (error) {
+      console.warn(
+        `Unable to remove finished Watch Party post for ${party.id}:`,
+        error,
+      );
+    }
+  }
+}
+
 async function runLifecycleRefresh(
   client: Client,
 ): Promise<void> {
@@ -265,6 +312,13 @@ async function runLifecycleRefresh(
     // Any Discord API error is isolated inside the event integration and must
     // not stop room creation, RSVP, reminders, or retention cleanup.
     await synchronizeDiscordScheduledEvents(
+      client,
+    );
+
+    // Remove the original RSVP post after a Watch Party is cancelled or has
+    // finished. This also cleans up old posts left behind by previous builds
+    // as soon as the bot starts or on the next lifecycle pass.
+    await cleanupFinishedWatchPartyPosts(
       client,
     );
 
