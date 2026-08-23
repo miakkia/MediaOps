@@ -26,6 +26,10 @@ import {
   createWatchPartyRsvpRow,
 } from '../watchparty/components.js';
 
+import {
+  parseWatchPartyDateTime,
+} from '../watchparty/timezone.js';
+
 export const data =
   new SlashCommandBuilder()
     .setName('watchparty-schedule')
@@ -126,7 +130,7 @@ export async function execute(
 
   try {
     const movies =
-    await mediaProvider.searchMovies(
+      await mediaProvider.searchMovies(
         title,
       );
 
@@ -159,7 +163,7 @@ export async function execute(
     }
 
     const scheduledDate =
-      new Date(
+      parseWatchPartyDateTime(
         dateTime,
       );
 
