@@ -11,6 +11,7 @@ import type {
   RequestSearchResult,
 } from '../providers/request-provider.js';
 import { requestProvider } from '../providers/request-provider-instance.js';
+import { saveTrackedRequest } from '../storage/request-tracking-store.js';
 import {
   consumeRequestSelection,
   getRequestSelection,
@@ -45,10 +46,7 @@ function parseTokenCustomId(
   customId: string,
   prefix: string,
 ): string | undefined {
-  if (!customId.startsWith(prefix)) {
-    return undefined;
-  }
-
+  if (!customId.startsWith(prefix)) return undefined;
   const token = customId.slice(prefix.length).trim();
   return token || undefined;
 }
@@ -72,9 +70,7 @@ function createMinimalItem(
 }
 
 function formatMediaTitle(item: RequestSearchResult): string {
-  return item.year !== undefined
-    ? `${item.title} (${item.year})`
-    : item.title;
+  return item.year !== undefined ? `${item.title} (${item.year})` : item.title;
 }
 
 function buildConfirmRow(
@@ -108,15 +104,12 @@ async function submitRequest(
   await interaction.deferUpdate();
 
   try {
-    const result = await requestProvider.request(
-      item,
-      {
-        requester: {
-          source: 'discord',
-          id: interaction.user.id,
-        },
+    const result = await requestProvider.request(item, {
+      requester: {
+        source: 'discord',
+        id: interaction.user.id,
       },
-    );
+    });
 
     if (!result.success) {
       await interaction.editReply({
@@ -124,6 +117,22 @@ async function submitRequest(
         components: [],
       });
       return true;
+    }
+
+    if (result.providerRequestId) {
+      const now = new Date().toISOString();
+      await saveTrackedRequest({
+        providerRequestId: result.providerRequestId,
+        providerId: item.providerId,
+        mediaType: item.mediaType,
+        title: item.title,
+        year: item.year,
+        discordUserId: interaction.user.id,
+        status: result.status,
+        createdAt: now,
+        updatedAt: now,
+        availableNotifiedAt: undefined,
+      });
     }
 
     const statusLabel =
@@ -136,8 +145,7 @@ async function submitRequest(
       : '';
 
     await interaction.editReply({
-      content:
-        `**${formatMediaTitle(item)}**\n${statusLabel}${requestId}`,
+      content: `**${formatMediaTitle(item)}**\n${statusLabel}${requestId}`,
       components: [],
     });
   } catch (error) {
@@ -154,21 +162,14 @@ async function submitRequest(
 export async function handleRequestButton(
   interaction: ButtonInteraction,
 ): Promise<boolean> {
-  const selectedToken = parseTokenCustomId(
-    interaction.customId,
-    SELECT_TOKEN_PREFIX,
-  );
+  const selectedToken = parseTokenCustomId(interaction.customId, SELECT_TOKEN_PREFIX);
 
   if (selectedToken) {
-    const item = getRequestSelection(
-      selectedToken,
-      interaction.user.id,
-    );
+    const item = getRequestSelection(selectedToken, interaction.user.id);
 
     if (!item) {
       await interaction.reply({
-        content:
-          '⌛ This request selection expired. Run `/request` again.',
+        content: '⌛ This request selection expired. Run `/request` again.',
         flags: MessageFlags.Ephemeral,
       });
       return true;
@@ -190,48 +191,26 @@ export async function handleRequestButton(
     return true;
   }
 
-  const cancelledToken = parseTokenCustomId(
-    interaction.customId,
-    CANCEL_TOKEN_PREFIX,
-  );
-
+  const cancelledToken = parseTokenCustomId(interaction.customId, CANCEL_TOKEN_PREFIX);
   if (cancelledToken) {
-    consumeRequestSelection(
-      cancelledToken,
-      interaction.user.id,
-    );
-
-    await interaction.update({
-      content: '❎ Request cancelled.',
-      components: [],
-    });
+    consumeRequestSelection(cancelledToken, interaction.user.id);
+    await interaction.update({ content: '❎ Request cancelled.', components: [] });
     return true;
   }
 
-  const confirmedToken = parseTokenCustomId(
-    interaction.customId,
-    CONFIRM_TOKEN_PREFIX,
-  );
-
+  const confirmedToken = parseTokenCustomId(interaction.customId, CONFIRM_TOKEN_PREFIX);
   if (confirmedToken) {
-    const item = consumeRequestSelection(
-      confirmedToken,
-      interaction.user.id,
-    );
+    const item = consumeRequestSelection(confirmedToken, interaction.user.id);
 
     if (!item) {
       await interaction.update({
-        content:
-          '⌛ This request selection expired. Run `/request` again.',
+        content: '⌛ This request selection expired. Run `/request` again.',
         components: [],
       });
       return true;
     }
 
-    return submitRequest(
-      interaction,
-      item,
-    );
+    return submitRequest(interaction, item);
   }
 
   // Legacy custom IDs are still accepted so buttons created by an older
