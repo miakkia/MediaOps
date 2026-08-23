@@ -7,6 +7,8 @@ const DATA_DIRECTORY = process.env.MEDIAOPS_DATA_DIR?.trim() || './data';
 const STORE_PATH = join(DATA_DIRECTORY, 'requests.json');
 const TEMP_STORE_PATH = `${STORE_PATH}.tmp`;
 
+let mutationQueue: Promise<void> = Promise.resolve();
+
 export interface TrackedRequest {
   providerRequestId: string;
   providerId: string;
@@ -37,15 +39,27 @@ async function writeAll(items: TrackedRequest[]): Promise<void> {
   await rename(TEMP_STORE_PATH, STORE_PATH);
 }
 
+function runMutation<T>(operation: () => Promise<T>): Promise<T> {
+  const result = mutationQueue.then(operation, operation);
+  mutationQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
 export async function saveTrackedRequest(request: TrackedRequest): Promise<void> {
-  const items = await readAll();
-  const index = items.findIndex(item => item.providerRequestId === request.providerRequestId);
-  if (index >= 0) items[index] = request;
-  else items.push(request);
-  await writeAll(items);
+  await runMutation(async () => {
+    const items = await readAll();
+    const index = items.findIndex(item => item.providerRequestId === request.providerRequestId);
+    if (index >= 0) items[index] = request;
+    else items.push(request);
+    await writeAll(items);
+  });
 }
 
 export async function listTrackedRequests(): Promise<TrackedRequest[]> {
+  await mutationQueue;
   return readAll();
 }
 
@@ -53,19 +67,21 @@ export async function updateTrackedRequest(
   providerRequestId: string,
   patch: Partial<TrackedRequest>,
 ): Promise<TrackedRequest | undefined> {
-  const items = await readAll();
-  const index = items.findIndex(item => item.providerRequestId === providerRequestId);
-  if (index < 0) return undefined;
+  return runMutation(async () => {
+    const items = await readAll();
+    const index = items.findIndex(item => item.providerRequestId === providerRequestId);
+    if (index < 0) return undefined;
 
-  const current = items[index];
-  if (!current) return undefined;
+    const current = items[index];
+    if (!current) return undefined;
 
-  const updated: TrackedRequest = {
-    ...current,
-    ...patch,
-  };
+    const updated: TrackedRequest = {
+      ...current,
+      ...patch,
+    };
 
-  items[index] = updated;
-  await writeAll(items);
-  return updated;
+    items[index] = updated;
+    await writeAll(items);
+    return updated;
+  });
 }
