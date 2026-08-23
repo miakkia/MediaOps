@@ -10,9 +10,11 @@ import type {
 import { OmbiClient } from './ombi-client.js';
 import type {
   OmbiMultiSearchResult,
+  OmbiNotificationPreference,
   OmbiRequestResponse,
   OmbiSearchMovieResult,
   OmbiTvRequestPayload,
+  OmbiUser,
 } from './ombi-types.js';
 
 function parseYear(value: string | undefined): number | undefined {
@@ -63,6 +65,16 @@ export interface OmbiRequestProviderOptions {
 export class OmbiRequestProvider implements RequestProvider {
   readonly name = 'Ombi';
 
+  private readonly discordUserCache = new Map<
+    string,
+    {
+      userName: string;
+      expiresAt: number;
+    }
+  >();
+
+  private readonly discordUserCacheTtlMs = 5 * 60 * 1000;
+
   constructor(
     private readonly client: OmbiClient,
     private readonly options: OmbiRequestProviderOptions,
@@ -102,6 +114,65 @@ export class OmbiRequestProvider implements RequestProvider {
     return results.map(mapSeries).filter((item): item is RequestSearchResult => item !== undefined);
   }
 
+  private async resolveOmbiUserNameForDiscord(
+    discordUserId: string,
+  ): Promise<string | undefined> {
+    const now = Date.now();
+    const cached = this.discordUserCache.get(discordUserId);
+
+    if (cached && cached.expiresAt > now) {
+      return cached.userName;
+    }
+
+    const users = await this.client.get<OmbiUser[]>(
+      '/api/v1/Identity/Users',
+    );
+
+    for (const user of users) {
+      if (!user.id || !user.userName) {
+        continue;
+      }
+
+      let preferences: OmbiNotificationPreference[];
+
+      try {
+        preferences = await this.client.get<OmbiNotificationPreference[]>(
+          '/api/v1/Identity/notificationpreferences/' +
+            encodeURIComponent(user.id),
+          {
+            userName: user.userName,
+          },
+        );
+      } catch (error) {
+        console.warn(
+          `Unable to inspect Ombi notification preferences for ${user.userName}:`,
+          error,
+        );
+        continue;
+      }
+
+      const discordPreference = preferences.find(
+        preference =>
+          preference.agent === 1 &&
+          preference.enabled !== false &&
+          preference.value?.trim() === discordUserId,
+      );
+
+      if (!discordPreference) {
+        continue;
+      }
+
+      this.discordUserCache.set(discordUserId, {
+        userName: user.userName,
+        expiresAt: now + this.discordUserCacheTtlMs,
+      });
+
+      return user.userName;
+    }
+
+    return undefined;
+  }
+
   async request(
     item: RequestSearchResult,
     options?: { autoApprove?: boolean; requester?: { source: 'discord'; id: string } },
@@ -115,6 +186,28 @@ export class OmbiRequestProvider implements RequestProvider {
 
     const autoApprove = options?.autoApprove ?? this.options.autoApprove;
 
+    let ombiUserName: string | undefined;
+
+    if (options?.requester?.source === 'discord') {
+      ombiUserName = await this.resolveOmbiUserNameForDiscord(
+        options.requester.id,
+      );
+
+      if (ombiUserName) {
+        console.log(
+          `Resolved Discord user ${options.requester.id} to Ombi user ${ombiUserName}`,
+        );
+      } else {
+        console.warn(
+          `No Ombi user mapping found for Discord user ${options.requester.id}; falling back to API identity.`,
+        );
+      }
+    }
+
+    const userOptions = ombiUserName
+      ? { userName: ombiUserName }
+      : undefined;
+
     if (item.mediaType === 'movie') {
       const movieId = Number.parseInt(item.providerId, 10);
       if (!Number.isInteger(movieId)) throw new Error('Invalid Ombi movie identifier.');
@@ -122,6 +215,7 @@ export class OmbiRequestProvider implements RequestProvider {
       const response = await this.client.post<OmbiRequestResponse>(
         '/api/v1/Request/movie',
         { theMovieDbId: movieId },
+        userOptions,
       );
       const requestId = response.requestId;
       if (response.result !== true || response.isError === true || !requestId || requestId <= 0) {
@@ -153,7 +247,11 @@ export class OmbiRequestProvider implements RequestProvider {
       seasons: [],
       languageCode: 'en',
     };
-    const response = await this.client.post<OmbiRequestResponse>('/api/v2/Requests/tv', payload);
+    const response = await this.client.post<OmbiRequestResponse>(
+      '/api/v2/Requests/tv',
+      payload,
+      userOptions,
+    );
     const requestId = response.requestId;
     if (response.result !== true || response.isError === true || !requestId || requestId <= 0) {
       return { success: false, providerRequestId: requestId ? String(requestId) : undefined, status: 'unknown', message: response.errorMessage ?? response.message ?? 'Ombi did not create the TV request.' };
@@ -163,7 +261,10 @@ export class OmbiRequestProvider implements RequestProvider {
       return { success: true, providerRequestId: String(requestId), status: 'pending', message: 'TV request submitted to Ombi for approval.' };
     }
 
-    const approval = await this.client.post<OmbiRequestResponse>('/api/v1/Request/tv/approve', { id: requestId });
+    const approval = await this.client.post<OmbiRequestResponse>(
+      '/api/v1/Request/tv/approve',
+      { id: requestId },
+    );
     if (approval.result !== true || approval.isError === true) {
       return { success: true, providerRequestId: String(requestId), status: 'pending', message: approval.errorMessage ?? approval.message ?? 'The TV request was created, but automatic approval failed.' };
     }
