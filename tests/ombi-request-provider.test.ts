@@ -172,3 +172,32 @@ test('Discord requester is submitted to Ombi under the mapped Ombi username', as
     },
   ]);
 });
+
+test('unmapped Discord requester is rejected instead of falling back to API identity', async () => {
+  const posts: string[] = [];
+  const client = {
+    async get<T>(path: string): Promise<T> {
+      if (path === '/api/v1/Identity/Users') {
+        return [] as T;
+      }
+      return [] as T;
+    },
+    async post<T>(path: string): Promise<T> {
+      posts.push(path);
+      return { result: true, requestId: 42 } as T;
+    },
+  } as unknown as OmbiClient;
+
+  const provider = new OmbiRequestProvider(client, { autoApprove: false });
+  const result = await provider.request(movie(), {
+    requester: {
+      source: 'discord',
+      id: 'unmapped-discord-user',
+    },
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.providerRequestId, undefined);
+  assert.match(result.message ?? '', /not mapped/i);
+  assert.deepEqual(posts, []);
+});
