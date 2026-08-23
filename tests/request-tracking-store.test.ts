@@ -73,7 +73,12 @@ test('serializes concurrent request writes without losing records', async () => 
 
     const items = await store.listTrackedRequests();
     assert.equal(items.length, 20);
-    assert.equal(new Set(items.map(item => item.providerRequestId)).size, 20);
+    assert.equal(
+      new Set(
+        items.map((item: { providerRequestId: string }) => item.providerRequestId),
+      ).size,
+      20,
+    );
 
     const raw = JSON.parse(await readFile(join(dataDir, 'requests.json'), 'utf8'));
     assert.equal(raw.length, 20);
