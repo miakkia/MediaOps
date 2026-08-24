@@ -21,6 +21,7 @@ A private vulnerability-reporting channel should be established before the first
 Never include real values for:
 
 - Discord bot tokens;
+- Discord webhook URLs/tokens;
 - Emby/Jellyfin/Plex API keys or access tokens;
 - passwords;
 - OAuth client secrets;
@@ -29,6 +30,8 @@ Never include real values for:
 - infrastructure credentials.
 
 If a credential is accidentally committed or shared, treat it as compromised and rotate it immediately.
+
+The optional Ombi Discord Router owns its Discord webhook credential at runtime. MediaOps needs only the webhook's non-secret ID for source identification and must not be configured with the webhook URL/token.
 
 ## Deployment expectations
 
@@ -43,6 +46,8 @@ The intended security posture is:
 - runtime-injected secrets;
 - bounded external requests;
 - minimal Discord permissions appropriate to enabled features.
+
+The optional Ombi Discord Router should remain on a private Docker/LAN network unless an authenticated external boundary is deliberately added. Its example deployment drops Linux capabilities, enables `no-new-privileges`, uses a read-only root filesystem, and persists only its request/thread index.
 
 ## Security model
 
