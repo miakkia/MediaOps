@@ -38,6 +38,11 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
       - name: Install dependencies
         run: npm ci
 
@@ -52,6 +57,12 @@ jobs:
 
       - name: Build application
         run: npm run build
+
+      - name: Validate Ombi Discord Router syntax
+        run: python -m py_compile addons/ombi-discord-router/app.py
+
+      - name: Build Ombi Discord Router addon
+        run: docker build -t mediaops-ombi-discord-router:test addons/ombi-discord-router
 
   build-and-push:
     needs: validate
