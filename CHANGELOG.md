@@ -18,6 +18,7 @@ MediaOps is currently in active development. Until the first stable public relea
 - Optional Discord Forum request history synchronized from the companion Ombi Discord Router.
 - Request Forum lifecycle tags for `Requested`, `Processing`, `Available`, `Failed`, and `Denied` while preserving `Movie`/`Series` media type.
 - Completed request Forum posts are locked and removed from the active Forum view without deleting request history.
+- Packaged `addons/ombi-discord-router/` companion service with secret-free environment/Compose templates, persistent request-thread correlation, hardened container defaults, and CI validation.
 - Watch Party service integration.
 - Watch Party code validation and status flows.
 - Persistent scheduled Watch Party state.
@@ -64,6 +65,7 @@ MediaOps is currently in active development. Until the first stable public relea
 - Managed request threads require an unambiguous media type and request status before MediaOps will modify them.
 - Completed request states are terminal and cannot be automatically rewritten through later integration events.
 - The webhook secret remains outside MediaOps; MediaOps uses only the configured webhook ID for source identification.
+- Ombi Discord Router delivery errors sanitize Discord failures so webhook credentials are not written to application logs.
 
 ### Fixed
 
