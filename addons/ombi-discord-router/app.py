@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 import requests
 from flask import Flask, jsonify, request
 
-APP_VERSION = "1.5"
+APP_VERSION = "1.6"
 
 app = Flask(__name__)
 
