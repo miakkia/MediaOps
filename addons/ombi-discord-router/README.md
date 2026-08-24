@@ -74,7 +74,7 @@ http://ombi-discord-router:8080/ombi
 From this directory:
 
 ```bash
-docker build -t local/ombi-discord-router:1.5 .
+docker build -t local/ombi-discord-router:1.6 .
 ```
 
 For Compose-based deployments:
@@ -101,7 +101,7 @@ Expected shape:
 ```json
 {
   "status": "ok",
-  "version": "1.5",
+  "version": "1.6",
   "mode": "discord-forum",
   "index": "/data/media-threads.json"
 }
