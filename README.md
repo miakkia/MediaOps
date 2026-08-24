@@ -106,6 +106,8 @@ A Discord Forum can be used as a persistent, searchable request history when the
 
 Completed posts are retained rather than deleted. MediaOps locks terminal posts and removes them from the active Forum view according to Discord thread behavior.
 
+The repository includes a ready-to-configure companion service under [`addons/ombi-discord-router/`](addons/ombi-discord-router/). Its examples contain placeholders only; webhook credentials, Forum/tag IDs, and infrastructure addresses are supplied at deployment time.
+
 See [`docs/REQUEST_FORUM.md`](docs/REQUEST_FORUM.md) for setup, permissions, lifecycle, and security behavior.
 
 ## Watch Party lifecycle
@@ -240,7 +242,7 @@ Key principles:
 - runtime state is kept outside source control;
 - Watch Party creation uses a dedicated non-admin Emby account;
 - the Docker runtime uses a dedicated non-root user;
-- CI runs a production dependency audit, TypeScript typecheck, automated tests, and application build before publishing validated changes.
+- CI runs a production dependency audit, TypeScript typecheck, automated tests, application build, and companion-router syntax/image validation before publishing validated changes.
 
 See [`SECURITY.md`](SECURITY.md) and [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md).
 
@@ -276,6 +278,7 @@ Use `.env.example` as a configuration reference. Never commit a real `.env` file
 - [`docs/PRODUCT_SCOPE.md`](docs/PRODUCT_SCOPE.md) — product boundaries
 - [`docs/DISCORD_FEATURES.md`](docs/DISCORD_FEATURES.md) — current Discord capabilities and UX
 - [`docs/REQUEST_FORUM.md`](docs/REQUEST_FORUM.md) — optional Ombi-to-Discord Forum request history
+- [`addons/ombi-discord-router/README.md`](addons/ombi-discord-router/README.md) — companion Ombi webhook-to-Forum adapter
 - [`docs/ARCHITECTURE_PRINCIPLES.md`](docs/ARCHITECTURE_PRINCIPLES.md) — architectural rules
 - [`docs/PROVIDER_MODEL.md`](docs/PROVIDER_MODEL.md) — provider boundaries and future adapters
 - [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md) — trust boundaries and security goals
