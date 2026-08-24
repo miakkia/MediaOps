@@ -87,8 +87,13 @@ The router is a small adapter for Ombi notifications that can create a Forum pos
 
 The router is intentionally separate from the main MediaOps Discord bot so the webhook secret does not need to be stored in MediaOps itself.
 
+A ready-to-configure, secret-free addon template is included in the repository at [`addons/ombi-discord-router/`](../addons/ombi-discord-router/). It contains the router source, Dockerfile, environment template, hardened Compose example, and deployment notes. No server-specific IDs, webhook credentials, or infrastructure addresses are embedded in the addon.
+
+For Docker deployments, place Ombi and the router on the same user-defined network and call the router by container/service name. This avoids coupling Ombi notifications to a container IP that may change after a redeploy.
+
 See also:
 
+- [`../addons/ombi-discord-router/README.md`](../addons/ombi-discord-router/README.md)
 - [`DISCORD_FEATURES.md`](DISCORD_FEATURES.md)
 - [`SECURITY_MODEL.md`](SECURITY_MODEL.md)
 - [`UNRAID.md`](UNRAID.md)
