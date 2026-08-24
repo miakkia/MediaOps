@@ -19,6 +19,7 @@ MediaOps should:
 Sensitive values include, but are not limited to:
 
 - Discord bot tokens;
+- Discord webhook URLs/tokens;
 - media server API keys/tokens;
 - passwords;
 - private certificates;
@@ -60,6 +61,18 @@ Request-state transitions are constrained so completed request states remain ter
 Discord gateway intents and channel permissions should be enabled only when required by configured features. Enabling message-content access does not replace Discord channel permissions and should not be paired with unnecessary broad server permissions.
 
 Public documentation intentionally describes the supported security guarantees and administrator requirements without publishing credential values or deployment-specific internals. Because MediaOps is open source, security controls must remain effective even when an attacker can read the implementation.
+
+### Ombi Discord Router boundary
+
+The optional companion router is a separate trust boundary between Ombi notifications and Discord Forum webhook delivery.
+
+The router owns the Discord webhook URL/token at runtime. MediaOps receives only the corresponding non-secret webhook ID and does not need the router credential.
+
+The packaged addon contains placeholders rather than deployment-specific webhook values, IDs, addresses, or runtime state. Its `.env` and generated data are excluded from source control.
+
+The router should normally remain reachable from Ombi on a private user-defined Docker/LAN network. Using a service/container name is preferred over coupling notifications to a changing container IP.
+
+Discord delivery failures are sanitized before logging so the secret webhook URL is not included in application error messages.
 
 ## Provider API trust boundary
 
@@ -120,6 +133,7 @@ Do not expose:
 - tokens;
 - API keys;
 - passwords;
+- webhook credentials;
 - stack traces;
 - sensitive internal request headers;
 - unnecessary infrastructure details.
@@ -141,6 +155,8 @@ The production Docker image should target:
 - runtime-injected secrets;
 - a healthcheck suitable for deployment monitoring.
 
+Companion containers should follow the same least-privilege baseline where practical. The packaged Ombi router example uses a non-root UID/GID, dropped capabilities, a read-only root filesystem, `no-new-privileges`, PID/memory limits, and a dedicated persistent `/data` mount.
+
 ## Unraid deployment
 
 The planned Unraid Community Apps template should expose only required configuration.
@@ -158,6 +174,8 @@ Before meaningful merges, development currently includes:
 ```bash
 npm audit
 ```
+
+CI also validates the packaged Ombi router source and builds its Dockerfile so addon syntax/build failures are caught alongside the main application checks.
 
 Future CI should automate:
 
