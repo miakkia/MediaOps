@@ -1,5 +1,5 @@
 const POST_RUNTIME_GRACE_MS = 45 * 60 * 1000;
-const FALLBACK_ACTIVE_EXPIRY_MS = 6 * 60 * 60 * 1000;
+const FALLBACK_ACTIVE_EXPIRY_MS = 4.5 * 60 * 60 * 1000;
 
 export function getWatchPartyExpireAt(
   scheduledAt: string,
@@ -36,3 +36,4 @@ export function getWatchPartyCloseWindowAt(
 }
 
 export const WATCHPARTY_POST_RUNTIME_GRACE_MINUTES = 45;
+export const WATCHPARTY_FALLBACK_ACTIVE_EXPIRY_MINUTES = 270;
