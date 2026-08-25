@@ -74,6 +74,6 @@ export function buildWatchPartyReminderContent(
     `${t(
       locale,
       'watchparty.reminder.starts',
-    )} <t:${timestamp}:R> • <t:${timestamp}:F>`
+    )} <t:${timestamp}:F>`
   );
 }
