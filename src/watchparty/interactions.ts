@@ -23,6 +23,10 @@ import {
 } from './components.js';
 
 import {
+  cancelDiscordScheduledEventForParty,
+} from './discord-events.js';
+
+import {
   buildScheduledWatchPartyMessage,
 } from './message.js';
 
@@ -141,19 +145,42 @@ export async function handleWatchPartyButton(
           'cancelled',
         );
 
-      const renderedMessage =
-        buildScheduledWatchPartyMessage(
-          cancelledParty,
-          locale,
+      // Discord Scheduled Events are supplementary. Their API state must never
+      // prevent the existing Watch Party cancellation from succeeding.
+      if (interaction.guild) {
+        await cancelDiscordScheduledEventForParty(
+          interaction.guild,
+          party.id,
+        );
+      }
+
+      // A cancelled Watch Party no longer needs a public RSVP post. Keep the
+      // persisted party record for history/auditing, but remove the Discord
+      // message so the channel only contains active/relevant Watch Parties.
+      try {
+        await interaction.message.delete();
+      } catch (error) {
+        console.error(
+          'Failed to delete cancelled Watch Party message:',
+          error,
         );
 
-      await interaction.message.edit({
-        content:
-          renderedMessage.content,
+        // Fall back to the previous behaviour so cancellation still succeeds
+        // even if Discord refuses message deletion for any reason.
+        const renderedMessage =
+          buildScheduledWatchPartyMessage(
+            cancelledParty,
+            locale,
+          );
 
-        components:
-          renderedMessage.components,
-      });
+        await interaction.message.edit({
+          content:
+            renderedMessage.content,
+
+          components:
+            renderedMessage.components,
+        });
+      }
 
       await interaction.editReply(
         t(

@@ -1,0 +1,37 @@
+<Container version="2">
+  <Name>Ombi Discord Router</Name>
+  <Repository>ghcr.io/miakkia/mediaops-ombi-discord-router:latest</Repository>
+  <Registry>https://ghcr.io/miakkia/mediaops-ombi-discord-router</Registry>
+  <Network>mediaops-backend</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+
+  <Icon>https://raw.githubusercontent.com/miakkia/docker-icons/main/icons/ombi-discord-router.png</Icon>
+  <Overview>Companion service for MediaOps that receives Ombi webhook notifications and routes media request lifecycle updates into managed Discord Forum threads.</Overview>
+  <Project>https://github.com/miakkia/MediaOps/tree/main/addons/ombi-discord-router</Project>
+  <TemplateURL>https://raw.githubusercontent.com/miakkia/MediaOps/main/templates/ombi-discord-router.xml</TemplateURL>
+  <ReadMe>https://raw.githubusercontent.com/miakkia/MediaOps/main/addons/ombi-discord-router/README.md</ReadMe>
+  <Category>Tools:System MediaApp:Other</Category>
+  <ExtraSearchTerms>ombi discord forum mediaops request webhook media server homelab</ExtraSearchTerms>
+  <Requires>Requires Ombi, a Discord Forum webhook, configured Forum tag IDs, and an existing user-defined Docker network shared with Ombi. MediaOps is required for live Forum tag synchronization and terminal thread locking.</Requires>
+  <Beta>true</Beta>
+  <MinVer>6.12</MinVer>
+  <License>GPLv3</License>
+  <ExtraParams>--user 1000:1000 --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true --memory 256m --pids-limit 64</ExtraParams>
+
+  <Config Name="Router Data" Target="/data" Default="/mnt/user/appdata/ombi-discord-router/data" Mode="rw" Description="Persistent Ombi Discord Router request/thread index." Type="Path" Display="always" Required="true" Mask="false"/>
+  <Config Name="Timezone" Target="TZ" Default="America/Toronto" Description="IANA timezone used by the router for log timestamps." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Media Requests Webhook" Target="MEDIA_REQUESTS_WEBHOOK" Default="" Description="Full Discord Forum webhook URL. Secret: the URL contains a Discord credential and must not be published." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Webhook Display Name" Target="MEDIA_REQUESTS_WEBHOOK_NAME" Default="Media Request Herald" Description="Display name used by the Discord webhook when posting request lifecycle updates." Type="Variable" Display="always" Required="false" Mask="false"/>
+
+  <Config Name="Requested Status Tag ID" Target="MEDIA_TAG_REQUESTED" Default="" Description="Discord Forum tag ID applied to newly submitted media requests that are waiting to be processed." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Processing Status Tag ID" Target="MEDIA_TAG_PROCESSING" Default="" Description="Discord Forum tag ID used when a media request has been approved or is currently being processed." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Available Status Tag ID" Target="MEDIA_TAG_AVAILABLE" Default="" Description="Discord Forum tag ID used when the requested media is available on the configured media server. This is a terminal request state." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Failed Status Tag ID" Target="MEDIA_TAG_FAILED" Default="" Description="Discord Forum tag ID used when processing or acquiring the requested media has failed. This is a terminal request state." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Denied Status Tag ID" Target="MEDIA_TAG_DENIED" Default="" Description="Discord Forum tag ID used when a media request has been denied or rejected. This is a terminal request state." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Movie Media Tag ID" Target="MEDIA_TAG_MOVIE" Default="" Description="Discord Forum tag ID identifying a request as a movie. This media-type tag is preserved throughout the request lifecycle." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Series Media Tag ID" Target="MEDIA_TAG_SERIES" Default="" Description="Discord Forum tag ID identifying a request as a TV series. This media-type tag is preserved throughout the request lifecycle." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Test Tag ID" Target="MEDIA_TAG_TEST" Default="" Description="Optional Discord Forum tag ID used only by Ombi's built-in Webhook Send test action. Test posts carry only this tag, are not indexed as media requests, and are ignored by the MediaOps request lifecycle." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <Config Name="Router Data Directory" Target="ROUTER_DATA_DIR" Default="/data" Description="Container path for the persistent request/thread index. Leave at /data for the packaged deployment." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+</Container>

@@ -7,35 +7,46 @@
   <Privileged>false</Privileged>
 
   <Icon>https://raw.githubusercontent.com/miakkia/MediaOps/main/assets/mediaops-icon.png</Icon>
-
-  <Overview>MediaOps is a self-hosted Discord automation platform for media-server communities. It connects Discord to your media server for health checks, movie and TV discovery, latest additions, random movie selection, Watch Party scheduling, RSVP management and guided community workflows. Emby is currently supported through the MediaProvider architecture; Jellyfin and Plex are planned future providers.</Overview>
-
+  <Overview>MediaOps is a self-hosted Discord automation platform for media-server communities. It connects Discord to Emby, Ombi and Watch Party workflows.</Overview>
   <Project>https://github.com/miakkia/MediaOps</Project>
   <TemplateURL>https://raw.githubusercontent.com/miakkia/MediaOps/main/templates/mediaops.xml</TemplateURL>
   <ReadMe>https://raw.githubusercontent.com/miakkia/MediaOps/main/docs/UNRAID.md</ReadMe>
   <Category>Tools:System MediaApp:Other</Category>
-  <ExtraSearchTerms>discord emby watch party media server homelab automation</ExtraSearchTerms>
-  <Requires>Outbound Internet access for Discord and network access to the configured Emby server and Watch Party service.</Requires>
-  <Changes>Initial public Docker template for MediaOps with GHCR distribution, persistent appdata and guided environment configuration.</Changes>
-  <Date>2026-08-19</Date>
+  <ExtraSearchTerms>discord emby ombi watch party media server homelab automation</ExtraSearchTerms>
+  <Requires>Outbound Internet access for Discord and network access to the configured Emby, Ombi and Watch Party services.</Requires>
   <Beta>true</Beta>
   <MinVer>6.12</MinVer>
   <License>GPLv3</License>
 
   <Config Name="MediaOps Data" Target="/data" Default="/mnt/user/appdata/mediaops" Mode="rw" Description="Persistent MediaOps runtime data and scheduled Watch Party state." Type="Path" Display="always" Required="true" Mask="false"/>
-
   <Config Name="Media Provider" Target="MEDIA_PROVIDER" Default="emby" Description="Media provider backend. Emby is currently supported." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Discord Token" Target="DISCORD_TOKEN" Default="" Description="Discord bot token." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Discord Client ID" Target="DISCORD_CLIENT_ID" Default="" Description="Discord application/client ID." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Discord Guild ID" Target="DISCORD_GUILD_ID" Default="" Description="Discord server/guild ID used for guild-scoped command deployment." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Emby URL" Target="EMBY_URL" Default="" Description="Emby base URL reachable from this container." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Emby API Key" Target="EMBY_API_KEY" Default="" Description="Emby API key used by MediaOps." Type="Variable" Display="always" Required="true" Mask="true"/>
 
-  <Config Name="Discord Token" Target="DISCORD_TOKEN" Default="" Description="Discord bot token. Keep this value secret and rotate it immediately if exposed." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Request Provider" Target="REQUEST_PROVIDER" Default="none" Description="Optional request backend. Use ombi to enable /request after configuring Ombi URL and API key." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Ombi URL" Target="OMBI_URL" Default="" Description="Ombi base URL reachable from MediaOps. Required when REQUEST_PROVIDER=ombi." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Ombi API Key" Target="OMBI_API_KEY" Default="" Description="Ombi API key used to search and create requests. Required when REQUEST_PROVIDER=ombi." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Ombi Auto Approve" Target="OMBI_AUTO_APPROVE" Default="false" Description="true automatically approves newly created requests; false leaves them pending for an Ombi administrator." Type="Variable" Display="always" Required="false" Mask="false"/>
 
-  <Config Name="Discord Client ID" Target="DISCORD_CLIENT_ID" Default="" Description="Discord application/client ID for the MediaOps bot." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Media Requests Forum ID" Target="MEDIA_REQUESTS_FORUM_ID" Default="" Description="Optional Discord Forum channel used for Ombi request lifecycle synchronization." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Media Requests Webhook ID" Target="MEDIA_REQUESTS_WEBHOOK_ID" Default="" Description="Exact Discord webhook ID allowed to drive Forum status changes. This is an ID, not the secret webhook URL/token." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Requested Status Tag ID" Target="MEDIA_TAG_REQUESTED" Default="" Description="Discord Forum tag ID applied to newly submitted media requests that are waiting to be processed." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Processing Status Tag ID" Target="MEDIA_TAG_PROCESSING" Default="" Description="Discord Forum tag ID used when a media request has been approved or is currently being processed." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Available Status Tag ID" Target="MEDIA_TAG_AVAILABLE" Default="" Description="Discord Forum tag ID used when the requested media is available on the configured media server. This is a terminal request state." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Failed Status Tag ID" Target="MEDIA_TAG_FAILED" Default="" Description="Discord Forum tag ID used when processing or acquiring the requested media has failed. This is a terminal request state." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Denied Status Tag ID" Target="MEDIA_TAG_DENIED" Default="" Description="Discord Forum tag ID used when a media request has been denied or rejected. This is a terminal request state." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Movie Media Tag ID" Target="MEDIA_TAG_MOVIE" Default="" Description="Discord Forum tag ID identifying a request as a movie. This media-type tag is preserved throughout the request lifecycle." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Series Media Tag ID" Target="MEDIA_TAG_SERIES" Default="" Description="Discord Forum tag ID identifying a request as a TV series. This media-type tag is preserved throughout the request lifecycle." Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
-  <Config Name="Discord Guild ID" Target="DISCORD_GUILD_ID" Default="" Description="Discord server/guild ID currently used for guild-scoped command deployment." Type="Variable" Display="always" Required="true" Mask="false"/>
-
-  <Config Name="Emby URL" Target="EMBY_URL" Default="" Description="Emby base URL reachable from this container, for example http://192.168.1.100:8096." Type="Variable" Display="always" Required="true" Mask="false"/>
-
-  <Config Name="Emby API Key" Target="EMBY_API_KEY" Default="" Description="Emby API key used by MediaOps. Keep this value secret." Type="Variable" Display="always" Required="true" Mask="true"/>
-
-  <Config Name="Watch Party URL" Target="WATCHPARTY_URL" Default="" Description="Base/public URL of the Watch Party service used by MediaOps." Type="Variable" Display="always" Required="true" Mask="false"/>  <Config Name="MediaOps Locale" Target="MEDIAOPS_LOCALE" Default="en" Description="Default language for automated MediaOps messages. Supported values: en or fr." Type="Variable" Display="always" Required="true" Mask="false"/>
-  <Config Name="MediaOps Data Directory" Target="MEDIAOPS_DATA_DIR" Default="/data" Description="Container path used for MediaOps-owned persistent runtime data. Leave at /data for standard Unraid deployments." Type="Variable" Display="advanced" Required="true" Mask="false"/>
+  <Config Name="Watch Party URL" Target="WATCHPARTY_URL" Default="" Description="Public URL of the Watch Party service." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Watch Party Internal URL" Target="WATCHPARTY_INTERNAL_URL" Default="" Description="Optional LAN/internal Watch Party URL used by MediaOps API calls." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Watch Party Emby User" Target="WATCHPARTY_EMBY_USER" Default="" Description="Dedicated non-admin Emby account used to create and host Watch Parties." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Watch Party Emby Password" Target="WATCHPARTY_EMBY_PASSWORD" Default="" Description="Password for the dedicated Watch Party Emby account." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <Config Name="Watch Party Retention Days" Target="WATCHPARTY_RETENTION_DAYS" Default="30" Description="Days to keep completed/cancelled Watch Party history." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="MediaOps Locale" Target="MEDIAOPS_LOCALE" Default="en" Description="Default language for automated messages. Supported: en or fr." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="MediaOps Timezone" Target="MEDIAOPS_TIMEZONE" Default="America/Toronto" Description="IANA timezone used for Watch Party scheduling input without an explicit offset." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="MediaOps Data Directory" Target="MEDIAOPS_DATA_DIR" Default="/data" Description="Container path for persistent runtime data." Type="Variable" Display="advanced" Required="true" Mask="false"/>
 </Container>

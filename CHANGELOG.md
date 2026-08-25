@@ -14,6 +14,13 @@ MediaOps is currently in active development. Until the first stable public relea
 - Emby movie search.
 - Emby TV-series search.
 - Recently added movie and series discovery.
+- Ombi-backed `/request` workflow with Discord requester attribution and configurable auto-approval.
+- Optional Discord Forum request history synchronized from the companion Ombi Discord Router.
+- Request Forum lifecycle tags for `Requested`, `Processing`, `Available`, `Failed`, and `Denied` while preserving `Movie`/`Series` media type.
+- Completed request Forum posts are locked and removed from the active Forum view without deleting request history.
+- Packaged `addons/ombi-discord-router/` companion service with secret-free environment/Compose templates, persistent request-thread correlation, hardened container defaults, and CI validation.
+- Separate GHCR publication for `ghcr.io/miakkia/mediaops-ombi-discord-router` with development, latest, SHA and release tags.
+- Generic Unraid v2 template for the Ombi Discord Router with masked webhook configuration, persistent `/data`, Forum tag fields and hardened runtime options.
 - Watch Party service integration.
 - Watch Party code validation and status flows.
 - Persistent scheduled Watch Party state.
@@ -55,6 +62,13 @@ MediaOps is currently in active development. Until the first stable public relea
 - Runtime data kept outside source control.
 - Docker runtime executes as a dedicated non-root user.
 - Docker deployment requires no privileged mode, Docker socket, media-library mounts or inbound application ports for current features.
+- Optional request Forum synchronization is fail-closed unless its complete identifier set is configured.
+- Request Forum state changes are scoped to the configured Forum and integration source rather than free-form Discord messages.
+- Managed request threads require an unambiguous media type and request status before MediaOps will modify them.
+- Completed request states are terminal and cannot be automatically rewritten through later integration events.
+- The webhook secret remains outside MediaOps; MediaOps uses only the configured webhook ID for source identification.
+- Ombi Discord Router delivery errors sanitize Discord failures so webhook credentials are not written to application logs.
+- Router distribution templates contain placeholders only and keep the Discord webhook masked at runtime.
 
 ### Fixed
 
@@ -68,20 +82,8 @@ MediaOps is currently in active development. Until the first stable public relea
 - Media item model expanded with original-title and sort-title metadata for better matching.
 - Discord and Watch Party consumers now use the generic media provider boundary instead of direct Emby service imports.
 - README and deployment documentation now reflect the working GHCR/Unraid path and Community Apps packaging.
+- The router Compose example now consumes the published GHCR image by default instead of requiring a local source build.
 
 ## Development history
 
-The current Unreleased work was built through the following milestones:
-
-- **#1** — establish Discord bot foundation
-- **#2** — add Discord command framework
-- **#3** — add Emby client and health command
-- **#4** — harden Emby API client
-- **#5** — add Emby movie search and command auto-loading
-- **#6** — add Emby TV-series search
-- **#7** — add latest media and Watch Party integration
-- **#8** — add Watch Party scheduling, RSVP and cancellation
-- **#9** — add Watch Party random picker and setup panel
-- **Current branch** — add Watch Party lifecycle automation, upcoming-session discovery, persistent reminders and scheduling rollback handling
-
-A versioned changelog section will be created when MediaOps begins tagged public releases.
+The current Unreleased work was built through iterative milestones and feature branches. Git history and pull requests remain the source of truth for individual implementation commits and review context.

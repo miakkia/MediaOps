@@ -1,62 +1,43 @@
 # Security Policy
 
-Security matters for MediaOps because the application connects Discord to self-hosted media infrastructure and requires deployment credentials such as a Discord bot token and media-server API key.
+MediaOps is under active development. Security-sensitive changes should be reviewed before release, and deployment credentials must remain outside source control.
 
-## Project status
+## Supported versions
 
-MediaOps is currently under active development and has not yet reached its first stable public release.
-
-Security fixes may therefore land on `main` before a formal versioned support policy exists.
+Until the first stable release, only the current `main` branch and actively maintained release branches/tags are expected to receive security fixes.
 
 ## Reporting a vulnerability
 
-Please do **not** publish sensitive vulnerability details, credentials, tokens, private infrastructure information, or working exploits in a public GitHub issue.
+Please report security issues privately to the project maintainer rather than opening a public issue containing exploit details, credentials, tokens, private URLs, or sensitive logs.
 
-For non-sensitive security hardening suggestions, a normal GitHub issue is appropriate.
+When reporting, include enough information to reproduce the issue safely:
 
-A private vulnerability-reporting channel should be established before the first public packaged release. Until that mechanism is documented, avoid disclosing exploit details publicly and contact the repository owner through an appropriate private GitHub contact method when available.
+- affected MediaOps version/commit;
+- deployment method;
+- relevant feature/provider;
+- expected versus observed behavior;
+- sanitized logs or steps to reproduce.
 
-## Secrets
+Do not include live Discord bot tokens, webhook URLs/tokens, provider API keys, passwords, private certificates, or other credentials.
 
-Never include real values for:
+## Credential handling
 
-- Discord bot tokens;
-- Emby/Jellyfin/Plex API keys or access tokens;
-- passwords;
-- OAuth client secrets;
-- private certificates;
-- private Watch Party service credentials;
-- infrastructure credentials.
+MediaOps deployments may contain Discord tokens, Emby/Ombi API keys, Watch Party credentials, and optional Forum integration identifiers. These values must be injected at runtime and must never be committed to Git.
 
-If a credential is accidentally committed or shared, treat it as compromised and rotate it immediately.
+The companion Ombi Discord Router has a separate secret: `MEDIA_REQUESTS_WEBHOOK`, the full Discord webhook URL. The router owns this credential; MediaOps itself should receive only the non-secret webhook ID through `MEDIA_REQUESTS_WEBHOOK_ID`. Keeping these credentials separate limits the impact of either component being misconfigured or compromised.
+
+Public templates and `.env.example` files contain placeholders only. If a credential appears in a screenshot, log, issue, commit, or other shared material, rotate it.
 
 ## Deployment expectations
 
-MediaOps should be deployed with the minimum access required for its configured features.
+Use least privilege wherever possible:
 
-The intended security posture is:
+- do not run MediaOps or the router privileged;
+- avoid Docker socket and media-library filesystem mounts;
+- keep provider/API credentials scoped narrowly;
+- expose only required network surfaces;
+- keep the router `/ombi` endpoint private to a Docker/LAN trust boundary unless an authenticated reverse-proxy boundary is deliberately added;
+- use a user-defined Docker network for Ombi-to-router service-name resolution instead of hard-coded container IPs;
+- keep persistent runtime data outside container images and source control.
 
-- provider API access instead of direct media-library filesystem access;
-- no privileged container mode;
-- no unnecessary host mounts;
-- persistent storage only for MediaOps-owned application state;
-- runtime-injected secrets;
-- bounded external requests;
-- minimal Discord permissions appropriate to enabled features.
-
-## Security model
-
-The detailed project threat/trust model, provider boundary, Discord interaction validation, runtime-data handling, and future container requirements are documented in [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md).
-
-## Before contributing security-sensitive changes
-
-Review [`docs/DEVELOPMENT_GUIDELINES.md`](docs/DEVELOPMENT_GUIDELINES.md) and verify at minimum that:
-
-```bash
-npx tsc --noEmit
-npm audit
-```
-
-complete successfully for the relevant change, and inspect the diff for accidentally introduced secrets.
-
-Additional automated security checks are planned as CI matures.
+See [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md) for the detailed trust boundaries and security goals.

@@ -1,0 +1,44 @@
+services:
+  ombi-discord-router:
+    image: ghcr.io/miakkia/mediaops-ombi-discord-router:latest
+    container_name: ombi-discord-router
+    user: "1000:1000"
+    restart: unless-stopped
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+    mem_limit: 256m
+    pids_limit: 64
+    read_only: true
+
+    tmpfs:
+      - /tmp
+
+    volumes:
+      - ${ROUTER_DATA_HOST_DIR:-./data}:/data
+
+    environment:
+      TZ: ${TZ:-America/Toronto}
+      ROUTER_DATA_DIR: ${ROUTER_DATA_DIR:-/data}
+      MEDIA_REQUESTS_WEBHOOK: ${MEDIA_REQUESTS_WEBHOOK}
+      MEDIA_REQUESTS_WEBHOOK_NAME: ${MEDIA_REQUESTS_WEBHOOK_NAME:-Media Request Herald}
+      MEDIA_TAG_REQUESTED: ${MEDIA_TAG_REQUESTED}
+      MEDIA_TAG_PROCESSING: ${MEDIA_TAG_PROCESSING}
+      MEDIA_TAG_AVAILABLE: ${MEDIA_TAG_AVAILABLE}
+      MEDIA_TAG_FAILED: ${MEDIA_TAG_FAILED}
+      MEDIA_TAG_DENIED: ${MEDIA_TAG_DENIED}
+      MEDIA_TAG_MOVIE: ${MEDIA_TAG_MOVIE}
+      MEDIA_TAG_SERIES: ${MEDIA_TAG_SERIES}
+      MEDIA_TAG_TEST: ${MEDIA_TAG_TEST:-}
+
+    networks:
+      - mediaops-backend
+
+networks:
+  mediaops-backend:
+    external: true
+    name: ${MEDIAOPS_NETWORK:-mediaops-backend}

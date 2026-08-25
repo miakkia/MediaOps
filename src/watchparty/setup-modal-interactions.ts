@@ -40,31 +40,14 @@ function parseLocalDateTime(
     return undefined;
   }
 
-  const [
-    yearText,
-    monthText,
-    dayText,
-  ] = date.split('-');
+  const [yearText, monthText, dayText] = date.split('-');
+  const [hourText, minuteText] = time.split(':');
 
-  const [
-    hourText,
-    minuteText,
-  ] = time.split(':');
-
-  const year =
-    Number(yearText);
-
-  const month =
-    Number(monthText);
-
-  const day =
-    Number(dayText);
-
-  const hour =
-    Number(hourText);
-
-  const minute =
-    Number(minuteText);
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
 
   if (
     !Number.isInteger(year) ||
@@ -89,16 +72,15 @@ function parseLocalDateTime(
     return undefined;
   }
 
-  const localDate =
-    new Date(
-      year,
-      month - 1,
-      day,
-      hour,
-      minute,
-      0,
-      0,
-    );
+  const localDate = new Date(
+    year,
+    month - 1,
+    day,
+    hour,
+    minute,
+    0,
+    0,
+  );
 
   if (
     localDate.getFullYear() !== year ||
@@ -118,15 +100,9 @@ function normalizeMovieTitle(
 ): string {
   return value
     .normalize('NFKD')
-    .replace(
-      /[\u0300-\u036f]/g,
-      '',
-    )
+    .replace(/[\u0300-\u036f]/g, '')
     .trim()
-    .replace(
-      /\s+/g,
-      ' ',
-    )
+    .replace(/\s+/g, ' ')
     .toLocaleLowerCase();
 }
 
@@ -143,10 +119,7 @@ function matchesMovieTitle(
   return candidates.some(
     candidate =>
       candidate !== undefined &&
-      normalizeMovieTitle(
-        candidate,
-      ) ===
-      requestedTitle,
+      normalizeMovieTitle(candidate) === requestedTitle,
   );
 }
 
@@ -154,170 +127,86 @@ function selectBestMovie(
   movies: MediaMovie[],
   requestedTitle: string,
 ): MediaMovie | undefined {
-  const normalizedRequestedTitle =
-    normalizeMovieTitle(
-      requestedTitle,
-    );
-
-  const exactMatch =
-    movies.find(
-      movie =>
-        matchesMovieTitle(
-          movie,
-          normalizedRequestedTitle,
-        ),
-    );
-
-  return (
-    exactMatch ??
-    movies[0]
+  const normalizedRequestedTitle = normalizeMovieTitle(requestedTitle);
+  const exactMatch = movies.find(
+    movie => matchesMovieTitle(movie, normalizedRequestedTitle),
   );
+
+  return exactMatch ?? movies[0];
 }
 
 export async function handleWatchPartySetupModal(
   interaction: ModalSubmitInteraction,
 ): Promise<boolean> {
-  if (
-    !isManualScheduleModalId(
-      interaction.customId,
-    )
-  ) {
+  if (!isManualScheduleModalId(interaction.customId)) {
     return false;
   }
 
-  const locale =
-    getInteractionLocale(
-      interaction,
-    );
+  const locale = getInteractionLocale(interaction);
 
   await interaction.deferReply({
-    flags:
-      MessageFlags.Ephemeral,
+    flags: MessageFlags.Ephemeral,
   });
 
   try {
-    const {
-      title,
-      date,
-      time,
-    } =
-      getManualScheduleModalValues(
-        interaction.fields,
-      );
+    const { title, date, time } = getManualScheduleModalValues(interaction.fields);
 
-    if (
-      title.length === 0
-    ) {
+    if (title.length === 0) {
       await interaction.editReply(
-        t(
-          locale,
-          'watchparty.scheduling.movieSelectionError',
-        ),
+        t(locale, 'watchparty.scheduling.movieSelectionError'),
       );
-
       return true;
     }
 
-    const scheduledDate =
-      parseLocalDateTime(
-        date,
-        time,
-      );
+    const scheduledDate = parseLocalDateTime(date, time);
 
     if (!scheduledDate) {
       await interaction.editReply(
-        t(
-          locale,
-          'watchparty.scheduling.invalidDate',
-        ),
+        t(locale, 'watchparty.scheduling.invalidDate'),
       );
-
       return true;
     }
 
-    if (
-      scheduledDate.getTime() <=
-      Date.now()
-    ) {
+    if (scheduledDate.getTime() <= Date.now()) {
       await interaction.editReply(
-        t(
-          locale,
-          'watchparty.scheduling.pastDate',
-        ),
+        t(locale, 'watchparty.scheduling.pastDate'),
       );
-
       return true;
     }
 
-    const movies =
-      await mediaProvider.searchMovies(
-        title,
-      );
+    const movies = await mediaProvider.searchMovies(title);
 
-    if (
-      movies.length === 0
-    ) {
+    if (movies.length === 0) {
       await interaction.editReply(
-        t(
-          locale,
-          'emby.movie.notFound',
-          {
-            title,
-          },
-        ),
+        t(locale, 'emby.movie.notFound', { title }),
       );
-
       return true;
     }
 
-    const movie =
-      selectBestMovie(
-        movies,
-        title,
-      );
+    const movie = selectBestMovie(movies, title);
 
     if (!movie) {
       await interaction.editReply(
-        t(
-          locale,
-          'watchparty.scheduling.movieSelectionError',
-        ),
+        t(locale, 'watchparty.scheduling.movieSelectionError'),
       );
-
       return true;
     }
 
-    const context =
-      getSchedulingContext(
-        interaction,
-      );
+    const context = getSchedulingContext(interaction);
 
     await scheduleWatchParty({
-      guildId:
-        context.guildId,
-
-      channelId:
-        context.channelId,
-
-      organizerDiscordId:
-        context.organizerDiscordId,
-
+      guildId: context.guildId,
+      channelId: context.channelId,
+      organizerDiscordId: context.organizerDiscordId,
       movie,
-
-      scheduledAt:
-        scheduledDate.toISOString(),
-
+      scheduledAt: scheduledDate.toISOString(),
       locale,
-
-      channel:
-        context.channel,
+      guild: context.guild,
+      channel: context.channel,
     });
 
     await interaction.editReply(
-      t(
-        locale,
-        'watchparty.scheduling.confirmation',
-      ),
+      t(locale, 'watchparty.scheduling.confirmation'),
     );
 
     return true;
@@ -328,10 +217,7 @@ export async function handleWatchPartySetupModal(
     );
 
     await interaction.editReply(
-      t(
-        locale,
-        'watchparty.scheduling.scheduleError',
-      ),
+      t(locale, 'watchparty.scheduling.scheduleError'),
     );
 
     return true;

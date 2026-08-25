@@ -19,6 +19,7 @@ MediaOps should:
 Sensitive values include, but are not limited to:
 
 - Discord bot tokens;
+- Discord webhook URLs/tokens;
 - media server API keys/tokens;
 - passwords;
 - private certificates;
@@ -46,6 +47,32 @@ MediaOps validates or constrains:
 - guild/channel context for server-only operations.
 
 Administrative commands should require appropriate Discord permissions.
+
+### Media Request Forum boundary
+
+Optional request-Forum synchronization is deliberately narrower than general Discord message handling.
+
+The feature is disabled unless its complete Forum configuration is present. When enabled, MediaOps accepts request-state events only from the configured integration source in the configured Forum and only for threads that already match the expected managed-request shape. Free-form user message text is not interpreted as a request-state command.
+
+Request-state transitions are constrained so completed request states remain terminal. Terminal request posts are locked before being removed from the active Forum view, preserving history while preventing ordinary follow-up replies.
+
+`MEDIA_REQUESTS_WEBHOOK_ID` is a non-secret identifier used for source allow-listing. The webhook URL/token remains outside MediaOps and must still be treated as a credential by the companion router deployment.
+
+Discord gateway intents and channel permissions should be enabled only when required by configured features. Enabling message-content access does not replace Discord channel permissions and should not be paired with unnecessary broad server permissions.
+
+Public documentation intentionally describes the supported security guarantees and administrator requirements without publishing credential values or deployment-specific internals. Because MediaOps is open source, security controls must remain effective even when an attacker can read the implementation.
+
+### Ombi Discord Router boundary
+
+The optional companion router is a separate trust boundary between Ombi notifications and Discord Forum webhook delivery.
+
+The router owns the Discord webhook URL/token at runtime. MediaOps receives only the corresponding non-secret webhook ID and does not need the router credential.
+
+The packaged addon contains placeholders rather than deployment-specific webhook values, IDs, addresses, or runtime state. Its `.env` and generated data are excluded from source control.
+
+The router should normally remain reachable from Ombi on a private user-defined Docker/LAN network. Using a service/container name is preferred over coupling notifications to a changing container IP.
+
+Discord delivery failures are sanitized before logging so the secret webhook URL is not included in application error messages.
 
 ## Provider API trust boundary
 
@@ -106,6 +133,7 @@ Do not expose:
 - tokens;
 - API keys;
 - passwords;
+- webhook credentials;
 - stack traces;
 - sensitive internal request headers;
 - unnecessary infrastructure details.
@@ -127,6 +155,8 @@ The production Docker image should target:
 - runtime-injected secrets;
 - a healthcheck suitable for deployment monitoring.
 
+Companion containers should follow the same least-privilege baseline where practical. The packaged Ombi router example uses a non-root UID/GID, dropped capabilities, a read-only root filesystem, `no-new-privileges`, PID/memory limits, and a dedicated persistent `/data` mount.
+
 ## Unraid deployment
 
 The planned Unraid Community Apps template should expose only required configuration.
@@ -144,6 +174,8 @@ Before meaningful merges, development currently includes:
 ```bash
 npm audit
 ```
+
+CI also validates the packaged Ombi router source and builds its Dockerfile so addon syntax/build failures are caught alongside the main application checks.
 
 Future CI should automate:
 
@@ -190,6 +222,8 @@ Before a public release or major integration change, verify:
 - external responses are validated;
 - Discord custom IDs cannot inject arbitrary data;
 - privileged actions enforce authorization;
+- optional Forum automation remains explicitly scoped to its configured source and Forum;
+- completed Forum requests cannot be silently rewritten through normal integration events;
 - logs do not print credentials;
 - container permissions remain minimal;
 - dependency audit is reviewed;
