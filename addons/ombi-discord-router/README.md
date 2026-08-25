@@ -17,6 +17,18 @@ For supported Ombi movie and TV request notifications, the router:
 
 MediaOps then performs the privileged Discord-side lifecycle management, including status-tag synchronization and closing/locking terminal request posts.
 
+## Published image
+
+GitHub Actions publishes the companion image separately from MediaOps:
+
+```text
+ghcr.io/miakkia/mediaops-ombi-discord-router:latest
+ghcr.io/miakkia/mediaops-ombi-discord-router:dev
+ghcr.io/miakkia/mediaops-ombi-discord-router:sha-<commit>
+```
+
+`latest` follows `main`; development branches publish `dev`; repository release tags publish matching semantic-version tags.
+
 ## Requirements
 
 - Ombi with webhook notifications enabled;
@@ -24,7 +36,7 @@ MediaOps then performs the privileged Discord-side lifecycle management, includi
 - a Discord webhook created for that Forum;
 - Forum tags for `Movie`, `Series`, `Requested`, `Processing`, `Available`, `Failed`, and `Denied`;
 - persistent storage for `/data`;
-- network connectivity from Ombi to this router.
+- a user-defined Docker network shared by Ombi and the router.
 
 The visible tag names are administrator choices. Configuration uses Discord IDs.
 
@@ -44,6 +56,7 @@ MEDIA_TAG_DENIED=
 MEDIA_TAG_MOVIE=
 MEDIA_TAG_SERIES=
 ROUTER_DATA_DIR=/data
+ROUTER_DATA_HOST_DIR=./data
 MEDIAOPS_NETWORK=mediaops-backend
 ```
 
@@ -69,34 +82,39 @@ http://ombi-discord-router:8080/ombi
 
 `compose.example.yaml` expects the network to already exist and defaults to `mediaops-backend`. Set `MEDIAOPS_NETWORK` if you use a different external network name.
 
-## Build and run
-
-From this directory:
-
-```bash
-docker build -t local/ombi-discord-router:1.6 .
-```
-
-For Compose-based deployments:
+## Compose deployment
 
 ```bash
 cp .env.example .env
 # edit .env with your values
 
-docker compose -f compose.example.yaml up -d --build
+docker compose -f compose.example.yaml pull
+docker compose -f compose.example.yaml up -d
 ```
 
-The example Compose file deliberately uses least-privilege defaults: non-root execution, read-only root filesystem, dropped Linux capabilities, `no-new-privileges`, PID/memory limits, and a dedicated persistent `/data` mount.
+The example Compose file uses the published GHCR image and deliberately keeps least-privilege defaults: non-root execution, read-only root filesystem, dropped Linux capabilities, `no-new-privileges`, PID/memory limits, and a dedicated persistent `/data` mount.
 
-Adjust the host-side data path and UID/GID for your platform where needed.
+For development or reproducible local testing, the same image can still be built directly from this directory:
+
+```bash
+docker build -t local/ombi-discord-router:1.6 .
+```
+
+## Unraid
+
+A generic Unraid v2 template is included at:
+
+```text
+templates/ombi-discord-router.xml
+```
+
+The template points to the published GHCR image, masks the webhook credential, predefines `/data`, includes all required Forum tag variables, and applies the same hardened runtime options used during validation.
+
+Before installing the router template, create an external Docker network such as `mediaops-backend` and attach Ombi to it. Keep the router name `ombi-discord-router` or update the Ombi webhook URL if you choose a different container name.
 
 ## Health check
 
-```bash
-curl http://127.0.0.1:8080/health
-```
-
-Expected shape:
+Expected response from `GET /health`:
 
 ```json
 {
@@ -107,7 +125,7 @@ Expected shape:
 }
 ```
 
-The example service does not publish port `8080` to the host by default. The command above therefore applies when run inside the container/network namespace or when you intentionally add a host port for diagnostics.
+The packaged service does not publish port `8080` to the host by default. Check `/health` from inside the container or from another container on the shared Docker network.
 
 ## Ombi notification behavior
 
