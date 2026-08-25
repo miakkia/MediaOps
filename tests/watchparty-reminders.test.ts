@@ -130,7 +130,7 @@ test('invalid scheduled date is never eligible', () => {
   );
 });
 
-test('reminder content includes media identity and Discord timestamps', () => {
+test('reminder content includes media identity and a stable Discord timestamp', () => {
   const item = party();
   const timestamp =
     Math.floor(
@@ -142,7 +142,7 @@ test('reminder content includes media identity and Discord timestamps', () => {
 
   assert.match(content, /Reminder Movie/);
   assert.match(content, /2026/);
-  assert.match(
+  assert.doesNotMatch(
     content,
     new RegExp(`<t:${timestamp}:R>`),
   );
