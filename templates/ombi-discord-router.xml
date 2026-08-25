@@ -31,6 +31,7 @@
   <Config Name="Denied Status Tag ID" Target="MEDIA_TAG_DENIED" Default="" Description="Discord Forum tag ID used when a media request has been denied or rejected. This is a terminal request state." Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="Movie Media Tag ID" Target="MEDIA_TAG_MOVIE" Default="" Description="Discord Forum tag ID identifying a request as a movie. This media-type tag is preserved throughout the request lifecycle." Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="Series Media Tag ID" Target="MEDIA_TAG_SERIES" Default="" Description="Discord Forum tag ID identifying a request as a TV series. This media-type tag is preserved throughout the request lifecycle." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Test Tag ID" Target="MEDIA_TAG_TEST" Default="" Description="Optional Discord Forum tag ID used only by Ombi's built-in Webhook Send test action. Test posts carry only this tag, are not indexed as media requests, and are ignored by the MediaOps request lifecycle." Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
   <Config Name="Router Data Directory" Target="ROUTER_DATA_DIR" Default="/data" Description="Container path for the persistent request/thread index. Leave at /data for the packaged deployment." Type="Variable" Display="advanced" Required="true" Mask="false"/>
 </Container>
