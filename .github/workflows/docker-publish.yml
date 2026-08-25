@@ -23,6 +23,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: miakkia/mediaops
+  ROUTER_IMAGE_NAME: miakkia/mediaops-ombi-discord-router
 
 jobs:
   validate:
@@ -96,11 +97,23 @@ jobs:
             echo "MEDIAOPS_BUILD_CHANNEL=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
           fi
 
-      - name: Generate image metadata
-        id: meta
+      - name: Generate MediaOps image metadata
+        id: mediaops-meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=dev,enable=${{ startsWith(github.ref, 'refs/heads/feat/') || startsWith(github.ref, 'refs/heads/fix/') || startsWith(github.ref, 'refs/heads/chore/') || startsWith(github.ref, 'refs/heads/harden/') }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Generate router image metadata
+        id: router-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.ROUTER_IMAGE_NAME }}
           tags: |
             type=raw,value=dev,enable=${{ startsWith(github.ref, 'refs/heads/feat/') || startsWith(github.ref, 'refs/heads/fix/') || startsWith(github.ref, 'refs/heads/chore/') || startsWith(github.ref, 'refs/heads/harden/') }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
@@ -114,10 +127,21 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.mediaops-meta.outputs.tags }}
+          labels: ${{ steps.mediaops-meta.outputs.labels }}
           build-args: |
             MEDIAOPS_BUILD_SHA=${{ github.sha }}
             MEDIAOPS_BUILD_CHANNEL=${{ env.MEDIAOPS_BUILD_CHANNEL }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=mediaops
+          cache-to: type=gha,mode=max,scope=mediaops
+
+      - name: Build and push Ombi Discord Router
+        uses: docker/build-push-action@v6
+        with:
+          context: ./addons/ombi-discord-router
+          file: ./addons/ombi-discord-router/Dockerfile
+          push: true
+          tags: ${{ steps.router-meta.outputs.tags }}
+          labels: ${{ steps.router-meta.outputs.labels }}
+          cache-from: type=gha,scope=ombi-discord-router
+          cache-to: type=gha,mode=max,scope=ombi-discord-router
