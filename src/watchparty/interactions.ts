@@ -127,7 +127,8 @@ export async function handleWatchPartyButton(
 
       if (
         party.status !== 'scheduled' &&
-        party.status !== 'ready'
+        party.status !== 'ready' &&
+        party.status !== 'active'
       ) {
         await interaction.editReply(
           t(
