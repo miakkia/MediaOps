@@ -3,10 +3,6 @@ import type {
 } from 'discord.js';
 
 import {
-  t,
-} from '../i18n/index.js';
-
-import {
   createWatchParty,
 } from '../services/watchparty.js';
 
@@ -23,11 +19,13 @@ import {
   synchronizeDiscordScheduledEventForParty,
 } from './discord-events.js';
 
+import {
+  buildWatchPartyReminderContent,
+  shouldSendWatchPartyReminder,
+} from './reminders.js';
+
 const LIFECYCLE_INTERVAL_MS =
   60 * 1000;
-
-const REMINDER_LEAD_TIME_MS =
-  15 * 60 * 1000;
 
 const configuredLocale =
   process.env.MEDIAOPS_LOCALE?.trim().toLowerCase();
@@ -46,42 +44,10 @@ async function sendWatchPartyReminders(
   const parties =
     await getWatchParties();
 
-  const now =
-    Date.now();
+  const now = Date.now();
 
   for (const party of parties) {
-    if (
-      party.status !== 'scheduled' &&
-      party.status !== 'ready'
-    ) {
-      continue;
-    }
-
-    if (party.reminderSentAt) {
-      continue;
-    }
-
-    const scheduledTime =
-      new Date(
-        party.scheduledAt,
-      ).getTime();
-
-    if (
-      Number.isNaN(
-        scheduledTime,
-      )
-    ) {
-      continue;
-    }
-
-    const reminderTime =
-      scheduledTime -
-      REMINDER_LEAD_TIME_MS;
-
-    if (
-      now < reminderTime ||
-      now >= scheduledTime
-    ) {
+    if (!shouldSendWatchPartyReminder(party, now)) {
       continue;
     }
 
@@ -98,34 +64,18 @@ async function sendWatchPartyReminders(
         console.warn(
           `Watch Party reminder channel is unavailable: ${party.channelId}`,
         );
-
         continue;
       }
 
-      const timestamp =
-        Math.floor(
-          scheduledTime /
-          1000,
-        );
-
-      const year =
-        party.mediaYear !== undefined
-          ? ` (${party.mediaYear})`
-          : '';
-
       await channel.send({
-        content:
-          `${t(
-            reminderLocale,
-            'watchparty.reminder.title',
-          )}\n\n` +
-          `**${party.mediaTitle}**${year}\n` +
-          `${t(
-            reminderLocale,
-            'watchparty.reminder.starts',
-          )} <t:${timestamp}:R> • <t:${timestamp}:F>`,
+        content: buildWatchPartyReminderContent(
+          party,
+          reminderLocale,
+        ),
       });
 
+      // Persist only after Discord confirms the send. A failed send remains
+      // eligible and is retried by the next lifecycle pass.
       await setWatchPartyReminderSentAt(
         party.id,
         new Date().toISOString(),
@@ -148,9 +98,7 @@ async function openScheduledWatchParties(
 ): Promise<void> {
   const parties =
     await getWatchParties();
-
-  const now =
-    Date.now();
+  const now = Date.now();
 
   for (const party of parties) {
     if (
@@ -159,15 +107,12 @@ async function openScheduledWatchParties(
     ) {
       continue;
     }
-
     if (party.partyCode) {
       continue;
     }
 
     const scheduledTime =
-      new Date(
-        party.scheduledAt,
-      ).getTime();
+      new Date(party.scheduledAt).getTime();
 
     if (
       Number.isNaN(scheduledTime) ||
@@ -177,15 +122,13 @@ async function openScheduledWatchParties(
     }
 
     try {
-      const room =
-        await createWatchParty();
+      const room = await createWatchParty();
 
       // Persist first so a Discord failure cannot create duplicate rooms.
       await setWatchPartyCode(
         party.id,
         room.partyCode,
       );
-
       await setWatchPartyStatus(
         party.id,
         'active',
@@ -203,7 +146,6 @@ async function openScheduledWatchParties(
         console.warn(
           `Watch Party launch channel is unavailable: ${party.channelId}`,
         );
-
         continue;
       }
 
@@ -257,7 +199,6 @@ async function cleanupFinishedWatchPartyPosts(
     ) {
       continue;
     }
-
     if (!party.messageId) {
       continue;
     }
@@ -297,33 +238,21 @@ async function runLifecycleRefresh(
 ): Promise<void> {
   try {
     await refreshWatchPartyLifecycle();
-
-    await sendWatchPartyReminders(
-      client,
-    );
-
-    await openScheduledWatchParties(
-      client,
-    );
-
+    await sendWatchPartyReminders(client);
+    await openScheduledWatchParties(client);
     await refreshWatchPartyLifecycle();
 
     // Keep Scheduled Events aligned after all Watch Party state transitions.
     // Any Discord API error is isolated inside the event integration and must
     // not stop room creation, RSVP, reminders, or retention cleanup.
-    await synchronizeDiscordScheduledEvents(
-      client,
-    );
+    await synchronizeDiscordScheduledEvents(client);
 
     // Remove the original RSVP post after a Watch Party is cancelled or has
     // finished. This also cleans up old posts left behind by previous builds
     // as soon as the bot starts or on the next lifecycle pass.
-    await cleanupFinishedWatchPartyPosts(
-      client,
-    );
+    await cleanupFinishedWatchPartyPosts(client);
 
-    const removed =
-      await cleanupWatchPartyHistory();
+    const removed = await cleanupWatchPartyHistory();
 
     if (removed > 0) {
       console.log(
@@ -345,16 +274,12 @@ export function startWatchPartyLifecycle(
     return;
   }
 
-  void runLifecycleRefresh(
-    client,
-  );
+  void runLifecycleRefresh(client);
 
   lifecycleTimer =
     setInterval(
       () => {
-        void runLifecycleRefresh(
-          client,
-        );
+        void runLifecycleRefresh(client);
       },
       LIFECYCLE_INTERVAL_MS,
     );
