@@ -19,6 +19,8 @@ MediaOps is currently in active development. Until the first stable public relea
 - Request Forum lifecycle tags for `Requested`, `Processing`, `Available`, `Failed`, and `Denied` while preserving `Movie`/`Series` media type.
 - Completed request Forum posts are locked and removed from the active Forum view without deleting request history.
 - Packaged `addons/ombi-discord-router/` companion service with secret-free environment/Compose templates, persistent request-thread correlation, hardened container defaults, and CI validation.
+- Separate GHCR publication for `ghcr.io/miakkia/mediaops-ombi-discord-router` with development, latest, SHA and release tags.
+- Generic Unraid v2 template for the Ombi Discord Router with masked webhook configuration, persistent `/data`, Forum tag fields and hardened runtime options.
 - Watch Party service integration.
 - Watch Party code validation and status flows.
 - Persistent scheduled Watch Party state.
@@ -66,6 +68,7 @@ MediaOps is currently in active development. Until the first stable public relea
 - Completed request states are terminal and cannot be automatically rewritten through later integration events.
 - The webhook secret remains outside MediaOps; MediaOps uses only the configured webhook ID for source identification.
 - Ombi Discord Router delivery errors sanitize Discord failures so webhook credentials are not written to application logs.
+- Router distribution templates contain placeholders only and keep the Discord webhook masked at runtime.
 
 ### Fixed
 
@@ -79,6 +82,7 @@ MediaOps is currently in active development. Until the first stable public relea
 - Media item model expanded with original-title and sort-title metadata for better matching.
 - Discord and Watch Party consumers now use the generic media provider boundary instead of direct Emby service imports.
 - README and deployment documentation now reflect the working GHCR/Unraid path and Community Apps packaging.
+- The router Compose example now consumes the published GHCR image by default instead of requiring a local source build.
 
 ## Development history
 
