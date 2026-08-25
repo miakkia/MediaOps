@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 import requests
 from flask import Flask, jsonify, request
 
-APP_VERSION = "1.6"
+APP_VERSION = "1.7"
 
 app = Flask(__name__)
 
@@ -24,6 +24,7 @@ TAG_FAILED = os.environ["MEDIA_TAG_FAILED"].strip()
 TAG_DENIED = os.environ["MEDIA_TAG_DENIED"].strip()
 TAG_MOVIE = os.environ["MEDIA_TAG_MOVIE"].strip()
 TAG_SERIES = os.environ["MEDIA_TAG_SERIES"].strip()
+TAG_TEST = os.environ.get("MEDIA_TAG_TEST", "").strip()
 
 DATA_DIR = Path(os.environ.get("ROUTER_DATA_DIR", "/data"))
 INDEX_FILE = DATA_DIR / "media-threads.json"
@@ -176,6 +177,28 @@ def build_embed(data, state):
     return embed
 
 
+def build_test_embed():
+    return {
+        "title": "Ombi Webhook Test",
+        "description": (
+            "Ombi successfully reached the MediaOps companion router and the "
+            "router successfully delivered this test to the configured Discord Forum."
+        ),
+        "fields": [
+            {
+                "name": "Status",
+                "value": "OK",
+                "inline": True,
+            },
+            {
+                "name": "Router",
+                "value": f"v{APP_VERSION}",
+                "inline": True,
+            },
+        ],
+    }
+
+
 def webhook_url(**params):
     if not params:
         return MEDIA_REQUESTS_WEBHOOK
@@ -195,6 +218,27 @@ def discord_post(url, payload):
     body = response.text.strip().replace("\n", " ")[:300]
     suffix = f": {body}" if body else ""
     raise RuntimeError(f"Discord webhook returned HTTP {response.status_code}{suffix}")
+
+
+def create_test_forum_post():
+    if not TAG_TEST:
+        return None
+
+    payload = {
+        "username": MEDIA_REQUESTS_WEBHOOK_NAME,
+        "thread_name": "Ombi Webhook Test",
+        "applied_tags": [TAG_TEST],
+        "embeds": [build_test_embed()],
+    }
+
+    response = discord_post(webhook_url(wait="true"), payload)
+    result = response.json()
+    thread_id = str(result.get("channel_id") or "").strip()
+
+    if not thread_id:
+        raise RuntimeError("Discord did not return a Forum thread ID for webhook test")
+
+    return thread_id
 
 
 def create_forum_post(data, key, status, status_tag):
@@ -310,6 +354,26 @@ def process_media_notification(data):
     }
 
 
+def safe_log_value(value):
+    return str(value or "").replace("\r", " ").replace("\n", " ")[:64]
+
+
+def log_notification_result(data, result):
+    notification_type = safe_log_value(data.get("notificationType")) or "<empty>"
+    raw_media_type = safe_log_value(data.get("type")) or "<empty>"
+    status = safe_log_value(result.get("status")) or "unknown"
+    reason = safe_log_value(result.get("reason"))
+    reason_suffix = f" reason={reason}" if reason else ""
+
+    print(
+        "OMBI EVENT: "
+        f"notificationType={notification_type} "
+        f"type={raw_media_type} "
+        f"result={status}{reason_suffix}",
+        flush=True,
+    )
+
+
 @app.post("/ombi")
 def ombi_webhook():
     data = request.get_json(silent=True)
@@ -319,22 +383,38 @@ def ombi_webhook():
 
     notification_type = str(data.get("notificationType") or "").strip().lower()
 
-    if notification_type == "test":
-        return jsonify({
-            "status": "ok",
-            "mode": "discord-forum",
-            "version": APP_VERSION,
-            "note": "Ombi test payload accepted; no Forum post created.",
-        }), 200
-
-    if notification_type == "requestdeleted":
-        return jsonify({
-            "status": "ignored",
-            "reason": "request-deleted",
-        }), 200
-
     try:
+        if notification_type == "test":
+            thread_id = create_test_forum_post()
+
+            if thread_id:
+                result = {
+                    "status": "created",
+                    "mode": "discord-forum-test",
+                    "version": APP_VERSION,
+                    "threadId": thread_id,
+                }
+            else:
+                result = {
+                    "status": "ok",
+                    "mode": "discord-forum",
+                    "version": APP_VERSION,
+                    "note": "Ombi test payload accepted; MEDIA_TAG_TEST is not configured.",
+                }
+
+            log_notification_result(data, result)
+            return jsonify(result), 200
+
+        if notification_type == "requestdeleted":
+            result = {
+                "status": "ignored",
+                "reason": "request-deleted",
+            }
+            log_notification_result(data, result)
+            return jsonify(result), 200
+
         result = process_media_notification(data)
+        log_notification_result(data, result)
         return jsonify(result), 200
     except Exception as error:  # noqa: BLE001 - route boundary intentionally sanitizes logs
         print(
