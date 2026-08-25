@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 import requests
 from flask import Flask, jsonify, request
 
-APP_VERSION = "1.7"
+APP_VERSION = "1.8"
 
 app = Flask(__name__)
 
@@ -30,6 +30,15 @@ DATA_DIR = Path(os.environ.get("ROUTER_DATA_DIR", "/data"))
 INDEX_FILE = DATA_DIR / "media-threads.json"
 
 index_lock = threading.Lock()
+
+TERMINAL_STATUSES = {"available", "failed", "denied"}
+STATUS_ORDER = {
+    "requested": 0,
+    "processing": 1,
+    "available": 2,
+    "failed": 2,
+    "denied": 2,
+}
 
 
 def load_index():
@@ -112,6 +121,22 @@ def status_from_payload(data):
         return "processing", TAG_PROCESSING
 
     return "requested", TAG_REQUESTED
+
+
+def is_forward_status_transition(current, incoming):
+    if current == incoming:
+        return False
+
+    if current in TERMINAL_STATUSES:
+        return False
+
+    current_order = STATUS_ORDER.get(current)
+    incoming_order = STATUS_ORDER.get(incoming)
+
+    if current_order is None or incoming_order is None:
+        return False
+
+    return incoming_order > current_order
 
 
 def display_title(data):
@@ -213,8 +238,6 @@ def discord_post(url, payload):
     if response.ok:
         return response
 
-    # Never include the webhook URL in raised/logged errors because it contains
-    # the Discord webhook credential.
     body = response.text.strip().replace("\n", " ")[:300]
     suffix = f": {body}" if body else ""
     raise RuntimeError(f"Discord webhook returned HTTP {response.status_code}{suffix}")
@@ -288,6 +311,26 @@ def send_thread_update(thread_id, data, status):
     )
 
 
+def update_index_metadata(key, data, status=None):
+    with index_lock:
+        index = load_index()
+        current = index.get(key)
+
+        if not current:
+            return
+
+        if status is not None:
+            current["status"] = status
+
+        if data.get("requestId"):
+            current["requestId"] = data.get("requestId")
+
+        if data.get("providerId"):
+            current["providerId"] = data.get("providerId")
+
+        save_index(index)
+
+
 def process_media_notification(data):
     media_type = normalize_media_type(data.get("type"))
 
@@ -329,22 +372,30 @@ def process_media_notification(data):
     if not thread_id:
         raise RuntimeError(f"Stored media entry {key} has no threadId")
 
+    current_status = str(existing.get("status") or "").strip().lower()
+
+    if current_status == status:
+        update_index_metadata(key, data)
+        return {
+            "status": "ignored",
+            "reason": "duplicate-status",
+            "mediaKey": key,
+            "threadId": thread_id,
+            "requestStatus": current_status,
+        }
+
+    if not is_forward_status_transition(current_status, status):
+        update_index_metadata(key, data)
+        return {
+            "status": "ignored",
+            "reason": "stale-or-terminal-status",
+            "mediaKey": key,
+            "threadId": thread_id,
+            "requestStatus": current_status,
+        }
+
     send_thread_update(thread_id, data, status)
-
-    with index_lock:
-        index = load_index()
-        current = index.get(key)
-
-        if current:
-            current["status"] = status
-
-            if data.get("requestId"):
-                current["requestId"] = data.get("requestId")
-
-            if data.get("providerId"):
-                current["providerId"] = data.get("providerId")
-
-            save_index(index)
+    update_index_metadata(key, data, status)
 
     return {
         "status": "updated",
