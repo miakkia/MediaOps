@@ -1,5 +1,5 @@
 <CommunityApplications>
-  <Profile>MediaOps provides self-hosted Discord automation for media-server communities. The current release integrates with Emby for media discovery, health checks, random movie selection and guided Watch Party workflows, with a provider architecture designed for future Jellyfin and Plex adapters. Project documentation and support are available through the MediaOps GitHub repository.</Profile>
+  <Profile>MediaOps provides self-hosted Discord automation for media-server communities. The current release integrates with Emby for media discovery, Ombi for request workflows, an optional Ombi Discord Router companion for searchable Discord Forum request history, and Watch Party workflows, with a provider architecture designed for future Jellyfin and Plex adapters. Project documentation and support are available through the MediaOps GitHub repository.</Profile>
   <Icon>https://raw.githubusercontent.com/miakkia/MediaOps/main/assets/mediaops-icon.png</Icon>
   <WebPage>https://github.com/miakkia/MediaOps</WebPage>
 </CommunityApplications>
