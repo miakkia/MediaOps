@@ -33,6 +33,7 @@ services:
       MEDIA_TAG_DENIED: ${MEDIA_TAG_DENIED}
       MEDIA_TAG_MOVIE: ${MEDIA_TAG_MOVIE}
       MEDIA_TAG_SERIES: ${MEDIA_TAG_SERIES}
+      MEDIA_TAG_TEST: ${MEDIA_TAG_TEST:-}
 
     networks:
       - mediaops-backend
