@@ -108,6 +108,14 @@ Completed posts are retained rather than deleted. MediaOps locks terminal posts 
 
 The repository includes a ready-to-configure companion service under [`addons/ombi-discord-router/`](addons/ombi-discord-router/). Its examples contain placeholders only; webhook credentials, Forum/tag IDs, and infrastructure addresses are supplied at deployment time.
 
+The companion image is published separately as:
+
+```text
+ghcr.io/miakkia/mediaops-ombi-discord-router:latest
+```
+
+Development branches publish `:dev` and commit-SHA tags through the same GitHub Actions workflow.
+
 See [`docs/REQUEST_FORUM.md`](docs/REQUEST_FORUM.md) for setup, permissions, lifecycle, and security behavior.
 
 ## Watch Party lifecycle
@@ -136,32 +144,35 @@ rather than routing users back through the generic Watch Party landing page.
 
 ## Docker and GHCR
 
-MediaOps uses a multi-stage Docker build and publishes images to GHCR.
+MediaOps publishes two images to GHCR.
 
-Stable/default image from `main`:
+Main bot:
 
 ```text
 ghcr.io/miakkia/mediaops:latest
-```
-
-Development image from active feature branches/PR validation:
-
-```text
 ghcr.io/miakkia/mediaops:dev
 ```
 
-Tagged releases such as `v1.0.0` publish corresponding version tags in GHCR. The container runs compiled JavaScript as a dedicated non-root user, requires no source checkout on the deployment host, currently exposes no inbound ports, and stores persistent application state under `/data`.
+Optional Ombi Discord Router companion:
+
+```text
+ghcr.io/miakkia/mediaops-ombi-discord-router:latest
+ghcr.io/miakkia/mediaops-ombi-discord-router:dev
+```
+
+Tagged releases publish matching semantic-version tags for both packages. Feature/fix/chore/hardening branches publish `dev` and commit-SHA tags. The main MediaOps container runs compiled JavaScript as a dedicated non-root user and stores persistent application state under `/data`; the companion router uses its own hardened runtime and `/data/media-threads.json` index.
 
 See:
 
 - [`docs/DOCKER.md`](docs/DOCKER.md) — Docker/GHCR deployment and configuration
 - [`docs/UNRAID.md`](docs/UNRAID.md) — Unraid installation and update procedure
-- [`templates/mediaops.xml`](templates/mediaops.xml) — Unraid Docker template
+- [`templates/mediaops.xml`](templates/mediaops.xml) — main Unraid Docker template
+- [`templates/ombi-discord-router.xml`](templates/ombi-discord-router.xml) — companion router Unraid template
 - [`ca_profile.xml`](ca_profile.xml) — Community Apps repository profile
 
 ## Quick Unraid configuration
 
-Recommended settings:
+Recommended MediaOps settings:
 
 ```text
 Repository: ghcr.io/miakkia/mediaops:latest
@@ -170,7 +181,13 @@ Privileged: off
 Appdata:    /mnt/user/appdata/mediaops -> /data
 ```
 
-Core configuration:
+For the optional request Forum, install the companion router template, create a user-defined Docker network such as `mediaops-backend`, attach Ombi and the router to it, and configure Ombi to call:
+
+```text
+http://ombi-discord-router:8080/ombi
+```
+
+Core MediaOps configuration:
 
 ```env
 MEDIA_PROVIDER=emby
@@ -207,7 +224,7 @@ MEDIAOPS_TIMEZONE=America/Toronto
 MEDIAOPS_DATA_DIR=/data
 ```
 
-The included Unraid template predefines these fields so installation is a fill-in-the-required-values workflow rather than manual container construction.
+The included Unraid templates predefine these fields so installation is a fill-in-the-required-values workflow rather than manual container construction.
 
 Never commit or publish real Discord tokens, passwords, webhook URLs/tokens, or media/request-provider API keys.
 
@@ -222,7 +239,13 @@ Important files include:
 /data/requests.json
 ```
 
-These files should live on persistent appdata storage and should not be baked into the container image.
+The companion router stores its own correlation state under:
+
+```text
+/data/media-threads.json
+```
+
+These files should live on persistent appdata storage and should not be baked into container images.
 
 ## Security posture
 
@@ -242,7 +265,8 @@ Key principles:
 - runtime state is kept outside source control;
 - Watch Party creation uses a dedicated non-admin Emby account;
 - the Docker runtime uses a dedicated non-root user;
-- CI runs a production dependency audit, TypeScript typecheck, automated tests, application build, and companion-router syntax/image validation before publishing validated changes.
+- router webhook credentials stay isolated from the MediaOps bot token;
+- CI runs a production dependency audit, TypeScript typecheck, automated tests, application build, companion-router syntax validation, and companion image build before publishing validated changes.
 
 See [`SECURITY.md`](SECURITY.md) and [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md).
 
@@ -290,7 +314,7 @@ Use `.env.example` as a configuration reference. Never commit a real `.env` file
 
 ## Community Apps direction
 
-The repository includes the metadata expected by the current Unraid Community Apps starter format: a root `ca_profile.xml`, one Docker template under `templates/`, a raw-hosted icon, project/readme links, an OSI-approved GPLv3 license, and a GHCR image intended for public pulls. Community Apps submission still requires running Unraid's Validate and Scan flow before publication.
+The repository includes the metadata expected by the current Unraid Community Apps starter format: a root `ca_profile.xml`, main and companion Docker templates under `templates/`, raw-hosted icons, project/readme links, an OSI-approved GPLv3 license, and GHCR images intended for public pulls. Community Apps submission still requires running Unraid's Validate and Scan flow before publication.
 
 ## License
 
