@@ -35,8 +35,8 @@ export async function runRuntimeAwareWatchPartyExpiry(
         );
       }
     } catch (error) {
-      // Existing six-hour lifecycle remains the safety fallback if Emby runtime
-      // cannot be read for any reason.
+      // The shared 4.5-hour lifecycle remains the safety fallback if Emby
+      // runtime cannot be read for any reason.
       console.warn(
         `Unable to evaluate runtime-aware expiry for Watch Party ${party.id}:`,
         error,
