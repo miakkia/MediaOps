@@ -1,8 +1,6 @@
 services:
   ombi-discord-router:
-    build:
-      context: .
-    image: local/ombi-discord-router:1.5
+    image: ghcr.io/miakkia/mediaops-ombi-discord-router:latest
     container_name: ombi-discord-router
     user: "1000:1000"
     restart: unless-stopped
@@ -25,7 +23,7 @@ services:
 
     environment:
       TZ: ${TZ:-America/Toronto}
-      ROUTER_DATA_DIR: /data
+      ROUTER_DATA_DIR: ${ROUTER_DATA_DIR:-/data}
       MEDIA_REQUESTS_WEBHOOK: ${MEDIA_REQUESTS_WEBHOOK}
       MEDIA_REQUESTS_WEBHOOK_NAME: ${MEDIA_REQUESTS_WEBHOOK_NAME:-Media Request Herald}
       MEDIA_TAG_REQUESTED: ${MEDIA_TAG_REQUESTED}
