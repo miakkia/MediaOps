@@ -22,7 +22,7 @@ const READY_LEAD_TIME_MS =
 const AUTO_CANCEL_GRACE_MS =
   30 * 60 * 1000;
 const ACTIVE_EXPIRY_MS =
-  6 * 60 * 60 * 1000;
+  4.5 * 60 * 60 * 1000;
 
 const DEFAULT_RETENTION_DAYS = 30;
 
