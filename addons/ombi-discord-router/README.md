@@ -8,12 +8,15 @@ The router is intentionally separate from the main MediaOps bot. It owns the Dis
 
 For supported Ombi movie and TV request notifications, the router:
 
-- creates one Discord Forum post per media item;
+- creates one Discord Forum post per active media request lifecycle;
 - applies one media-type tag and one request-status tag when the post is created;
 - stores the Discord thread ID in a small persistent JSON index;
 - posts only meaningful forward lifecycle changes into the existing thread;
 - ignores duplicate same-state notifications and stale/backward transitions;
-- keeps terminal request states terminal;
+- keeps terminal request states terminal within the same Ombi request lifecycle;
+- removes active correlation when Ombi reports `RequestDeleted` while leaving Discord history intact;
+- recognizes a new Ombi request ID for the same provider item as a new request lifecycle;
+- recovers from a deleted/missing Discord Forum thread by removing the stale correlation and recreating the thread from the current event;
 - exposes `/health` for container monitoring;
 - emits sanitized technical event logs without titles, requester names, provider IDs, request IDs, or webhook credentials;
 - avoids logging the Discord webhook URL/token when Discord returns an error.
@@ -124,7 +127,7 @@ Expected response from `GET /health`:
 ```json
 {
   "status": "ok",
-  "version": "1.8",
+  "version": "1.9",
   "mode": "discord-forum",
   "index": "/data/media-threads.json"
 }
@@ -148,10 +151,18 @@ Ombi may emit multiple notifications for one logical state change, and those not
 
 - a notification that resolves to the same status already stored is ignored;
 - a notification that would move the stored request backward is ignored;
-- a terminal request cannot be rewritten by later non-terminal events;
-- request/provider metadata may still be refreshed silently when a duplicate or stale event contains useful identifiers.
+- a terminal request cannot be rewritten by later non-terminal events from the same request lifecycle;
+- request/provider metadata may still be refreshed silently when a duplicate or stale event contains useful identifiers;
+- if the same provider item later arrives with a different Ombi request ID, the router treats it as a new request lifecycle and creates a fresh Forum thread;
+- if the stored Discord thread no longer exists and Discord returns `Unknown Channel`, the stale correlation is removed and the current lifecycle is recreated instead of remaining stuck on a dead thread ID.
 
-This prevents sequences such as `RequestApproved -> NewRequest -> RequestApproved` from producing three near-identical Forum messages or regressing a request from Processing back to Requested.
+This prevents sequences such as `RequestApproved -> NewRequest -> RequestApproved` from producing three near-identical Forum messages or regressing a request from Processing back to Requested, while still allowing a previously Available, Failed, Denied, or deleted item to be requested again later.
+
+### Request deletion and re-requesting
+
+`RequestDeleted` does not delete Discord history. Instead, the router removes the active `/data/media-threads.json` correlation for that request. A later request for the same media can therefore create a new Forum thread without being mistaken for a duplicate of the deleted request.
+
+The same lifecycle separation applies when a previous request reached `Available`, `Failed`, or `Denied`: a later Ombi request with a new request ID starts a fresh active lifecycle while the old Discord thread remains historical.
 
 ### Ombi administrator requests
 
@@ -165,8 +176,6 @@ Administrators who require every request to appear in the Forum from its first s
 
 When `MEDIA_TAG_TEST` is configured, Ombi's built-in **Send test** action creates a dedicated `Ombi Webhook Test` Forum post carrying only the configured Test tag. It is not written to `media-threads.json` and is not treated as a Movie/Series lifecycle entry.
 
-Request-deleted events are ignored by this addon rather than deleting Discord history.
-
 ## Operational logging
 
 The router logs a narrow technical summary for each accepted Ombi event, for example:
@@ -174,6 +183,7 @@ The router logs a narrow technical summary for each accepted Ombi event, for exa
 ```text
 OMBI EVENT: notificationType=RequestApproved type=Movie result=created
 OMBI EVENT: notificationType=NewRequest type=Movie result=ignored reason=duplicate-status
+OMBI EVENT: notificationType=RequestDeleted type=Movie result=removed reason=request-deleted
 ```
 
 These lines are intentionally limited to notification type, media type, result, and a bounded reason. They do not include titles, requester identities, request/provider IDs, overview text, or webhook credentials.
