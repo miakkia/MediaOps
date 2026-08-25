@@ -11,8 +11,11 @@ For supported Ombi movie and TV request notifications, the router:
 - creates one Discord Forum post per media item;
 - applies one media-type tag and one request-status tag when the post is created;
 - stores the Discord thread ID in a small persistent JSON index;
-- posts later Ombi lifecycle updates into the same thread instead of creating duplicates;
+- posts only meaningful forward lifecycle changes into the existing thread;
+- ignores duplicate same-state notifications and stale/backward transitions;
+- keeps terminal request states terminal;
 - exposes `/health` for container monitoring;
+- emits sanitized technical event logs without titles, requester names, provider IDs, request IDs, or webhook credentials;
 - avoids logging the Discord webhook URL/token when Discord returns an error.
 
 MediaOps then performs the privileged Discord-side lifecycle management, including status-tag synchronization and closing/locking terminal request posts.
@@ -35,6 +38,7 @@ ghcr.io/miakkia/mediaops-ombi-discord-router:sha-<commit>
 - one Discord Forum channel;
 - a Discord webhook created for that Forum;
 - Forum tags for `Movie`, `Series`, `Requested`, `Processing`, `Available`, `Failed`, and `Denied`;
+- optional Forum tag for webhook diagnostics, such as `Test`;
 - persistent storage for `/data`;
 - a user-defined Docker network shared by Ombi and the router.
 
@@ -55,6 +59,7 @@ MEDIA_TAG_FAILED=
 MEDIA_TAG_DENIED=
 MEDIA_TAG_MOVIE=
 MEDIA_TAG_SERIES=
+MEDIA_TAG_TEST=
 ROUTER_DATA_DIR=/data
 ROUTER_DATA_HOST_DIR=./data
 MEDIAOPS_NETWORK=mediaops-backend
@@ -97,7 +102,7 @@ The example Compose file uses the published GHCR image and deliberately keeps le
 For development or reproducible local testing, the same image can still be built directly from this directory:
 
 ```bash
-docker build -t local/ombi-discord-router:1.6 .
+docker build -t local/ombi-discord-router:test .
 ```
 
 ## Unraid
@@ -119,7 +124,7 @@ Expected response from `GET /health`:
 ```json
 {
   "status": "ok",
-  "version": "1.6",
+  "version": "1.8",
   "mode": "discord-forum",
   "index": "/data/media-threads.json"
 }
@@ -131,7 +136,7 @@ The packaged service does not publish port `8080` to the host by default. Check 
 
 The router accepts `POST /ombi` JSON notifications from Ombi. Movie and TV request lifecycle messages are correlated using provider/request identity and recorded in `/data/media-threads.json`.
 
-A normal lifecycle is represented as one Forum post with multiple updates:
+A normal lifecycle is represented as one Forum post with meaningful forward updates:
 
 ```text
 Requested -> Processing -> Available
@@ -139,7 +144,39 @@ Requested -> Processing -> Available
 
 `Failed` and `Denied` are also terminal states supported by MediaOps.
 
-Ombi test payloads are accepted as connectivity checks without creating a Forum post. Request-deleted events are ignored by this addon rather than deleting Discord history.
+Ombi may emit multiple notifications for one logical state change, and those notifications can arrive in a surprising order. The router therefore treats lifecycle delivery as idempotent:
+
+- a notification that resolves to the same status already stored is ignored;
+- a notification that would move the stored request backward is ignored;
+- a terminal request cannot be rewritten by later non-terminal events;
+- request/provider metadata may still be refreshed silently when a duplicate or stale event contains useful identifiers.
+
+This prevents sequences such as `RequestApproved -> NewRequest -> RequestApproved` from producing three near-identical Forum messages or regressing a request from Processing back to Requested.
+
+### Ombi administrator requests
+
+Ombi's notification behavior depends on who creates the request. In particular, Ombi does not emit the normal `NewRequest` notification for a request created by an Ombi **Admin** account because the administrator is considered to already know that the request was made. API, Power User, and normal-user requests can emit the normal request notification flow.
+
+This is an Ombi-side behavior, not a router permission decision. The router cannot create a `Requested` Forum post for an event it never receives. A later notification such as `RequestApproved`, `RequestAvailable`, `Failed`, or `Denied` can still create the Forum post if no earlier post exists.
+
+Administrators who require every request to appear in the Forum from its first state should avoid relying on Ombi Admin-origin `NewRequest` notifications as the sole source of truth. A future MediaOps-side request/API synchronization path may cover that case without weakening the router trust boundary.
+
+### Ombi webhook test
+
+When `MEDIA_TAG_TEST` is configured, Ombi's built-in **Send test** action creates a dedicated `Ombi Webhook Test` Forum post carrying only the configured Test tag. It is not written to `media-threads.json` and is not treated as a Movie/Series lifecycle entry.
+
+Request-deleted events are ignored by this addon rather than deleting Discord history.
+
+## Operational logging
+
+The router logs a narrow technical summary for each accepted Ombi event, for example:
+
+```text
+OMBI EVENT: notificationType=RequestApproved type=Movie result=created
+OMBI EVENT: notificationType=NewRequest type=Movie result=ignored reason=duplicate-status
+```
+
+These lines are intentionally limited to notification type, media type, result, and a bounded reason. They do not include titles, requester identities, request/provider IDs, overview text, or webhook credentials.
 
 ## Security notes
 
