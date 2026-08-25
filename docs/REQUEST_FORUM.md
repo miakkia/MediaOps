@@ -34,6 +34,8 @@ Create one tag for each supported request state:
 - `Failed`
 - `Denied`
 
+An optional `Test` tag can be configured on the router for Ombi's built-in webhook **Send test** action. Test posts are diagnostic only and are not treated as media requests.
+
 The visible tag names and colors are administrator choices. MediaOps uses Discord tag IDs, not display names.
 
 ## MediaOps configuration
@@ -90,7 +92,17 @@ Configuration is fail-closed: incomplete Forum configuration disables synchroniz
 
 Request state is monotonic. Completed states are terminal and are not automatically rewritten by later Forum messages.
 
+The router follows the same monotonic lifecycle rule before posting updates. Duplicate same-state notifications are ignored, stale/backward notifications are ignored, and terminal requests are not reopened by later non-terminal events. This matters because Ombi can emit multiple notifications for a single logical transition and those notifications are not guaranteed to arrive in lifecycle order.
+
 These safeguards are part of the application boundary, but administrators should still apply Discord least-privilege permissions and protect bot/webhook credentials.
+
+## Ombi notification caveat for Admin-origin requests
+
+Ombi does not emit its normal `NewRequest` notification when the request itself is created by an Ombi **Admin** account. Ombi treats the administrator as already aware of the request. Requests originating from the API, a Power User, or a normal user can follow the normal request-notification path.
+
+This means the Forum cannot show an initial `Requested` state for an Admin-origin request unless Ombi emits another supported lifecycle event afterward. If the first event the router receives is `RequestApproved`, `RequestAvailable`, `Failed`, or `Denied`, the router can create the Forum post directly at that later state.
+
+This is an Ombi-side notification behavior, not a MediaOps or router authorization rule. The router intentionally does not invent missing lifecycle events.
 
 ## Operational notes
 
@@ -98,13 +110,15 @@ These safeguards are part of the application boundary, but administrators should
 - `Available`, `Failed`, and `Denied` are terminal states.
 - Terminal posts are locked before they are removed from the active Forum view.
 - Existing Forum history is preserved; MediaOps does not delete completed request posts.
+- Duplicate Ombi events that resolve to the current status do not create duplicate Forum messages.
+- Stale/backward Ombi events do not regress the router index or Forum lifecycle.
 - The router and MediaOps should use the same Forum and tag IDs.
 - Rotating/recreating a Discord webhook changes its webhook ID; update `MEDIA_REQUESTS_WEBHOOK_ID` when that happens.
 - Keep `/data/media-threads.json` persistent across router image updates.
 
 ## Companion Ombi Discord Router
 
-The router is a small adapter for Ombi notifications that can create a Forum post and continue posting lifecycle updates into the same Discord thread. It should keep its webhook URL/token in runtime configuration only.
+The router is a small adapter for Ombi notifications that can create a Forum post and continue posting meaningful lifecycle updates into the same Discord thread. It should keep its webhook URL/token in runtime configuration only.
 
 The router is intentionally separate from the main MediaOps Discord bot so the webhook secret does not need to be stored in MediaOps itself.
 
