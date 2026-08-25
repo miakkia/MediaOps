@@ -36,7 +36,7 @@ Create one tag for each supported request state:
 
 The visible tag names and colors are administrator choices. MediaOps uses Discord tag IDs, not display names.
 
-## Configuration
+## MediaOps configuration
 
 Forum synchronization is enabled only when all of these values are configured:
 
@@ -55,6 +55,26 @@ MEDIA_TAG_SERIES=
 `MEDIA_REQUESTS_WEBHOOK_ID` is the Discord webhook ID only. Do not put a webhook URL or webhook token in MediaOps.
 
 The companion router owns the webhook credential and creates/posts Forum messages. MediaOps only needs the non-secret webhook ID so it can identify the expected integration source.
+
+## Companion router distribution
+
+The packaged router lives under [`../addons/ombi-discord-router/`](../addons/ombi-discord-router/) and is published separately as:
+
+```text
+ghcr.io/miakkia/mediaops-ombi-discord-router:latest
+```
+
+Development branches publish `:dev` and commit-SHA tags. Unraid users can use [`../templates/ombi-discord-router.xml`](../templates/ombi-discord-router.xml).
+
+The router's `.env.example` contains placeholders only. Its full Discord webhook URL is a secret runtime value and must not be copied into MediaOps configuration.
+
+Use a user-defined Docker network shared by Ombi and the router. A stable target such as:
+
+```text
+http://ombi-discord-router:8080/ombi
+```
+
+is preferred over a changing Docker container IP.
 
 ## Discord bot requirements
 
@@ -80,6 +100,7 @@ These safeguards are part of the application boundary, but administrators should
 - Existing Forum history is preserved; MediaOps does not delete completed request posts.
 - The router and MediaOps should use the same Forum and tag IDs.
 - Rotating/recreating a Discord webhook changes its webhook ID; update `MEDIA_REQUESTS_WEBHOOK_ID` when that happens.
+- Keep `/data/media-threads.json` persistent across router image updates.
 
 ## Companion Ombi Discord Router
 
@@ -87,9 +108,7 @@ The router is a small adapter for Ombi notifications that can create a Forum pos
 
 The router is intentionally separate from the main MediaOps Discord bot so the webhook secret does not need to be stored in MediaOps itself.
 
-A ready-to-configure, secret-free addon template is included in the repository at [`addons/ombi-discord-router/`](../addons/ombi-discord-router/). It contains the router source, Dockerfile, environment template, hardened Compose example, and deployment notes. No server-specific IDs, webhook credentials, or infrastructure addresses are embedded in the addon.
-
-For Docker deployments, place Ombi and the router on the same user-defined network and call the router by container/service name. This avoids coupling Ombi notifications to a container IP that may change after a redeploy.
+The repository includes the router source, Dockerfile, environment template, hardened Compose example, Unraid template, and deployment notes. No deployment-specific IDs, webhook credentials, or infrastructure addresses are embedded in the addon.
 
 See also:
 
