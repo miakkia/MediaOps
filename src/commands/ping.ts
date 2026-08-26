@@ -5,6 +5,7 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 
+import { getMediaOpsBranding } from '../config/branding.js';
 import { getInteractionLocale } from '../i18n/discord-locale.js';
 import { t } from '../i18n/index.js';
 
@@ -16,8 +17,9 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const locale = getInteractionLocale(interaction);
+  const { botName } = getMediaOpsBranding();
   await interaction.reply({
-    content: t(locale, 'health.botOnline'),
+    content: t(locale, 'health.botOnline', { botName }),
     flags: MessageFlags.Ephemeral,
   });
 }
