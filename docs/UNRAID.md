@@ -1,16 +1,16 @@
 # Unraid Deployment
 
-MediaOps is designed to run cleanly on Unraid without copying the source repository to the server. Unraid pulls prebuilt images from GHCR and stores only application-owned runtime data in appdata.
+MediaOps is designed to run on Unraid without copying the source repository to the server. Unraid pulls prebuilt images from GHCR and stores application-owned runtime data in appdata.
 
 ## MediaOps image
 
-Stable/default image after the branch is merged:
+Stable/default image:
 
 ```text
 ghcr.io/miakkia/mediaops:latest
 ```
 
-Development channel:
+Development image:
 
 ```text
 ghcr.io/miakkia/mediaops:dev
@@ -36,14 +36,14 @@ Use one Path entry:
 | Host Path | `/mnt/user/appdata/mediaops` |
 | Access Mode | Read/Write |
 
-`MEDIAOPS_DATA_DIR` is an environment variable, not a Path.
+Set `MEDIAOPS_DATA_DIR=/data`; this is an environment variable, not a Path.
 
 ## MediaOps variables
 
 | Name | Key | Default / value | Notes |
 | --- | --- | --- | --- |
-| Bot Display Name | `MEDIAOPS_BOT_NAME` | `MediaOps Bot` | Public-facing name used in panels/messages; does not rename the Discord application |
-| Media Server Display Name | `MEDIAOPS_SERVER_NAME` | `My Media Server` | Friendly server/community name used in panels and Watch Party events |
+| Bot Display Name | `MEDIAOPS_BOT_NAME` | `MediaOps Bot` | Public-facing panel/message name; does not rename the Discord application |
+| Media Server Display Name | `MEDIAOPS_SERVER_NAME` | `My Media Server` | Friendly server/community name |
 | Media Provider | `MEDIA_PROVIDER` | `emby` | Current supported provider |
 | Discord Token | `DISCORD_TOKEN` | empty | Secret |
 | Discord Client ID | `DISCORD_CLIENT_ID` | empty | Discord application ID |
@@ -51,75 +51,59 @@ Use one Path entry:
 | Emby URL | `EMBY_URL` | empty | URL reachable from the container |
 | Emby API Key | `EMBY_API_KEY` | empty | Secret |
 | Request Provider | `REQUEST_PROVIDER` | `none` | Use `ombi` to enable request workflows |
-| Ombi URL | `OMBI_URL` | empty | Required when request provider is Ombi |
+| Ombi URL | `OMBI_URL` | empty | Required for Ombi requests |
 | Ombi API Key | `OMBI_API_KEY` | empty | Secret |
 | Ombi Auto Approve | `OMBI_AUTO_APPROVE` | `false` | Optional request approval behavior |
-| Watch Party URL | `WATCHPARTY_URL` | empty | Base/public URL for Watch Party |
-| MediaOps Locale | `MEDIAOPS_LOCALE` | `en` | Automated message language; supported: `en`, `fr` |
+| Watch Party URL | `WATCHPARTY_URL` | empty | Public/base Watch Party URL |
+| MediaOps Locale | `MEDIAOPS_LOCALE` | `en` | Automated message language; `en` or `fr` |
 | MediaOps Timezone | `MEDIAOPS_TIMEZONE` | `America/Toronto` | IANA timezone |
-| MediaOps Data Directory | `MEDIAOPS_DATA_DIR` | `/data` | Advanced; leave at `/data` |
+| MediaOps Data Directory | `MEDIAOPS_DATA_DIR` | `/data` | Leave at `/data` for the template |
+
+Additional Watch Party host credentials and optional Forum settings are exposed by the template and documented in `.env.example`.
 
 ### Existing customized installations
 
-A Force Update preserves existing Unraid environment variables. If an older installation did not previously define the new branding variables, add them before or after updating if you want to retain custom public names.
-
-Example:
+A Force Update preserves existing Unraid environment variables. Older customized installations should explicitly set the branding variables if they want to retain custom public names:
 
 ```text
 MEDIAOPS_BOT_NAME=Cinema Helper
 MEDIAOPS_SERVER_NAME=Example Cinema
 ```
 
-If omitted, MediaOps uses the safe public defaults `MediaOps Bot` and `My Media Server`.
+If omitted, MediaOps uses `MediaOps Bot` and `My Media Server`.
 
-### Optional Media Request Forum variables
+## Optional Media Request Forum
 
-The Forum integration is optional. Configure every field below to enable it; leaving the set incomplete keeps synchronization disabled.
+The Forum integration is optional. Configure the complete identifier set to enable it; incomplete configuration remains fail-closed.
 
-| Name | Key | Default | Notes |
-| --- | --- | --- | --- |
-| Media Requests Forum ID | `MEDIA_REQUESTS_FORUM_ID` | empty | Discord Forum channel ID |
-| Media Requests Webhook ID | `MEDIA_REQUESTS_WEBHOOK_ID` | empty | Allowed webhook ID only; not the URL/token |
-| Requested Tag ID | `MEDIA_TAG_REQUESTED` | empty | Status tag |
-| Processing Tag ID | `MEDIA_TAG_PROCESSING` | empty | Status tag |
-| Available Tag ID | `MEDIA_TAG_AVAILABLE` | empty | Terminal status tag |
-| Failed Tag ID | `MEDIA_TAG_FAILED` | empty | Terminal status tag |
-| Denied Tag ID | `MEDIA_TAG_DENIED` | empty | Terminal status tag |
-| Movie Tag ID | `MEDIA_TAG_MOVIE` | empty | Media type tag |
-| Series Tag ID | `MEDIA_TAG_SERIES` | empty | Media type tag |
+Required identifiers include `MEDIA_REQUESTS_FORUM_ID`, `MEDIA_REQUESTS_WEBHOOK_ID`, the Requested/Processing/Available/Failed/Denied status tag IDs, and the Movie/Series media tag IDs.
 
-When this feature is enabled, configure the matching Forum/tags in Discord and enable only the Discord gateway intent and channel permissions required for the integration. Do not give the bot Administrator permission when narrower Forum permissions are sufficient.
+Grant only the Discord permissions and gateway intents required by enabled features. Do not give the bot Administrator permission when narrower permissions are sufficient.
 
-See [`REQUEST_FORUM.md`](REQUEST_FORUM.md) for the full workflow and security notes.
+See [`REQUEST_FORUM.md`](REQUEST_FORUM.md).
 
 ## Companion Ombi Discord Router
 
-The request Forum uses a separate companion container so the Discord webhook URL/token does not need to be stored in MediaOps.
-
-Published images:
+The optional request Forum uses a separate companion container so the Discord webhook URL/token does not need to be stored in MediaOps.
 
 ```text
 ghcr.io/miakkia/mediaops-ombi-discord-router:latest
 ghcr.io/miakkia/mediaops-ombi-discord-router:dev
 ```
 
-The repository includes `templates/ombi-discord-router.xml`, a version-2 Unraid template for this companion.
-
-### Router network
-
-Create one user-defined Docker network and attach Ombi plus the router to it:
+Create a user-defined Docker network and attach Ombi plus the router:
 
 ```bash
 docker network create mediaops-backend
 ```
 
-In Unraid, set Ombi and the router to `Custom: mediaops-backend`. Ombi can then use the stable webhook destination:
+Ombi can then use the stable webhook destination:
 
 ```text
 http://ombi-discord-router:8080/ombi
 ```
 
-Do not use a container IP address; Docker may assign a different address after recreation or updates.
+Do not use a container IP address.
 
 ### Router appdata
 
@@ -130,52 +114,20 @@ Do not use a container IP address; Docker may assign a different address after r
 | Host Path | `/mnt/user/appdata/ombi-discord-router/data` |
 | Access Mode | Read/Write |
 
-The persistent file `/data/media-threads.json` correlates media identities to Discord Forum thread IDs. Keep the appdata mapping when changing image versions.
-
-### Router variables
-
-| Name | Key | Default | Notes |
-| --- | --- | --- | --- |
-| Timezone | `TZ` | `America/Toronto` | IANA timezone for logs |
-| Media Requests Webhook | `MEDIA_REQUESTS_WEBHOOK` | empty | **Secret** full Discord Forum webhook URL |
-| Webhook Display Name | `MEDIA_REQUESTS_WEBHOOK_NAME` | `Media Request Herald` | Visible webhook sender name |
-| Requested Status Tag ID | `MEDIA_TAG_REQUESTED` | empty | Newly submitted request |
-| Processing Status Tag ID | `MEDIA_TAG_PROCESSING` | empty | Approved/in processing |
-| Available Status Tag ID | `MEDIA_TAG_AVAILABLE` | empty | Terminal available state |
-| Failed Status Tag ID | `MEDIA_TAG_FAILED` | empty | Terminal failed state |
-| Denied Status Tag ID | `MEDIA_TAG_DENIED` | empty | Terminal denied state |
-| Movie Media Tag ID | `MEDIA_TAG_MOVIE` | empty | Movie media type |
-| Series Media Tag ID | `MEDIA_TAG_SERIES` | empty | TV-series media type |
-| Router Data Directory | `ROUTER_DATA_DIR` | `/data` | Leave at `/data` |
-
-The router template deliberately keeps the webhook masked and leaves all deployment-specific Discord IDs empty.
+`/data/media-threads.json` correlates media identities to Discord Forum thread IDs. Preserve this mapping during updates.
 
 ### Router security defaults
 
-The template applies:
-
-```text
---user 1000:1000
---read-only
---tmpfs /tmp
---cap-drop ALL
---security-opt no-new-privileges:true
---memory 256m
---pids-limit 64
-```
-
-The router publishes no host port. Keep `/ombi` private to the Docker/LAN trust boundary.
+The template applies a non-root user, read-only root filesystem, `/tmp` tmpfs, dropped Linux capabilities, `no-new-privileges`, a 256 MB memory limit, and a 64 PID limit. The router publishes no host port; keep `/ombi` private to the Docker/LAN trust boundary.
 
 ### Router health validation
-
-From the router container:
 
 ```bash
 docker exec ombi-discord-router \
   python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8080/health").read().decode())'
 ```
 
-From Ombi:
+From Ombi when both containers share `mediaops-backend`:
 
 ```bash
 docker exec ombi sh -lc '
@@ -184,126 +136,105 @@ curl -sS --max-time 5 http://ombi-discord-router:8080/health
 '
 ```
 
-A successful current router health response has this shape:
-
-```json
-{"index":"/data/media-threads.json","mode":"discord-forum","status":"ok","version":"1.9"}
-```
-
-## Preconfigured templates
-
-The repository includes two Unraid v2 templates:
-
-- `templates/mediaops.xml` — main MediaOps bot;
-- `templates/ombi-discord-router.xml` — optional Ombi-to-Discord Forum companion.
-
-Sensitive values are left empty and masked where supported.
-
 ## First start
 
-Before starting the MediaOps container, stop any local development instance using the same Discord bot token.
+Before starting MediaOps, stop any other instance using the same Discord bot token.
 
-A successful startup looks similar to:
+A successful startup resembles:
 
 ```text
 MediaOps Bot connected as <bot tag>
-Loaded <count> Discord commands: ...
+Loaded 15 Discord commands: ...
 Watch Party lifecycle scheduler started.
+Runtime-aware Watch Party expiry scheduler started.
 ```
 
-If `MEDIAOPS_BOT_NAME` is customized, the configured name appears in the first log line.
-
-After first start, register the guild slash commands directly from the running container:
+Register the guild slash commands directly from the running container:
 
 ```bash
 docker exec MediaOps npm run deploy-commands
 ```
 
-Replace `MediaOps` with your actual container name if customized. The runtime uses compiled JavaScript and does not require `tsx`, TypeScript, Git, or a local source checkout.
+Replace `MediaOps` with the actual container name when customized. The published runtime executes compiled `dist/deploy-commands.js`; `tsx`, TypeScript, Git, and a source checkout are not required.
 
-Validate at minimum:
+A successful deployment reports all 15 registered commands.
 
-1. `/health` as a server manager;
-2. `/movie`;
-3. `/request` if a request provider is enabled;
-4. one real Ombi -> router -> Forum lifecycle if Forum synchronization is enabled;
-5. `/watchpartyrandom`;
-6. a scheduled Watch Party flow;
-7. `/watchparty-upcoming`;
-8. automatic Watch Party reminder delivery.
+## Recommended Discord setup
 
-## Recommended Discord setup panels
-
-MediaOps includes administrator-only setup commands that publish persistent help panels into the channel where the command is run:
+Use the administrator-only setup commands in the channels where you want their persistent guides:
 
 - `/mediaops-setup` — user-facing media command guide;
 - `/watchparty-setup` — Watch Party self-service panel;
-- `/mediaops-admin-setup` — diagnostics guide for `/ping` and `/health`.
+- `/mediaops-admin-setup` — private diagnostics guide.
 
-A practical layout is one public media/help channel, one Watch Party channel, and one private admin/moderator channel. Channel names are not hard-coded; choose names that fit your server.
+A practical layout is one public media/help channel, one Watch Party channel, and one private admin/moderator channel. Channel names are not hard-coded.
 
-`/ping`, `/health`, `/mediaops-setup`, `/watchparty-setup`, and `/mediaops-admin-setup` require the Discord **Manage Server** permission by default. The two diagnostic commands reply ephemerally.
+`/ping`, `/health`, `/mediaops-setup`, `/watchparty-setup`, and `/mediaops-admin-setup` require **Manage Server** by default. `/ping` and `/health` reply ephemerally.
+
+## Acceptance test
+
+For a clean public-release validation, test at minimum:
+
+1. container startup and persistent `/data`;
+2. `npm run deploy-commands` from inside the running container;
+3. `/health` as a server manager;
+4. `/mediaops-setup` and `/watchparty-setup`;
+5. `/movie`, `/tv`, and `/latest`;
+6. `/request` when Ombi is enabled;
+7. one Ombi -> router -> Forum lifecycle when Forum synchronization is enabled;
+8. `/watchpartyrandom` and one manually scheduled Watch Party;
+9. RSVP and T-15 reminder;
+10. automatic room opening and direct join link;
+11. organizer cancellation after opening;
+12. tracked Discord message cleanup;
+13. `/watchparty-upcoming` and `/watchparty-status`.
+
+The release acceptance test should be performed from the public documentation and published image rather than from a development checkout.
 
 ## Updating
 
 For MediaOps:
 
 1. pull/Force Update `ghcr.io/miakkia/mediaops:latest`;
-2. keep the existing appdata mapping and environment variables;
-3. add `MEDIAOPS_BOT_NAME` and `MEDIAOPS_SERVER_NAME` if upgrading an older customized installation;
-4. restart/recreate if required;
-5. if command definitions changed, run `docker exec MediaOps npm run deploy-commands` using your actual container name;
-6. verify logs and `/health`.
+2. keep appdata and environment variables;
+3. restart/recreate if required;
+4. run `docker exec MediaOps npm run deploy-commands` when command definitions changed;
+5. verify logs and `/health`.
 
-For the router:
+For the router, preserve `/data`, the Docker network, and runtime variables, then validate `/health` and one lifecycle notification after material updates.
 
-1. pull/Force Update `ghcr.io/miakkia/mediaops-ombi-discord-router:latest`;
-2. keep `/mnt/user/appdata/ombi-discord-router/data -> /data`;
-3. keep the same `mediaops-backend` network and variables;
-4. verify `/health` from the router and from Ombi;
-5. validate one lifecycle notification after material changes.
-
-Persistent appdata survives image replacement.
-
-## Community Apps metadata
+## Community Apps
 
 The repository contains:
 
-- `ca_profile.xml` at the repository root;
-- `templates/mediaops.xml` for the main bot;
-- `templates/ombi-discord-router.xml` for the optional companion router;
-- `assets/mediaops-icon.png` as the main application/profile icon;
+- `ca_profile.xml`;
+- `templates/mediaops.xml`;
+- `templates/ombi-discord-router.xml`;
+- `assets/mediaops-icon.png`;
 - GPLv3 licensing;
-- project and documentation links;
+- project/documentation links;
 - public GHCR image paths.
 
-Before an actual Community Apps submission, run the current Unraid **Validate** and **Scan** workflow and resolve every reported issue. The templates remain marked beta while MediaOps is under active development.
+Before Community Apps submission, run the current Unraid **Validate** and **Scan** workflow and resolve every reported issue. The public release should also be installed once from the templates as a clean user would install it.
 
 ## Security posture
 
-MediaOps and its router should remain narrow integration services:
+MediaOps and its router are intentionally narrow integration services:
 
 - no privileged mode;
 - no Docker socket;
 - no Movies/Series/Downloads mounts;
 - no unnecessary host ports;
-- Discord and provider secrets supplied only at runtime;
+- secrets supplied only at runtime;
 - persistent access limited to application-owned appdata;
 - optional Forum automation scoped to its configured Forum and integration source;
 - least-privilege Discord permissions and intents;
 - router webhook credential isolated from the MediaOps bot token.
 
-## Watch Party lifecycle and reminders
+See `SECURITY.md` and [`SECURITY_MODEL.md`](SECURITY_MODEL.md).
 
-MediaOps runs a background Watch Party lifecycle scheduler after the Discord client connects.
+## Watch Party lifecycle notes
 
-The scheduler currently:
+The lifecycle scheduler refreshes state every minute, sends one reminder approximately 15 minutes before start, persists reminder delivery state across restarts, automatically opens the room at start time, and ignores terminal sessions for future reminders.
 
-- refreshes scheduled Watch Party lifecycle state every minute;
-- exposes upcoming sessions through `/watchparty-upcoming`;
-- sends a single reminder approximately 15 minutes before start;
-- persists reminder delivery state in appdata to prevent duplicate reminders after container restarts;
-- ignores cancelled, auto-cancelled and expired sessions;
-- automatically marks a newly created Watch Party `auto_cancelled` if its Discord announcement cannot be posted.
-
-If Discord returns a missing-access error while scheduling, MediaOps reports a channel-permission message to the user instead of leaving the failed session visible as an upcoming Watch Party.
+Active expiry uses the Emby movie runtime plus a 45-minute grace period. If runtime information is unavailable, the safety fallback is **4.5 hours**. Organizer cancellation remains available after room activation. Cancellation state is immediate, while Discord message cleanup may occur on the following scheduler pass.
