@@ -26,6 +26,7 @@ function party(
     guildId: 'guild-1',
     channelId: 'channel-1',
     messageId: 'message-1',
+    launchMessageId: undefined,
     organizerDiscordId: 'organizer-1',
     embyItemId: 'emby-1',
     mediaTitle: 'Reminder Movie',
