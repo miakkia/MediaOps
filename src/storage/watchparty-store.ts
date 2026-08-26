@@ -35,6 +35,7 @@ export interface ScheduledWatchParty {
   channelId: string;
   messageId: string | undefined;
   launchMessageId: string | undefined;
+  reminderMessageId: string | undefined;
   organizerDiscordId: string;
   embyItemId: string;
   mediaTitle: string;
@@ -99,6 +100,7 @@ function isValidParty(value: unknown): value is ScheduledWatchParty {
   const party = value as Record<string, unknown>;
   return isString(party.id) && isString(party.guildId) && isString(party.channelId) &&
     isOptionalString(party.messageId) && isOptionalString(party.launchMessageId) &&
+    isOptionalString(party.reminderMessageId) &&
     isString(party.organizerDiscordId) && isString(party.embyItemId) &&
     isString(party.mediaTitle) &&
     (party.mediaYear === undefined || typeof party.mediaYear === 'number') &&
@@ -109,9 +111,7 @@ function isValidParty(value: unknown): value is ScheduledWatchParty {
 }
 
 function validateStore(value: unknown): WatchPartyStore {
-  if (!value || typeof value !== 'object') {
-    throw new Error('Watch Party store has an invalid structure.');
-  }
+  if (!value || typeof value !== 'object') throw new Error('Watch Party store has an invalid structure.');
   const store = value as Record<string, unknown>;
   if (store.version !== 1 || !Array.isArray(store.parties) || !store.parties.every(isValidParty)) {
     throw new Error('Watch Party store failed validation.');
@@ -119,16 +119,12 @@ function validateStore(value: unknown): WatchPartyStore {
   return { version: 1, parties: store.parties };
 }
 
-async function ensureDataDirectory(): Promise<void> {
-  await mkdir(dirname(STORE_PATH), { recursive: true });
-}
+async function ensureDataDirectory(): Promise<void> { await mkdir(dirname(STORE_PATH), { recursive: true }); }
 
 async function loadStoreUnsafe(): Promise<WatchPartyStore> {
   await ensureDataDirectory();
-  try {
-    const parsed: unknown = JSON.parse(await readFile(STORE_PATH, 'utf8'));
-    return validateStore(parsed);
-  } catch (error) {
+  try { return validateStore(JSON.parse(await readFile(STORE_PATH, 'utf8')) as unknown); }
+  catch (error) {
     const nodeError = error as NodeJS.ErrnoException;
     if (nodeError.code === 'ENOENT') return { version: 1, parties: [] };
     throw error;
@@ -137,8 +133,7 @@ async function loadStoreUnsafe(): Promise<WatchPartyStore> {
 
 async function saveStoreUnsafe(store: WatchPartyStore): Promise<void> {
   await ensureDataDirectory();
-  const validatedStore = validateStore(store);
-  const serialized = `${JSON.stringify(validatedStore, null, 2)}\n`;
+  const serialized = `${JSON.stringify(validateStore(store), null, 2)}\n`;
   await writeFile(TEMP_STORE_PATH, serialized, { encoding: 'utf8', flag: 'w' });
   await rename(TEMP_STORE_PATH, STORE_PATH);
 }
@@ -148,16 +143,10 @@ async function serializeMutation<T>(operation: () => Promise<T>): Promise<T> {
   let release!: () => void;
   mutationQueue = new Promise<void>(resolve => { release = resolve; });
   await previous;
-  try {
-    return await operation();
-  } finally {
-    release();
-  }
+  try { return await operation(); } finally { release(); }
 }
 
-async function mutateStore<T>(
-  operation: (store: WatchPartyStore) => Promise<T> | T,
-): Promise<T> {
+async function mutateStore<T>(operation: (store: WatchPartyStore) => Promise<T> | T): Promise<T> {
   return serializeMutation(async () => {
     const store = await loadStoreUnsafe();
     const result = await operation(store);
@@ -166,25 +155,14 @@ async function mutateStore<T>(
   });
 }
 
-export async function loadWatchPartyStore(): Promise<WatchPartyStore> {
-  await mutationQueue;
-  return loadStoreUnsafe();
-}
-
-export async function saveWatchPartyStore(store: WatchPartyStore): Promise<void> {
-  await serializeMutation(() => saveStoreUnsafe(store));
-}
-
-export async function getWatchParties(): Promise<ScheduledWatchParty[]> {
-  const store = await loadWatchPartyStore();
-  return [...store.parties];
-}
+export async function loadWatchPartyStore(): Promise<WatchPartyStore> { await mutationQueue; return loadStoreUnsafe(); }
+export async function saveWatchPartyStore(store: WatchPartyStore): Promise<void> { await serializeMutation(() => saveStoreUnsafe(store)); }
+export async function getWatchParties(): Promise<ScheduledWatchParty[]> { return [...(await loadWatchPartyStore()).parties]; }
 
 export async function getUpcomingWatchParties(guildId?: string): Promise<ScheduledWatchParty[]> {
   const parties = await getWatchParties();
-  return parties
-    .filter(party => (!guildId || party.guildId === guildId) &&
-      (party.status === 'scheduled' || party.status === 'ready' || party.status === 'active'))
+  return parties.filter(party => (!guildId || party.guildId === guildId) &&
+    (party.status === 'scheduled' || party.status === 'ready' || party.status === 'active'))
     .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 }
 
@@ -196,20 +174,11 @@ export async function refreshWatchPartyLifecycle(): Promise<ScheduledWatchParty[
       if (!party || party.status === 'cancelled' || party.status === 'auto_cancelled' || party.status === 'expired') continue;
       const scheduledTime = new Date(party.scheduledAt).getTime();
       if (Number.isNaN(scheduledTime)) continue;
-
       let nextStatus: WatchPartyStatus = party.status;
-      if (party.status === 'scheduled' && now >= scheduledTime - READY_LEAD_TIME_MS && now < scheduledTime) {
-        nextStatus = 'ready';
-      }
-      if ((party.status === 'scheduled' || party.status === 'ready') && !party.partyCode && now >= scheduledTime + AUTO_CANCEL_GRACE_MS) {
-        nextStatus = 'auto_cancelled';
-      }
-      if (party.status === 'active' && now >= scheduledTime + ACTIVE_EXPIRY_MS) {
-        nextStatus = 'expired';
-      }
-      if (nextStatus !== party.status) {
-        store.parties[index] = { ...party, status: nextStatus, updatedAt: new Date().toISOString() };
-      }
+      if (party.status === 'scheduled' && now >= scheduledTime - READY_LEAD_TIME_MS && now < scheduledTime) nextStatus = 'ready';
+      if ((party.status === 'scheduled' || party.status === 'ready') && !party.partyCode && now >= scheduledTime + AUTO_CANCEL_GRACE_MS) nextStatus = 'auto_cancelled';
+      if (party.status === 'active' && now >= scheduledTime + ACTIVE_EXPIRY_MS) nextStatus = 'expired';
+      if (nextStatus !== party.status) store.parties[index] = { ...party, status: nextStatus, updatedAt: new Date().toISOString() };
     }
     return [...store.parties];
   });
@@ -232,52 +201,30 @@ export async function createScheduledWatchParty(input: CreateScheduledWatchParty
   const scheduledDate = new Date(input.scheduledAt);
   if (Number.isNaN(scheduledDate.getTime())) throw new Error('Scheduled Watch Party date is invalid.');
   if (scheduledDate.getTime() <= Date.now()) throw new Error('Scheduled Watch Party date must be in the future.');
-
   return mutateStore(store => {
     const now = new Date().toISOString();
     const party: ScheduledWatchParty = {
       id: randomUUID(), guildId: input.guildId, channelId: input.channelId,
-      messageId: undefined, launchMessageId: undefined,
-      organizerDiscordId: input.organizerDiscordId,
-      embyItemId: input.embyItemId, mediaTitle: input.mediaTitle, mediaYear: input.mediaYear,
-      scheduledAt: scheduledDate.toISOString(), status: 'scheduled', partyCode: undefined,
-      reminderSentAt: undefined, participants: [], createdAt: now, updatedAt: now,
+      messageId: undefined, launchMessageId: undefined, reminderMessageId: undefined,
+      organizerDiscordId: input.organizerDiscordId, embyItemId: input.embyItemId,
+      mediaTitle: input.mediaTitle, mediaYear: input.mediaYear, scheduledAt: scheduledDate.toISOString(),
+      status: 'scheduled', partyCode: undefined, reminderSentAt: undefined,
+      participants: [], createdAt: now, updatedAt: now,
     };
     store.parties.push(party);
     return party;
   });
 }
 
-export async function findWatchPartyById(partyId: string): Promise<ScheduledWatchParty | undefined> {
-  const store = await loadWatchPartyStore();
-  return store.parties.find(party => party.id === partyId);
-}
+export async function findWatchPartyById(partyId: string): Promise<ScheduledWatchParty | undefined> { return (await loadWatchPartyStore()).parties.find(party => party.id === partyId); }
+export async function setWatchPartyMessageId(partyId: string, messageId: string): Promise<ScheduledWatchParty> { return updateWatchParty(partyId, party => ({ ...party, messageId })); }
+export async function setWatchPartyLaunchMessageId(partyId: string, launchMessageId: string | undefined): Promise<ScheduledWatchParty> { return updateWatchParty(partyId, party => ({ ...party, launchMessageId })); }
+export async function setWatchPartyReminderMessageId(partyId: string, reminderMessageId: string | undefined): Promise<ScheduledWatchParty> { return updateWatchParty(partyId, party => ({ ...party, reminderMessageId })); }
+export async function setWatchPartyStatus(partyId: string, status: WatchPartyStatus): Promise<ScheduledWatchParty> { return updateWatchParty(partyId, party => ({ ...party, status })); }
+export async function setWatchPartyCode(partyId: string, partyCode: string | undefined): Promise<ScheduledWatchParty> { return updateWatchParty(partyId, party => ({ ...party, partyCode })); }
+export async function setWatchPartyReminderSentAt(partyId: string, reminderSentAt: string | undefined): Promise<ScheduledWatchParty> { return updateWatchParty(partyId, party => ({ ...party, reminderSentAt })); }
 
-export async function setWatchPartyMessageId(partyId: string, messageId: string): Promise<ScheduledWatchParty> {
-  return updateWatchParty(partyId, party => ({ ...party, messageId }));
-}
-
-export async function setWatchPartyLaunchMessageId(partyId: string, launchMessageId: string | undefined): Promise<ScheduledWatchParty> {
-  return updateWatchParty(partyId, party => ({ ...party, launchMessageId }));
-}
-
-export async function setWatchPartyStatus(partyId: string, status: WatchPartyStatus): Promise<ScheduledWatchParty> {
-  return updateWatchParty(partyId, party => ({ ...party, status }));
-}
-
-export async function setWatchPartyCode(partyId: string, partyCode: string | undefined): Promise<ScheduledWatchParty> {
-  return updateWatchParty(partyId, party => ({ ...party, partyCode }));
-}
-
-export async function setWatchPartyReminderSentAt(partyId: string, reminderSentAt: string | undefined): Promise<ScheduledWatchParty> {
-  return updateWatchParty(partyId, party => ({ ...party, reminderSentAt }));
-}
-
-export async function setParticipantResponse(
-  partyId: string,
-  discordUserId: string,
-  response: WatchPartyRsvp,
-): Promise<ScheduledWatchParty> {
+export async function setParticipantResponse(partyId: string, discordUserId: string, response: WatchPartyRsvp): Promise<ScheduledWatchParty> {
   return updateWatchParty(partyId, party => {
     const participants = party.participants.filter(item => item.discordUserId !== discordUserId);
     participants.push({ discordUserId, response, respondedAt: new Date().toISOString() });
@@ -285,15 +232,11 @@ export async function setParticipantResponse(
   });
 }
 
-async function updateWatchParty(
-  partyId: string,
-  updater: (party: ScheduledWatchParty) => ScheduledWatchParty,
-): Promise<ScheduledWatchParty> {
+async function updateWatchParty(partyId: string, updater: (party: ScheduledWatchParty) => ScheduledWatchParty): Promise<ScheduledWatchParty> {
   return mutateStore(store => {
     const index = store.parties.findIndex(party => party.id === partyId);
     const currentParty = index >= 0 ? store.parties[index] : undefined;
     if (!currentParty) throw new Error('Scheduled Watch Party was not found.');
-
     const updatedParty = { ...updater(currentParty), updatedAt: new Date().toISOString() };
     if (!isValidParty(updatedParty)) throw new Error('Updated Watch Party failed validation.');
     store.parties[index] = updatedParty;
