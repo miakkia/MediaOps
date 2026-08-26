@@ -1,111 +1,106 @@
 # Public release readiness
 
-MediaOps is approaching its first public development release. This checklist separates the features that are already validated from the work that should block a public release.
+MediaOps has completed the main feature and hardening work for its first public release candidate. This checklist now focuses on proving that the published package can be installed and operated by a new user from public documentation alone.
 
-## Validated development baseline
+## Validated baseline
 
 - Discord bot health reporting with build channel and SHA.
-- Emby connectivity and media lookup.
-- Ombi request provider integration.
-- Discord Forum request lifecycle through the companion Ombi router.
-- Request lifecycle recovery and idempotent Forum status updates.
+- Emby connectivity, movie/TV lookup, and recently-added discovery.
+- Ombi request-provider integration and requester attribution.
+- Optional Discord Forum request lifecycle through the companion Ombi router.
+- Persistent request tracking and lifecycle recovery.
+- 15 guild-scoped Discord commands with persistent user/admin setup panels.
+- Admin diagnostics and setup commands protected by Manage Server by default.
 - Scheduled Watch Parties with RSVP state.
-- Persistent Watch Party lifecycle state.
-- T-15 Watch Party reminders.
+- T-15 reminder with restart-safe deduplication.
 - Automatic Watch Party room creation at scheduled start.
 - Organizer cancellation before and after room activation.
-- Cleanup of tracked public Watch Party posts after cancellation.
-- Runtime-aware expiry and fallback expiry behavior.
-- Concurrent persistent-store mutations are serialized.
-- TypeScript typecheck, automated test suite, and npm audit are part of development validation.
+- Cleanup of tracked scheduled/reminder/open-room Discord posts.
+- Runtime-aware expiry plus a 4.5-hour fallback.
+- Serialized persistent-store mutations.
+- Configurable generic public branding.
+- Production-container command deployment using compiled JavaScript (`npm run deploy-commands`).
+- TypeScript typecheck, automated tests, dependency audit, application build, and container builds in CI.
 
-## Blockers before first public release
+## Remaining blockers before tagging the first public release
 
-### 1. Merge and establish a clean release baseline
+### 1. Merge final documentation truth pass
 
-- Merge the current Watch Party reminder/lifecycle work to `main` after final review and CI.
-- Re-run typecheck, tests, and dependency audit from the merged `main` branch.
-- Build and smoke-test the release candidate images from the exact release commit.
+- README and feature documentation must describe the exact release behavior.
+- Docker/Portainer and Unraid paths must use public images and generic placeholders.
+- Known limitations and release scope must remain explicit.
+- No transitional maintainer-only wording should remain in the public installation path.
 
-### 2. Reconcile release-readiness hardening
+### 2. Exact-release build validation
 
-The historical `harden/release-readiness-v1` branch predates substantial request and Watch Party work and must not be merged wholesale. Review its still-relevant hardening changes against current `main`, then port only the pieces that remain useful and are not already superseded.
+From the final merged `main` commit:
 
-### 3. Fresh-install documentation
+- run typecheck, automated tests, and dependency audit;
+- build both published images;
+- verify the release candidate SHA/version through `/health`;
+- verify GHCR pullability without relying on locally cached development images.
 
-A new operator must be able to deploy MediaOps without relying on the maintainer's homelab configuration.
+### 3. Fresh-install acceptance test
 
-Verify and document:
+Perform one clean deployment using only the public documentation and published images. Prefer a host/environment that does not contain the maintainer's existing MediaOps appdata.
 
-- required Discord application permissions and intents;
-- Discord channel/forum/tag setup;
-- Emby connection and credentials;
-- Ombi provider configuration and Discord-to-Ombi user mapping;
-- companion router deployment and persistent `/data` storage;
-- Watch Party service URL/authentication requirements;
-- required Docker networks and service reachability;
-- persistent MediaOps data directory;
-- timezone and locale configuration;
-- a minimal working `.env` example with no real credentials.
+Acceptance pass:
 
-### 4. Secret and configuration audit
+1. Create persistent MediaOps data storage.
+2. Configure a Discord application/bot, guild ID, Emby credentials, and optional Ombi/Watch Party integrations from documented fields only.
+3. Start the container successfully.
+4. Run `docker exec <container> npm run deploy-commands` successfully from the published runtime image.
+5. Confirm `/health` reports the expected release build/provider health.
+6. Publish `/mediaops-setup`, `/watchparty-setup`, and `/mediaops-admin-setup` in appropriate test channels.
+7. Validate `/movie`, `/tv`, and `/latest`.
+8. Validate `/request` with a mapped normal Discord/Ombi user when Ombi is enabled.
+9. Validate one Forum request lifecycle when the optional router is enabled.
+10. Schedule a Watch Party, RSVP, receive one T-15 reminder, and confirm automatic room opening/direct join link.
+11. Cancel the active Watch Party as organizer and confirm tracked Discord posts are cleaned up on the lifecycle pass.
+12. Verify `/watchparty-upcoming` and `/watchparty-status`.
+13. Restart/recreate the container and verify persistent state survives.
 
-Before tagging a public release:
+### 4. Secret and privacy check
 
-- confirm no Discord tokens, webhook tokens, Ombi API keys, Emby API keys, private hostnames, or personal credentials are committed;
-- ensure examples use placeholders rather than maintainer-specific secrets;
+Before tagging:
+
+- confirm no Discord tokens, webhook credentials, Ombi/Emby API keys, passwords, private hostnames, private IP addresses, or personal credentials are committed;
+- inspect screenshots before publication for secrets, private addresses, personal usernames, and unrelated server information;
 - verify runtime logs do not print secrets;
-- document credential rotation if a secret is accidentally exposed.
+- rotate any credential accidentally exposed during testing.
 
-### 5. Container and release pipeline
+### 5. Public presentation
 
-- Verify GHCR publishing for both the MediaOps bot and Ombi Discord router.
-- Define the public image/tag policy (`latest`, versioned tags, and development tags).
-- Ensure image metadata identifies the source commit/version.
-- Verify a clean pull on a host with no local MediaOps images.
-- Verify persistent data survives container replacement/update.
-- Confirm the Unraid templates reference public images and contain safe defaults.
+After the clean-install pass:
 
-### 6. Public project metadata
+- capture a small set of sanitized screenshots showing the MediaOps setup panel, media/request flow, Watch Party panel/scheduling/open-room flow, and optionally admin health diagnostics;
+- add only the strongest screenshots to GitHub documentation;
+- use the MediaOps Community Discord for broader examples/support content;
+- prepare release notes from `CHANGELOG.md`.
 
-Before the first public release, confirm the repository has current versions of:
+### 6. Unraid Community Apps submission preparation
 
-- README with feature scope and installation path;
-- LICENSE;
-- SECURITY policy;
-- CONTRIBUTING guide;
-- CODE_OF_CONDUCT;
-- changelog/release notes;
-- support/issue guidance and known limitations.
+The repository already contains `ca_profile.xml`, the main/companion templates, icon, GPLv3 license, project links, and public GHCR image references. Before submission:
 
-### 7. Fresh-install acceptance test
-
-Perform one clean deployment using only the public documentation and release images. The acceptance pass should include:
-
-1. Bot starts and `/health` reports the expected release SHA/version.
-2. Emby movie/TV lookup succeeds.
-3. Ombi request submission succeeds for a mapped normal Discord user.
-4. Request Forum post is created and follows approval/processing/available state changes.
-5. Watch Party can be scheduled and RSVP'd to.
-6. T-15 reminder is emitted once.
-7. Room opens at the scheduled time.
-8. Organizer can cancel an active Watch Party.
-9. Tracked public Watch Party posts are cleaned up after cancellation.
-10. Container restart preserves request/Watch Party persistent state.
+- install once from the public templates as a clean user would;
+- run the current Community Apps **Validate** workflow;
+- run the current Community Apps **Scan** workflow;
+- resolve every reported template/metadata issue;
+- confirm descriptions, support/project links, icons, defaults, paths, and secret fields are appropriate for public users;
+- submit only after the tagged public image and documentation are stable.
 
 ## Non-blocking post-release work
-
-These can evolve after the first public development release unless a later review promotes them to blockers:
 
 - Jellyfin support;
 - Plex support;
 - additional request providers;
-- richer Watch Party administration and moderation;
+- richer Watch Party administration/moderation;
 - additional localization;
-- more configurable reminder policies;
-- broader media-server and deployment presets;
-- UI/UX polish and additional Discord presentation options.
+- configurable reminder policies;
+- broader deployment presets;
+- additional Discord UI polish;
+- optional hosted/SaaS operation.
 
 ## Release philosophy
 
-The first public release does not need every planned MediaOps integration. It should instead provide a small, documented, reproducible and safe baseline whose advertised features work reliably. New media servers and optional workflows can then be developed incrementally without destabilizing that baseline.
+The first public release is intentionally a small, documented, reproducible, and safe baseline. Its advertised Emby/Ombi/Watch Party workflows should work reliably for a new operator before additional providers or features are added.
