@@ -34,6 +34,7 @@ export interface ScheduledWatchParty {
   guildId: string;
   channelId: string;
   messageId: string | undefined;
+  launchMessageId: string | undefined;
   organizerDiscordId: string;
   embyItemId: string;
   mediaTitle: string;
@@ -97,8 +98,9 @@ function isValidParty(value: unknown): value is ScheduledWatchParty {
   if (!value || typeof value !== 'object') return false;
   const party = value as Record<string, unknown>;
   return isString(party.id) && isString(party.guildId) && isString(party.channelId) &&
-    isOptionalString(party.messageId) && isString(party.organizerDiscordId) &&
-    isString(party.embyItemId) && isString(party.mediaTitle) &&
+    isOptionalString(party.messageId) && isOptionalString(party.launchMessageId) &&
+    isString(party.organizerDiscordId) && isString(party.embyItemId) &&
+    isString(party.mediaTitle) &&
     (party.mediaYear === undefined || typeof party.mediaYear === 'number') &&
     isString(party.scheduledAt) && isValidStatus(party.status) &&
     isOptionalString(party.partyCode) && isOptionalString(party.reminderSentAt) &&
@@ -235,7 +237,8 @@ export async function createScheduledWatchParty(input: CreateScheduledWatchParty
     const now = new Date().toISOString();
     const party: ScheduledWatchParty = {
       id: randomUUID(), guildId: input.guildId, channelId: input.channelId,
-      messageId: undefined, organizerDiscordId: input.organizerDiscordId,
+      messageId: undefined, launchMessageId: undefined,
+      organizerDiscordId: input.organizerDiscordId,
       embyItemId: input.embyItemId, mediaTitle: input.mediaTitle, mediaYear: input.mediaYear,
       scheduledAt: scheduledDate.toISOString(), status: 'scheduled', partyCode: undefined,
       reminderSentAt: undefined, participants: [], createdAt: now, updatedAt: now,
@@ -252,6 +255,10 @@ export async function findWatchPartyById(partyId: string): Promise<ScheduledWatc
 
 export async function setWatchPartyMessageId(partyId: string, messageId: string): Promise<ScheduledWatchParty> {
   return updateWatchParty(partyId, party => ({ ...party, messageId }));
+}
+
+export async function setWatchPartyLaunchMessageId(partyId: string, launchMessageId: string | undefined): Promise<ScheduledWatchParty> {
+  return updateWatchParty(partyId, party => ({ ...party, launchMessageId }));
 }
 
 export async function setWatchPartyStatus(partyId: string, status: WatchPartyStatus): Promise<ScheduledWatchParty> {
