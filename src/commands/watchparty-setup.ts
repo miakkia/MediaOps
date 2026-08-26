@@ -8,160 +8,82 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 
-import {
-  getWatchPartyUrl,
-} from '../services/watchparty.js';
+import { getMediaOpsBranding } from '../config/branding.js';
+import { getWatchPartyUrl } from '../services/watchparty.js';
 
-const RANDOM_BUTTON_ID =
-  'watchpartysetup:random';
+const RANDOM_BUTTON_ID = 'watchpartysetup:random';
+const SCHEDULE_BUTTON_ID = 'watchpartysetup:schedule';
 
-const SCHEDULE_BUTTON_ID =
-  'watchpartysetup:schedule';
+export const data = new SlashCommandBuilder()
+  .setName('watchparty-setup')
+  .setDescription('Publish the Watch Party welcome panel in this channel.')
+  .setDescriptionLocalizations({ fr: 'Publier le panneau Watch Party dans ce salon.' })
+  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
 
-export const data =
-  new SlashCommandBuilder()
-    .setName('watchparty-setup')
-    .setDescription(
-      'Publish the Watch Party welcome panel in this channel.',
-    )
-    .setDescriptionLocalizations({
-      fr:
-        'Publier le panneau Watch Party dans ce salon.',
-    })
-    .setDefaultMemberPermissions(
-      PermissionFlagsBits.ManageGuild,
-    );
-
-export async function execute(
-  interaction: ChatInputCommandInteraction,
-): Promise<void> {
-  if (
-    !interaction.guildId ||
-    !interaction.channelId
-  ) {
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  if (!interaction.guildId || !interaction.channelId) {
     await interaction.reply({
-      content:
-        '❌ This command must be used in a Discord server.',
-
-      flags:
-        MessageFlags.Ephemeral,
+      content: '❌ This command must be used in a Discord server.',
+      flags: MessageFlags.Ephemeral,
     });
-
     return;
   }
 
-  const channel =
-    interaction.channel;
-
-  if (
-    !channel ||
-    !channel.isSendable()
-  ) {
+  const channel = interaction.channel;
+  if (!channel || !channel.isSendable()) {
     await interaction.reply({
-      content:
-        '❌ Unable to publish the Watch Party panel in this channel.',
-
-      flags:
-        MessageFlags.Ephemeral,
+      content: '❌ Unable to publish the Watch Party panel in this channel.',
+      flags: MessageFlags.Ephemeral,
     });
-
     return;
   }
 
-  const watchPartyUrl =
-    getWatchPartyUrl();
+  const watchPartyUrl = getWatchPartyUrl();
+  const { botName, serverName } = getMediaOpsBranding();
 
-  const randomButton =
+  const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
-      .setCustomId(
-        RANDOM_BUTTON_ID,
-      )
-      .setLabel(
-        'Random / Aléatoire',
-      )
+      .setCustomId(RANDOM_BUTTON_ID)
+      .setLabel('Random / Aléatoire')
       .setEmoji('🎲')
-      .setStyle(
-        ButtonStyle.Secondary,
-      );
-
-  const scheduleButton =
+      .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
-      .setCustomId(
-        SCHEDULE_BUTTON_ID,
-      )
-      .setLabel(
-        'Planifier / Schedule',
-      )
+      .setCustomId(SCHEDULE_BUTTON_ID)
+      .setLabel('Planifier / Schedule')
       .setEmoji('📅')
-      .setStyle(
-        ButtonStyle.Primary,
-      );
-
-  const openButton =
+      .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
-      .setLabel(
-        'Ouvrir / Open',
-      )
+      .setLabel('Ouvrir / Open')
       .setEmoji('🌐')
-      .setStyle(
-        ButtonStyle.Link,
-      )
-      .setURL(
-        watchPartyUrl,
-      );
-
-  const row =
-    new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        randomButton,
-        scheduleButton,
-        openButton,
-      );
+      .setStyle(ButtonStyle.Link)
+      .setURL(watchPartyUrl),
+  );
 
   const content = [
     '## 🎬 Watch Party',
     '',
-    '🇫🇷 **Français**',
-    'Regardez un film ensemble avec SolitarioHomeCinema.',
+    `🇫🇷 Regardez un film ensemble sur **${serverName}** avec **${botName}**.`,
+    '🎲 Choisissez un film au hasard avec **Random / Aléatoire**.',
+    '📅 Planifiez une soirée avec **Planifier / Schedule**.',
+    '🌐 Créez ou rejoignez une session avec **Ouvrir / Open**.',
+    '📋 Utilisez `/watchparty-upcoming` pour voir les soirées à venir.',
+    'ℹ️ Utilisez `/watchparty-status` pour vérifier l’état du service Watch Party.',
     '',
-    '🎲 **Aucune idée quoi regarder?**',
-    'Laissez Solitario Butler choisir un film au hasard.',
-    '',
-    '📅 **Vous savez quoi regarder?**',
-    'Planifiez simplement votre prochaine soirée.',
-    '',
-    '🌐 **Prêt à regarder?**',
-    'Ouvrez Watch Party pour créer ou rejoindre une session.',
-    '',
-    '🇬🇧 **English**',
-    'Watch a movie together with SolitarioHomeCinema.',
-    '',
-    '🎲 **Not sure what to watch?**',
-    'Let Solitario Butler choose a random movie.',
-    '',
-    '📅 **Know what you want to watch?**',
-    'Simply schedule your next movie night.',
-    '',
-    '🌐 **Ready to watch?**',
-    'Open Watch Party to create or join a session.',
+    `🇬🇧 Watch a movie together on **${serverName}** with **${botName}**.`,
+    '🎲 Let the bot choose a movie with **Random / Aléatoire**.',
+    '📅 Plan your next movie night with **Planifier / Schedule**.',
+    '🌐 Create or join a session with **Ouvrir / Open**.',
+    '📋 Use `/watchparty-upcoming` to see upcoming parties.',
+    'ℹ️ Use `/watchparty-status` to check the Watch Party service.',
     '',
     '🔐 **Sécurité / Security**',
-    'Votre mot de passe Emby est saisi uniquement dans Watch Party et n’est jamais envoyé à Solitario Butler.',
-    'Your Emby password is entered only in Watch Party and is never sent to Solitario Butler.',
+    `Votre mot de passe Emby est saisi uniquement dans Watch Party et n’est jamais envoyé à ${botName}.`,
+    `Your Emby password is entered only in Watch Party and is never sent to ${botName}.`,
   ].join('\n');
 
-  await channel.send({
-    content,
-    components: [
-      row,
-    ],
-  });
-
+  await channel.send({ content, components: [actionRow] });
   await interaction.reply({
-    content:
-      '✅ Watch Party panel published / Panneau Watch Party publié.',
-
-    flags:
-      MessageFlags.Ephemeral,
+    content: '✅ Watch Party panel published / Panneau Watch Party publié.',
+    flags: MessageFlags.Ephemeral,
   });
 }

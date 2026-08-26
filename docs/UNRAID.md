@@ -42,6 +42,8 @@ Use one Path entry:
 
 | Name | Key | Default / value | Notes |
 | --- | --- | --- | --- |
+| Bot Display Name | `MEDIAOPS_BOT_NAME` | `MediaOps Bot` | Public-facing name used in panels/messages; does not rename the Discord application |
+| Media Server Display Name | `MEDIAOPS_SERVER_NAME` | `My Media Server` | Friendly server/community name used in panels and Watch Party events |
 | Media Provider | `MEDIA_PROVIDER` | `emby` | Current supported provider |
 | Discord Token | `DISCORD_TOKEN` | empty | Secret |
 | Discord Client ID | `DISCORD_CLIENT_ID` | empty | Discord application ID |
@@ -56,6 +58,19 @@ Use one Path entry:
 | MediaOps Locale | `MEDIAOPS_LOCALE` | `en` | Automated message language; supported: `en`, `fr` |
 | MediaOps Timezone | `MEDIAOPS_TIMEZONE` | `America/Toronto` | IANA timezone |
 | MediaOps Data Directory | `MEDIAOPS_DATA_DIR` | `/data` | Advanced; leave at `/data` |
+
+### Existing customized installations
+
+A Force Update preserves existing Unraid environment variables. If an older installation did not previously define the new branding variables, add them before or after updating if you want to retain custom public names.
+
+Example:
+
+```text
+MEDIAOPS_BOT_NAME=Cinema Helper
+MEDIAOPS_SERVER_NAME=Example Cinema
+```
+
+If omitted, MediaOps uses the safe public defaults `MediaOps Bot` and `My Media Server`.
 
 ### Optional Media Request Forum variables
 
@@ -169,15 +184,15 @@ curl -sS --max-time 5 http://ombi-discord-router:8080/health
 '
 ```
 
-A successful router 1.6 health response has this shape:
+A successful current router health response has this shape:
 
 ```json
-{"index":"/data/media-threads.json","mode":"discord-forum","status":"ok","version":"1.6"}
+{"index":"/data/media-threads.json","mode":"discord-forum","status":"ok","version":"1.9"}
 ```
 
 ## Preconfigured templates
 
-The repository now includes two Unraid v2 templates:
+The repository includes two Unraid v2 templates:
 
 - `templates/mediaops.xml` — main MediaOps bot;
 - `templates/ombi-discord-router.xml` — optional Ombi-to-Discord Forum companion.
@@ -188,17 +203,27 @@ Sensitive values are left empty and masked where supported.
 
 Before starting the MediaOps container, stop any local development instance using the same Discord bot token.
 
-A successful startup currently looks similar to:
+A successful startup looks similar to:
 
 ```text
-Solitario Butler connected as <bot tag>
-Loaded Discord commands: ...
+MediaOps Bot connected as <bot tag>
+Loaded <count> Discord commands: ...
 Watch Party lifecycle scheduler started.
 ```
 
+If `MEDIAOPS_BOT_NAME` is customized, the configured name appears in the first log line.
+
+After first start, register the guild slash commands directly from the running container:
+
+```bash
+docker exec MediaOps npm run deploy-commands
+```
+
+Replace `MediaOps` with your actual container name if customized. The runtime uses compiled JavaScript and does not require `tsx`, TypeScript, Git, or a local source checkout.
+
 Validate at minimum:
 
-1. `/health`;
+1. `/health` as a server manager;
 2. `/movie`;
 3. `/request` if a request provider is enabled;
 4. one real Ombi -> router -> Forum lifecycle if Forum synchronization is enabled;
@@ -207,7 +232,17 @@ Validate at minimum:
 7. `/watchparty-upcoming`;
 8. automatic Watch Party reminder delivery.
 
-The router 1.6 path has been validated on Unraid with persistent appdata, the hardened runtime options above, a user-defined Docker network shared with Ombi, and real Discord Forum lifecycle transitions.
+## Recommended Discord setup panels
+
+MediaOps includes administrator-only setup commands that publish persistent help panels into the channel where the command is run:
+
+- `/mediaops-setup` — user-facing media command guide;
+- `/watchparty-setup` — Watch Party self-service panel;
+- `/mediaops-admin-setup` — diagnostics guide for `/ping` and `/health`.
+
+A practical layout is one public media/help channel, one Watch Party channel, and one private admin/moderator channel. Channel names are not hard-coded; choose names that fit your server.
+
+`/ping`, `/health`, `/mediaops-setup`, `/watchparty-setup`, and `/mediaops-admin-setup` require the Discord **Manage Server** permission by default. The two diagnostic commands reply ephemerally.
 
 ## Updating
 
@@ -215,8 +250,10 @@ For MediaOps:
 
 1. pull/Force Update `ghcr.io/miakkia/mediaops:latest`;
 2. keep the existing appdata mapping and environment variables;
-3. restart/recreate if required;
-4. verify logs and `/health`.
+3. add `MEDIAOPS_BOT_NAME` and `MEDIAOPS_SERVER_NAME` if upgrading an older customized installation;
+4. restart/recreate if required;
+5. if command definitions changed, run `docker exec MediaOps npm run deploy-commands` using your actual container name;
+6. verify logs and `/health`.
 
 For the router:
 

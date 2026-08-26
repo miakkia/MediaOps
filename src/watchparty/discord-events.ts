@@ -6,6 +6,7 @@ import {
   type Client,
 } from 'discord.js';
 
+import { getMediaOpsBranding } from '../config/branding.js';
 import type { ScheduledWatchParty } from '../storage/watchparty-store.js';
 import {
   getWatchPartyScheduledEventId,
@@ -47,18 +48,20 @@ export async function createDiscordScheduledEventForParty(
     return undefined;
   }
 
+  const { botName, serverName } = getMediaOpsBranding();
+
   try {
     const event = await guild.scheduledEvents.create({
       name: getEventName(party),
       description:
-        `MediaOps Watch Party hosted by <@${party.organizerDiscordId}>. ` +
+        `${botName} Watch Party hosted by <@${party.organizerDiscordId}>. ` +
         'Use the Watch Party post in Discord for RSVP and session details.',
       scheduledStartTime: scheduledAt,
       scheduledEndTime: getDiscordScheduledEventEndTime(scheduledAt),
       privacyLevel: GuildScheduledEventPrivacyLevel.GuildOnly,
       entityType: GuildScheduledEventEntityType.External,
       entityMetadata: {
-        location: 'SolitarioHomeCinema Watch Party',
+        location: `${serverName} Watch Party`.slice(0, 100),
       },
       reason: `MediaOps Watch Party ${party.id}`,
     });

@@ -169,12 +169,12 @@ export const en = {
   commands: {
     ping: {
       description:
-        'Check if Solitario Butler is online.',
+        'Check if MediaOps is online.',
     },
 
     health: {
       description:
-        'Check Solitario Butler and Emby health.',
+        'Check MediaOps and Emby health.',
     },
 
     movie: {
@@ -243,7 +243,7 @@ export const en = {
 
   health: {
     botOnline:
-      '🟢 Solitario Butler is online.',
+      '🟢 {botName} is online.',
 
     embyOnline:
       '🟢 Emby is online.',
@@ -295,7 +295,7 @@ export const en = {
 
   watchparty: {
     title:
-      '🎉 **SolitarioHomeCinema Watch Party**',
+      '🎉 **{serverName} Watch Party**',
 
     openButton:
       'Open Watch Party',
@@ -310,7 +310,7 @@ export const en = {
       '4. Run `/watchparty-start` with that code.',
 
     securityNotice:
-      '🔐 Your Emby password is entered only on Watch Party and is never sent to Solitario Butler.',
+      '🔐 Your Emby password is entered only on Watch Party and is never sent to {botName}.',
 
     active:
       '🟢 Watch Party **{code}** is active.',

@@ -7,100 +7,41 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 
-import {
-  getInteractionLocale,
-} from '../i18n/discord-locale.js';
+import { getMediaOpsBranding } from '../config/branding.js';
+import { getInteractionLocale } from '../i18n/discord-locale.js';
+import { t } from '../i18n/index.js';
+import { createWatchParty } from '../services/watchparty.js';
 
-import {
-  t,
-} from '../i18n/index.js';
+export const data = new SlashCommandBuilder()
+  .setName('watchparty')
+  .setDescription(t('en', 'commands.watchparty.description'))
+  .setDescriptionLocalizations({ fr: t('fr', 'commands.watchparty.description') });
 
-import {
-  createWatchParty,
-} from '../services/watchparty.js';
+export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  const locale = getInteractionLocale(interaction);
+  const { botName, serverName } = getMediaOpsBranding();
 
-export const data =
-  new SlashCommandBuilder()
-    .setName('watchparty')
-    .setDescription(
-      t(
-        'en',
-        'commands.watchparty.description',
-      ),
-    )
-    .setDescriptionLocalizations({
-      fr:
-        t(
-          'fr',
-          'commands.watchparty.description',
-        ),
-    });
-
-export async function execute(
-  interaction: ChatInputCommandInteraction,
-): Promise<void> {
-  const locale =
-    getInteractionLocale(
-      interaction,
-    );
-
-  await interaction.deferReply({
-    flags:
-      MessageFlags.Ephemeral,
-  });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
-    const party =
-      await createWatchParty();
+    const party = await createWatchParty();
+    const openButton = new ButtonBuilder()
+      .setLabel(t(locale, 'watchparty.openButton'))
+      .setEmoji('🎬')
+      .setStyle(ButtonStyle.Link)
+      .setURL(party.joinUrl);
 
-    const openButton =
-      new ButtonBuilder()
-        .setLabel(
-          t(
-            locale,
-            'watchparty.openButton',
-          ),
-        )
-        .setEmoji('🎬')
-        .setStyle(
-          ButtonStyle.Link,
-        )
-        .setURL(
-          party.joinUrl,
-        );
-
-    const row =
-      new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-          openButton,
-        );
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(openButton);
 
     await interaction.editReply({
       content:
-        `${t(
-          locale,
-          'watchparty.title',
-        )}\n\n` +
+        `${t(locale, 'watchparty.title', { serverName })}\n\n` +
         `**${party.partyCode}**\n\n` +
-        t(
-          locale,
-          'watchparty.securityNotice',
-        ),
-      components: [
-        row,
-      ],
+        t(locale, 'watchparty.securityNotice', { botName }),
+      components: [row],
     });
   } catch (error) {
-    console.error(
-      'Watch Party creation failed:',
-      error,
-    );
-
-    await interaction.editReply(
-      t(
-        locale,
-        'watchparty.validationError',
-      ),
-    );
+    console.error('Watch Party creation failed:', error);
+    await interaction.editReply(t(locale, 'watchparty.validationError'));
   }
 }
