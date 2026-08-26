@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
+import { getMediaOpsBranding } from '../config/branding.js';
 import { getInteractionLocale } from '../i18n/discord-locale.js';
 import { t } from '../i18n/index.js';
 import { mediaProvider } from '../providers/media-provider-instance.js';
@@ -55,6 +56,7 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const locale = getInteractionLocale(interaction);
+  const { botName } = getMediaOpsBranding();
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const version = getPackageVersion();
@@ -80,7 +82,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const isFrench = locale === 'fr';
   const embed = new EmbedBuilder()
     .setTitle(isFrench ? 'État de santé MediaOps' : 'MediaOps Health')
-    .setDescription(t(locale, 'health.botOnline'))
+    .setDescription(t(locale, 'health.botOnline', { botName }))
     .addFields(
       {
         name: 'MediaOps',
