@@ -15,12 +15,12 @@ test('branding uses safe public defaults', () => {
 
 test('branding preserves configured installation names', () => {
   const branding = getMediaOpsBranding({
-    MEDIAOPS_BOT_NAME: '🎬 Solitario Butler',
-    MEDIAOPS_SERVER_NAME: 'SolitarioHomeCinema',
+    MEDIAOPS_BOT_NAME: 'Cinema Helper',
+    MEDIAOPS_SERVER_NAME: 'Example Cinema',
   });
 
-  assert.equal(branding.botName, '🎬 Solitario Butler');
-  assert.equal(branding.serverName, 'SolitarioHomeCinema');
+  assert.equal(branding.botName, 'Cinema Helper');
+  assert.equal(branding.serverName, 'Example Cinema');
 });
 
 test('branding ignores blank configured values', () => {
