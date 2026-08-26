@@ -8,17 +8,11 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 
+import { getMediaOpsBranding } from '../config/branding.js';
 import { getWatchPartyUrl } from '../services/watchparty.js';
 
 const RANDOM_BUTTON_ID = 'watchpartysetup:random';
 const SCHEDULE_BUTTON_ID = 'watchpartysetup:schedule';
-
-function getBranding(): { botName: string; serverName: string } {
-  return {
-    botName: process.env.MEDIAOPS_BOT_NAME?.trim() || 'MediaOps Bot',
-    serverName: process.env.MEDIAOPS_SERVER_NAME?.trim() || 'your media server',
-  };
-}
 
 export const data = new SlashCommandBuilder()
   .setName('watchparty-setup')
@@ -45,7 +39,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   const watchPartyUrl = getWatchPartyUrl();
-  const { botName, serverName } = getBranding();
+  const { botName, serverName } = getMediaOpsBranding();
 
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
