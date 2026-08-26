@@ -5,6 +5,8 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 
+import { getMediaOpsBranding } from '../config/branding.js';
+
 export const data = new SlashCommandBuilder()
   .setName('mediaops-admin-setup')
   .setDescription('Publish the MediaOps administrator diagnostics panel.')
@@ -21,7 +23,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  const botName = process.env.MEDIAOPS_BOT_NAME?.trim() || 'MediaOps Bot';
+  const { botName } = getMediaOpsBranding();
 
   const content = [
     `## 🛠️ ${botName} — Admin`,
