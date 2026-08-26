@@ -27,6 +27,7 @@ import { handleWatchPartySetupButton } from './watchparty/setup-interactions.js'
 import { handleWatchPartySetupModal } from './watchparty/setup-modal-interactions.js';
 
 const token = process.env.DISCORD_TOKEN?.trim();
+const configuredBotName = process.env.MEDIAOPS_BOT_NAME?.trim() || 'MediaOps Bot';
 
 if (!token) {
   throw new Error('DISCORD_TOKEN is missing from environment variables.');
@@ -86,7 +87,7 @@ const client = new Client({
 });
 
 client.once(Events.ClientReady, readyClient => {
-  console.log(`Solitario Butler connected as ${readyClient.user.tag}`);
+  console.log(`${configuredBotName} connected as ${readyClient.user.tag}`);
   console.log(`Loaded ${commands.size} Discord commands: ${[...commands.keys()].join(', ')}`);
   startWatchPartyLifecycle(readyClient);
   startRuntimeAwareWatchPartyExpiry();
