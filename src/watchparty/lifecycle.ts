@@ -11,6 +11,7 @@ import {
   getWatchParties,
   refreshWatchPartyLifecycle,
   setWatchPartyCode,
+  setWatchPartyLaunchMessageId,
   setWatchPartyReminderSentAt,
   setWatchPartyStatus,
 } from '../storage/watchparty-store.js';
@@ -154,13 +155,21 @@ async function openScheduledWatchParties(
           ? ` (${party.mediaYear})`
           : '';
 
-      await channel.send({
+      const launchMessage = await channel.send({
         content:
           '🎬 **Watch Party ouverte / Watch Party is open!**\n\n' +
           `**${party.mediaTitle}**${year}\n` +
           `Code: \`${room.partyCode}\`\n` +
           `➡️ ${room.joinUrl}`,
       });
+
+      // Track the launch post so cancellation/expiry can remove every public
+      // message owned by this Watch Party. Persist only after Discord confirms
+      // creation; an absent ID is safe for parties created by older builds.
+      await setWatchPartyLaunchMessageId(
+        party.id,
+        launchMessage.id,
+      );
 
       console.log(
         `Scheduled Watch Party ${party.id} opened automatically as ${room.partyCode}`,
@@ -195,11 +204,20 @@ async function cleanupFinishedWatchPartyPosts(
   for (const party of parties) {
     if (
       party.status !== 'cancelled' &&
+      party.status !== 'auto_cancelled' &&
       party.status !== 'expired'
     ) {
       continue;
     }
-    if (!party.messageId) {
+
+    const messageIds = [
+      party.messageId,
+      party.launchMessageId,
+    ].filter(
+      (messageId): messageId is string => Boolean(messageId),
+    );
+
+    if (messageIds.length === 0) {
       continue;
     }
 
@@ -212,21 +230,23 @@ async function cleanupFinishedWatchPartyPosts(
         continue;
       }
 
-      const message = await channel.messages.fetch(
-        party.messageId,
-      ).catch(() => null);
+      for (const messageId of messageIds) {
+        const message = await channel.messages.fetch(
+          messageId,
+        ).catch(() => null);
 
-      if (!message) {
-        continue;
+        if (!message) {
+          continue;
+        }
+
+        await message.delete();
+        console.log(
+          `Removed finished Watch Party post ${messageId} for ${party.id}.`,
+        );
       }
-
-      await message.delete();
-      console.log(
-        `Removed finished Watch Party post ${party.messageId} for ${party.id}.`,
-      );
     } catch (error) {
       console.warn(
-        `Unable to remove finished Watch Party post for ${party.id}:`,
+        `Unable to remove finished Watch Party posts for ${party.id}:`,
         error,
       );
     }
@@ -247,9 +267,10 @@ async function runLifecycleRefresh(
     // not stop room creation, RSVP, reminders, or retention cleanup.
     await synchronizeDiscordScheduledEvents(client);
 
-    // Remove the original RSVP post after a Watch Party is cancelled or has
-    // finished. This also cleans up old posts left behind by previous builds
-    // as soon as the bot starts or on the next lifecycle pass.
+    // Remove every tracked public post after a Watch Party is cancelled or has
+    // finished. This also cleans up old RSVP posts on startup/next lifecycle
+    // pass; launch posts from older builds remain harmless because they have no
+    // persisted launchMessageId to target.
     await cleanupFinishedWatchPartyPosts(client);
 
     const removed = await cleanupWatchPartyHistory();
