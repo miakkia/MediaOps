@@ -4,13 +4,13 @@ MediaOps is distributed as a container image through GitHub Container Registry (
 
 ## Image channels
 
-Stable/default image after the Docker branch is merged:
+Stable/default image:
 
 ```text
 ghcr.io/miakkia/mediaops:latest
 ```
 
-Development image while `feat/docker-media-provider` remains active:
+Development/hardening branches:
 
 ```text
 ghcr.io/miakkia/mediaops:dev
@@ -29,7 +29,7 @@ Git push / release tag
                -> MediaOps connects outbound to Discord, Emby and Watch Party
 ```
 
-The production image uses a multi-stage Node.js build. TypeScript is compiled during the build stage; the runtime container starts the compiled application with `node dist/index.js`. Development-only tooling such as `tsx` and TypeScript is not required at runtime.
+The production image uses a multi-stage Node.js build. TypeScript is compiled during the build stage; the runtime container starts the compiled application with `node dist/index.js`. Development-only tooling such as `tsx` and TypeScript is not required at runtime. The compiled command deployment utility is also included in `dist`, so slash commands can be synchronized directly from the running container.
 
 The runtime process uses a dedicated non-root `mediaops` user.
 
@@ -37,10 +37,12 @@ The runtime process uses a dedicated non-root `mediaops` user.
 
 | Variable | Required | Description |
 | --- | --- | --- |
+| `MEDIAOPS_BOT_NAME` | Optional | Public-facing MediaOps bot name. Defaults to `MediaOps Bot`. |
+| `MEDIAOPS_SERVER_NAME` | Optional | Friendly media-server/community name. Defaults to `My Media Server`. |
 | `MEDIA_PROVIDER` | Yes | Media provider selector. Current supported value: `emby`. |
 | `DISCORD_TOKEN` | Yes | Discord bot token. Treat as a secret. |
 | `DISCORD_CLIENT_ID` | Yes | Discord application/client ID. |
-| `DISCORD_GUILD_ID` | Yes for the current command deployment workflow | Discord guild/server ID. |
+| `DISCORD_GUILD_ID` | Yes for guild command deployment | Discord guild/server ID. |
 | `EMBY_URL` | Yes | Base URL MediaOps can use to reach Emby. |
 | `EMBY_API_KEY` | Yes | Emby API key. Treat as a secret. |
 | `WATCHPARTY_URL` | Yes for current Watch Party features | Base URL of the configured Watch Party application. |
@@ -66,6 +68,8 @@ docker run -d \
   --name mediaops \
   --restart unless-stopped \
   --network bridge \
+  -e MEDIAOPS_BOT_NAME='MediaOps Bot' \
+  -e MEDIAOPS_SERVER_NAME='My Media Server' \
   -e MEDIA_PROVIDER=emby \
   -e DISCORD_TOKEN='REPLACE_ME' \
   -e DISCORD_CLIENT_ID='REPLACE_ME' \
@@ -81,6 +85,26 @@ docker run -d \
 
 No inbound application port is currently required.
 
+## Registering or updating Discord slash commands
+
+MediaOps uses guild-scoped Discord commands. Run command deployment after the initial installation and again whenever an update adds, removes, renames, or changes command permissions/options.
+
+From the running container:
+
+```bash
+docker exec mediaops npm run deploy-commands
+```
+
+The runtime script executes the already compiled `dist/deploy-commands.js`; it does not require `tsx`, TypeScript, the source repository, or a separate Node.js installation on the host. It reuses `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, and `DISCORD_GUILD_ID` from the container environment.
+
+A successful deployment reports the number and names of registered commands. A Discord `401 Unauthorized` indicates that the configured bot token is invalid or stale and should be corrected/rotated rather than posted in logs or support messages.
+
+Repository developers can alternatively run the TypeScript source directly with:
+
+```bash
+npm run deploy-commands:dev
+```
+
 ## Updating
 
 ```bash
@@ -88,6 +112,8 @@ docker pull ghcr.io/miakkia/mediaops:latest
 ```
 
 Then recreate/restart the container using the same persistent `/data` mapping and environment configuration. Runtime state survives image replacement because it lives outside the image.
+
+If the release changes Discord command definitions, run `docker exec mediaops npm run deploy-commands` after the updated container is running.
 
 ## Security notes
 
@@ -99,7 +125,6 @@ Then recreate/restart the container using the same persistent `/data` mapping an
 - Prefer bridge networking unless a future provider integration documents another requirement.
 
 See `SECURITY.md` and `docs/SECURITY_MODEL.md` for the broader security model.
-
 
 ## Watch Party lifecycle
 
