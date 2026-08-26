@@ -26,12 +26,12 @@ test('close window opens at theoretical movie end', () => {
   );
 });
 
-test('falls back to six hours when runtime is unavailable', () => {
+test('falls back to 4.5 hours when runtime is unavailable', () => {
   const scheduledAt = '2026-08-23T01:30:00.000Z';
   const expireAt = getWatchPartyExpireAt(scheduledAt, undefined);
 
   assert.equal(
     expireAt,
-    new Date('2026-08-23T07:30:00.000Z').getTime(),
+    new Date('2026-08-23T06:00:00.000Z').getTime(),
   );
 });
