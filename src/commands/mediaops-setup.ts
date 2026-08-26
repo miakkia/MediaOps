@@ -5,6 +5,8 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 
+import { getMediaOpsBranding } from '../config/branding.js';
+
 export const data = new SlashCommandBuilder()
   .setName('mediaops-setup')
   .setDescription('Publish the MediaOps user command panel in this channel.')
@@ -21,8 +23,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  const botName = process.env.MEDIAOPS_BOT_NAME?.trim() || 'MediaOps Bot';
-  const serverName = process.env.MEDIAOPS_SERVER_NAME?.trim() || 'My Media Server';
+  const { botName, serverName } = getMediaOpsBranding();
 
   const content = [
     `## 🎬 ${botName}`,
@@ -33,16 +34,18 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     '📺 `/tv` — Rechercher une série.',
     '➕ `/request` — Rechercher et demander un film ou une série via le fournisseur de demandes configuré.',
     '🆕 `/latest` — Voir les ajouts récents.',
-    '🎬 `/watchparty-setup` — Les administrateurs peuvent publier le panneau Watch Party dans le salon approprié.',
     '📋 `/watchparty-upcoming` — Voir les Watch Parties à venir.',
+    'ℹ️ `/watchparty-status` — Vérifier une session Watch Party.',
+    '🎬 Le panneau Watch Party complet peut être publié par un administrateur avec `/watchparty-setup`.',
     '',
     '🇬🇧 **User commands**',
     '🔎 `/movie` — Search for a movie on your media server.',
     '📺 `/tv` — Search for a TV series.',
     '➕ `/request` — Search and request a movie or series through the configured request provider.',
     '🆕 `/latest` — See recently added media.',
-    '🎬 `/watchparty-setup` — Administrators can publish the Watch Party panel in the appropriate channel.',
     '📋 `/watchparty-upcoming` — See upcoming Watch Parties.',
+    'ℹ️ `/watchparty-status` — Check a Watch Party session.',
+    '🎬 Administrators can publish the full Watch Party panel with `/watchparty-setup`.',
     '',
     '💡 Discord affiche aussi les options disponibles lorsque vous tapez `/` / Discord also shows available options when you type `/`.',
   ].join('\n');
