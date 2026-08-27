@@ -1,6 +1,14 @@
 # Docker Deployment
 
-MediaOps is distributed as a container image through GitHub Container Registry (GHCR). The container runs the compiled Node.js application and does not require the MediaOps source repository to be copied to the host.
+MediaOps is distributed through GitHub Container Registry (GHCR). The container runs compiled Node.js and does not require the source repository on the deployment host.
+
+## V1 deployment boundary
+
+MediaOps v1 is **self-hosted and single-tenant**. Before deploying the container, create a Discord application/bot owned by the operator who owns this MediaOps instance.
+
+Do not use the public MediaOps Community demo bot for an unrelated deployment, and do not reuse one v1 MediaOps instance as a universal bot across unrelated guilds with different Emby/Ombi/Watch Party backends.
+
+Follow [`DISCORD_BOT_SETUP.md`](DISCORD_BOT_SETUP.md) first.
 
 ## Image channels
 
@@ -10,26 +18,27 @@ Stable/default image:
 ghcr.io/miakkia/mediaops:latest
 ```
 
-Development/hardening branches:
+Development image:
 
 ```text
 ghcr.io/miakkia/mediaops:dev
 ```
 
-Tagged releases such as `v1.0.0` publish matching semantic-version tags in GHCR in addition to a commit-SHA tag.
+Tagged releases publish semantic-version and commit-SHA tags.
 
-## Architecture
+## Runtime architecture
 
 ```text
-Git push / release tag
-   -> GitHub Actions
-      -> Docker build
-         -> GHCR
-            -> Docker / Unraid pulls image
-               -> MediaOps connects outbound to Discord, Emby and Watch Party
+Your Discord guild
+      |
+Your Discord bot
+      |
+MediaOps container
+  |       |       |
+Emby     Ombi   Watch Party
 ```
 
-The production image uses a multi-stage Node.js build. TypeScript is compiled during the build stage; the runtime container starts the compiled application with `node dist/index.js`. Development-only tooling such as `tsx` and TypeScript is not required at runtime. The compiled command deployment utility is also included in `dist`, so slash commands can be synchronized directly from the running container.
+The production image uses a multi-stage Node.js build. TypeScript is compiled during build; runtime starts with `node dist/index.js`. The compiled command deployment utility is also included in `dist`.
 
 The runtime process uses a dedicated non-root `mediaops` user.
 
@@ -37,73 +46,86 @@ The runtime process uses a dedicated non-root `mediaops` user.
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `MEDIAOPS_BOT_NAME` | Optional | Public-facing MediaOps bot name. Defaults to `MediaOps Bot`. |
-| `MEDIAOPS_SERVER_NAME` | Optional | Friendly media-server/community name. Defaults to `My Media Server`. |
-| `MEDIA_PROVIDER` | Yes | Media provider selector. Current supported value: `emby`. |
-| `DISCORD_TOKEN` | Yes | Discord bot token. Treat as a secret. |
-| `DISCORD_CLIENT_ID` | Yes | Discord application/client ID. |
-| `DISCORD_GUILD_ID` | Yes for guild command deployment | Discord guild/server ID. |
-| `EMBY_URL` | Yes | Base URL MediaOps can use to reach Emby. |
-| `EMBY_API_KEY` | Yes | Emby API key. Treat as a secret. |
-| `WATCHPARTY_URL` | Yes for current Watch Party features | Base URL of the configured Watch Party application. |
-| `MEDIAOPS_LOCALE` | Recommended | Default language for automated messages. Supported values: `en`, `fr`. |
-| `MEDIAOPS_DATA_DIR` | Recommended | Runtime data directory. Docker deployments should use `/data`. |
+| `MEDIAOPS_BOT_NAME` | Optional | Public-facing MediaOps name; defaults to `MediaOps Bot` |
+| `MEDIAOPS_SERVER_NAME` | Optional | Friendly media/community name |
+| `MEDIA_PROVIDER` | Yes | Current supported value: `emby` |
+| `DISCORD_TOKEN` | Yes | Token for **your own** Discord bot; secret |
+| `DISCORD_CLIENT_ID` | Yes | Application ID for **your own** Discord application |
+| `DISCORD_GUILD_ID` | Yes | Discord server ID for this deployment's guild-scoped commands |
+| `EMBY_URL` | Yes | Emby URL reachable from the container |
+| `EMBY_API_KEY` | Yes | Emby API key; secret |
+| `REQUEST_PROVIDER` | Optional | `none` or `ombi` |
+| `OMBI_URL` | Required for Ombi | Ombi URL reachable from MediaOps |
+| `OMBI_API_KEY` | Required for Ombi | Ombi API key; secret |
+| `WATCHPARTY_URL` | Required for Watch Party | Public/base Watch Party URL |
+| `MEDIAOPS_LOCALE` | Recommended | `en` or `fr` |
+| `MEDIAOPS_TIMEZONE` | Recommended | IANA timezone, e.g. `America/Toronto` |
+| `MEDIAOPS_DATA_DIR` | Recommended | `/data` in Docker |
 
-Do not commit real values to Git. `.env.example` contains placeholders only.
+Provider configuration is global to the v1 container. It is not isolated per Discord guild.
 
 ## Persistent data
 
-Mount a persistent host directory at `/data` and set:
+Mount persistent storage at `/data` and set:
 
 ```text
 MEDIAOPS_DATA_DIR=/data
 ```
 
-MediaOps does **not** require direct mounts of Movies, Series or Downloads. Media-library access is performed through the configured provider API.
+MediaOps does not require direct Movies/Series/Downloads mounts.
 
-## Docker CLI example
+## Compose / Portainer example
 
-```bash
-docker run -d \
-  --name mediaops \
-  --restart unless-stopped \
-  --network bridge \
-  -e MEDIAOPS_BOT_NAME='MediaOps Bot' \
-  -e MEDIAOPS_SERVER_NAME='My Media Server' \
-  -e MEDIA_PROVIDER=emby \
-  -e DISCORD_TOKEN='REPLACE_ME' \
-  -e DISCORD_CLIENT_ID='REPLACE_ME' \
-  -e DISCORD_GUILD_ID='REPLACE_ME' \
-  -e EMBY_URL='http://192.168.1.100:8096' \
-  -e EMBY_API_KEY='REPLACE_ME' \
-  -e WATCHPARTY_URL='https://watch.example.com' \
-  -e MEDIAOPS_LOCALE='en' \
-  -e MEDIAOPS_DATA_DIR='/data' \
-  -v /path/to/mediaops-data:/data:rw \
-  ghcr.io/miakkia/mediaops:latest
+```yaml
+services:
+  mediaops:
+    image: ghcr.io/miakkia/mediaops:latest
+    container_name: MediaOps
+    restart: unless-stopped
+    environment:
+      MEDIAOPS_BOT_NAME: "MediaOps Bot"
+      MEDIAOPS_SERVER_NAME: "My Media Server"
+      MEDIA_PROVIDER: "emby"
+      DISCORD_TOKEN: "REPLACE_ME"
+      DISCORD_CLIENT_ID: "REPLACE_ME"
+      DISCORD_GUILD_ID: "REPLACE_ME"
+      EMBY_URL: "http://YOUR-EMBY-HOST:8096"
+      EMBY_API_KEY: "REPLACE_ME"
+      REQUEST_PROVIDER: "ombi"
+      OMBI_URL: "http://YOUR-OMBI-HOST:3579"
+      OMBI_API_KEY: "REPLACE_ME"
+      OMBI_AUTO_APPROVE: "false"
+      WATCHPARTY_URL: "https://watch.example.com"
+      MEDIAOPS_LOCALE: "en"
+      MEDIAOPS_TIMEZONE: "America/Toronto"
+      MEDIAOPS_DATA_DIR: "/data"
+    volumes:
+      - ./mediaops-data:/data
 ```
 
-No inbound application port is currently required.
+Do not publish real secrets in Compose files that are committed to source control.
 
-## Registering or updating Discord slash commands
+No inbound MediaOps application port is currently required.
 
-MediaOps uses guild-scoped Discord commands. Run command deployment after the initial installation and again whenever an update adds, removes, renames, or changes command permissions/options.
+## Register Discord slash commands
 
-From the running container:
-
-```bash
-docker exec mediaops npm run deploy-commands
-```
-
-The runtime script executes the already compiled `dist/deploy-commands.js`; it does not require `tsx`, TypeScript, the source repository, or a separate Node.js installation on the host. It reuses `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, and `DISCORD_GUILD_ID` from the container environment.
-
-A successful deployment reports the number and names of registered commands. A Discord `401 Unauthorized` indicates that the configured bot token is invalid or stale and should be corrected/rotated rather than posted in logs or support messages.
-
-Repository developers can alternatively run the TypeScript source directly with:
+After the container connects successfully:
 
 ```bash
-npm run deploy-commands:dev
+docker exec MediaOps npm run deploy-commands
 ```
+
+The runtime executes compiled `dist/deploy-commands.js`. No `tsx`, TypeScript, Git, source checkout, or host Node.js installation is required.
+
+A successful v1 registration reports all 15 guild commands.
+
+Run it again after releases that change command definitions or permissions.
+
+## Recommended Discord restriction
+
+After installing your bot into the intended guild, operators who do not want the exact bot identity installed elsewhere should follow `DISCORD_BOT_SETUP.md` and disable public installation where appropriate (`Public Bot` off, Install Link none, User Install off, Guild Install retained).
+
+This is especially important in v1 because backend credentials are global to the container.
 
 ## Updating
 
@@ -111,32 +133,37 @@ npm run deploy-commands:dev
 docker pull ghcr.io/miakkia/mediaops:latest
 ```
 
-Then recreate/restart the container using the same persistent `/data` mapping and environment configuration. Runtime state survives image replacement because it lives outside the image.
+Recreate/restart using the same `/data` mapping and environment values. Runtime state survives image replacement.
 
-If the release changes Discord command definitions, run `docker exec mediaops npm run deploy-commands` after the updated container is running.
+If commands changed:
+
+```bash
+docker exec MediaOps npm run deploy-commands
+```
+
+## Optional Ombi Discord Router
+
+The companion router is independently deployable:
+
+```text
+ghcr.io/miakkia/mediaops-ombi-discord-router:latest
+```
+
+It uses its own Discord Forum webhook/tag configuration and its own persistent `/data/media-threads.json`. See [`REQUEST_FORUM.md`](REQUEST_FORUM.md) and [`../addons/ombi-discord-router/README.md`](../addons/ombi-discord-router/README.md).
 
 ## Security notes
 
+- Use an operator-owned Discord bot/token for each v1 deployment.
+- Do not expose a demo/operator bot as a universal bot for unrelated guilds.
 - Do not run MediaOps in privileged mode.
 - Do not mount the Docker socket.
-- Do not mount media-library shares unless a future documented feature explicitly requires them.
-- Keep `DISCORD_TOKEN` and `EMBY_API_KEY` out of logs, screenshots and support posts.
-- If either secret is exposed, rotate it immediately.
-- Prefer bridge networking unless a future provider integration documents another requirement.
+- Do not mount media-library shares unless a documented future feature requires them.
+- Keep Discord tokens, provider API keys, webhook credentials, and passwords out of logs/screenshots/support posts.
+- Rotate any exposed credential immediately.
+- Prefer bridge networking unless a documented integration requires another mode.
 
-See `SECURITY.md` and `docs/SECURITY_MODEL.md` for the broader security model.
+See `SECURITY.md` and [`SECURITY_MODEL.md`](SECURITY_MODEL.md).
 
 ## Watch Party lifecycle
 
-MediaOps maintains scheduled Watch Party state in persistent storage and refreshes lifecycle state automatically while the bot is running.
-
-Current behavior includes:
-
-- upcoming Watch Party discovery through `/watchparty-upcoming`;
-- automatic transition into the ready window before the scheduled time;
-- expiration handling for scheduled sessions that never start;
-- one persistent reminder approximately 15 minutes before start;
-- reminder deduplication across scheduler cycles and application restarts;
-- automatic rollback to `auto_cancelled` when the initial Discord announcement cannot be posted.
-
-Automated reminder language is controlled by `MEDIAOPS_LOCALE`. Discord timestamps remain client-rendered so date, time and relative-time formatting follow each Discord user's own locale.
+MediaOps keeps scheduled Watch Party state in persistent storage and refreshes lifecycle state automatically. Current behavior includes upcoming discovery, ready-window transition, one T-15 reminder, automatic room creation, organizer cancellation after activation, tracked message cleanup, runtime-aware expiry, and a 4.5-hour fallback when runtime cannot be read.
