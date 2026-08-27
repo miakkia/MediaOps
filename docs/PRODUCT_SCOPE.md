@@ -4,9 +4,22 @@ MediaOps is a self-hosted platform that connects Discord communities with media 
 
 ## Product goal
 
-MediaOps should make common media-community tasks simple enough for normal Discord members while giving self-hosted administrators a clean, secure integration layer behind the scenes.
+MediaOps should make common media-community tasks simple for normal Discord members while giving self-hosted administrators a clean, secure integration layer behind the scenes.
 
-The product should reduce the need for users to understand media-server APIs, internal URLs, provider metadata, or deployment details.
+## V1 deployment model
+
+The first public release is **self-hosted and single-tenant**.
+
+Each administrator owns:
+
+- their Discord application/bot;
+- their MediaOps container;
+- their Emby/Ombi/Watch Party credentials;
+- their persistent MediaOps data.
+
+One v1 MediaOps container uses one global provider configuration. It is not a universal multi-tenant bot for unrelated Discord guilds.
+
+The MediaOps Community bot is a project/demo bot only. Public operators create their own bot using `DISCORD_BOT_SETUP.md`.
 
 ## Primary users
 
@@ -14,136 +27,92 @@ The product should reduce the need for users to understand media-server APIs, in
 
 A normal Discord member should be able to:
 
-- search for a movie or TV series;
+- search for movies/TV series;
 - view latest additions;
+- submit media requests;
 - get a random movie suggestion;
-- schedule or join a Watch Party;
-- RSVP to a scheduled event;
-- interact through buttons and simple modals instead of memorizing commands.
+- schedule/join a Watch Party;
+- RSVP to scheduled events;
+- use buttons/modals/help panels instead of memorizing commands.
 
 ### Server administrator
 
 A Discord/media administrator should be able to:
 
-- connect MediaOps to their media server;
-- configure their own Discord bot for self-hosted use;
-- publish a simple Watch Party panel;
+- create and secure their own Discord bot;
+- connect MediaOps to their media server/request provider/Watch Party service;
+- publish user/admin setup panels;
 - control privileged setup actions;
 - deploy updates without losing persistent state;
-- keep credentials outside the source repository.
+- keep credentials outside source control.
 
 ### Future hosted customer
 
-A future hosted edition may allow an administrator to use an official MediaOps Discord bot without operating the application themselves. This is a future deployment model, not a requirement for the self-hosted edition.
+A future hosted edition may allow an administrator to use an official MediaOps universal bot without operating the main application themselves. That requires true multi-tenant architecture and is not part of v1.
 
 ## Current functional scope
 
-The current Emby-first implementation includes:
-
-- Discord bot runtime and dynamic slash-command loading;
-- health checks;
-- movie search;
-- TV-series search;
-- latest additions;
-- exact media lookup;
-- full-library random movie selection;
-- title matching using display, original, and sort titles where available;
-- Watch Party service access and session validation;
-- Watch Party scheduling;
-- persistent scheduled-event storage;
-- RSVP tracking;
-- organizer-only cancellation;
-- random-movie-to-scheduling flow;
-- bilingual EN/FR foundations;
-- bilingual public Watch Party setup panel.
-
-## Near-term scope
-
-The near-term product should focus on making the existing core reliable and public-ready:
-
-- Watch Party lifecycle management;
-- configurable timezone handling;
-- upcoming-event listing;
-- automated tests;
-- CI and security checks;
-- Docker distribution;
-- GHCR image publishing;
-- complete configuration and installation documentation;
-- Unraid Community Apps packaging and submission;
-- first tagged public release.
+- Discord runtime and 15 guild-scoped commands;
+- health/build/provider diagnostics;
+- Emby movie search, TV search, latest additions, exact lookup, and random movie selection;
+- Ombi request search/submission, requester attribution, optional auto-approval, persistent tracking, and availability notification;
+- optional Discord Forum request lifecycle through the companion Ombi Discord Router;
+- Watch Party scheduling, RSVP, T-15 reminder, automatic opening, direct join links, organizer cancellation after activation, cleanup, and persistent lifecycle state;
+- EN/FR foundations and bilingual public Watch Party guidance;
+- self-service/admin setup panels;
+- Docker/GHCR/Portainer/Unraid deployment.
 
 ## Multi-provider scope
 
-MediaOps is intended to grow beyond Emby.
-
-Planned provider direction:
-
-- Emby as the current/reference provider;
-- Jellyfin as a future provider candidate;
-- Plex as a future provider candidate.
-
-The Discord UX should remain consistent while provider-specific API behavior is isolated behind adapters.
-
-Media library integration and synchronized Watch Party integration are separate product capabilities. Supporting a provider's library does not automatically imply support for its synchronized playback feature.
+Emby is the current/reference media provider. Jellyfin and Plex are future provider candidates. Provider-specific API behavior should remain behind adapters while Discord UX stays consistent.
 
 ## Request-system scope
 
-Request-management integrations are part of the broader MediaOps vision but are not yet the primary development focus.
-
-Potential integrations may include existing request platforms or provider-specific request workflows. They should be added through explicit integration boundaries rather than hard-wired into Discord command logic.
+Ombi is the current/reference request provider. The request-provider boundary is designed so additional providers can be added without rewriting normal Discord workflows.
 
 ## Deployment scope
 
-### Self-hosted
-
-Self-hosted is the primary current deployment model.
+### Self-hosted v1
 
 Expected characteristics:
 
-- user-owned Discord application/bot;
-- user-owned media server;
-- user-owned credentials;
+- operator-owned Discord application/bot;
+- operator-owned media infrastructure and credentials;
+- one provider configuration per MediaOps instance;
 - local persistent MediaOps state;
-- Docker as the preferred public deployment target;
-- Unraid Community Apps as a planned distribution channel.
+- Docker as the preferred public target;
+- Portainer/Compose and Unraid deployment support;
+- optional independently deployed Ombi Discord Router.
 
-### Hosted
+### Future hosted/multi-tenant
 
 A future hosted edition may provide:
 
-- an official universal bot;
-- managed upgrades;
-- multi-tenant configuration;
-- monitoring and backups;
+- official universal bot;
+- per-guild provider configuration;
+- encrypted tenant secret storage;
+- strict tenant isolation;
+- secure private-backend connectivity, potentially through a local agent;
+- managed upgrades/monitoring/backups;
 - simplified onboarding;
-- subscription/billing support.
+- optional subscription/billing support.
 
-This hosted option must preserve strict tenant isolation and must not replace the self-hosted edition.
+This hosted option must never route one guild to another operator's backend and must not replace the self-hosted edition.
 
-## Out of scope for the current phase
+## Out of scope for v1
 
-The following are not current core requirements:
-
-- replacing the media server itself;
-- directly scanning media files from Movies/Series mounts;
-- transcoding or streaming media through MediaOps;
-- storing user media-server passwords;
-- building a custom media player;
-- requiring a centralized MediaOps cloud service for self-hosted users;
-- supporting every provider before the first public release.
+- universal hosted MediaOps bot;
+- multi-tenant per-guild backend configuration;
+- Jellyfin/Plex support;
+- replacing/transcoding/streaming through MediaOps itself;
+- directly scanning media filesystem mounts;
+- custom media player;
+- centralized cloud requirement for self-hosted users.
 
 ## Product constraints
 
-MediaOps should favor:
-
-- simple workflows;
-- minimal privileges;
-- small and understandable configuration surfaces;
-- provider APIs instead of direct filesystem access when possible;
-- persistent state that survives container upgrades;
-- clear separation of secrets from source code;
-- gradual extension rather than premature framework design.
+MediaOps should favor simple workflows, minimal privileges, provider APIs instead of direct filesystem access, persistent state across upgrades, strict secret separation, and gradual architecture evolution.
 
 ## Success criteria
 
-MediaOps is succeeding when a user can enter a Discord channel, understand what to do without reading a manual, and complete common media tasks safely while the administrator retains full control of their own infrastructure.
+V1 succeeds when a new operator can create their own Discord bot, deploy MediaOps from public images/documentation, connect their own Emby/Ombi/Watch Party services, and let normal Discord users complete common media tasks safely without sharing that deployment's backend with unrelated guilds.

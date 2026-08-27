@@ -2,6 +2,20 @@
 
 This file describes intentional limitations of the first MediaOps public release candidate. These are not release blockers unless `RELEASE_READINESS.md` explicitly promotes one to a blocker.
 
+## Self-hosted single-tenant Discord model
+
+MediaOps v1 is not a universal hosted Discord bot. Each operator creates their own Discord application/bot and runs their own MediaOps instance.
+
+The Emby, Ombi, Watch Party, locale, timezone, and related provider configuration is global to the MediaOps container. MediaOps does not yet maintain isolated provider credentials per Discord guild.
+
+A bot identity can technically be added to multiple guilds through Discord, but a v1 MediaOps instance should **not** be invited into unrelated guilds that need different backend configuration. Doing so could cause those guilds to interact with the backend configured for that container.
+
+The public MediaOps Community demo bot is intentionally restricted to the project/community demo environment. See `DISCORD_BOT_SETUP.md` for the supported v1 setup.
+
+## Future multi-tenant operation
+
+An official universal MediaOps bot is a future architecture item. Safe multi-tenant operation requires per-guild configuration, tenant isolation, encrypted secret storage, onboarding/authorization controls, and a secure connectivity model for private Emby/Ombi/Watch Party services.
+
 ## Media providers
 
 Emby is the supported and validated media provider for the first public release. Jellyfin and Plex are planned but are not included in this release.
@@ -48,4 +62,4 @@ Persisted records created before launch/reminder message tracking remain readabl
 
 ## Deployment scope
 
-The documented first-release deployment targets Docker-compatible hosts, Portainer/Compose, and Unraid. A dedicated graphical installer, hosted service, Kubernetes chart, and platform-specific packages are not part of this release.
+The documented first-release deployment targets Docker-compatible hosts, Portainer/Compose, and Unraid. A dedicated graphical installer, hosted service, Kubernetes chart, platform-specific package, and central multi-tenant control plane are not part of this release.
