@@ -1,6 +1,6 @@
 # Public release readiness
 
-MediaOps has completed the main feature and hardening work for its first public release candidate. This checklist now focuses on proving that the published package can be installed and operated by a new user from public documentation alone.
+MediaOps has completed the main feature and hardening work for its first public release candidate. The final acceptance process now validates the **self-hosted, single-tenant** deployment model from public documentation and published images.
 
 ## Validated baseline
 
@@ -22,14 +22,40 @@ MediaOps has completed the main feature and hardening work for its first public 
 - Production-container command deployment using compiled JavaScript (`npm run deploy-commands`).
 - TypeScript typecheck, automated tests, dependency audit, application build, and container builds in CI.
 
+## V1 Discord deployment decision
+
+The first public release is not a universal hosted/multi-tenant bot.
+
+- Each operator creates and owns their own Discord application/bot.
+- Each operator runs their own MediaOps container.
+- The container's Emby/Ombi/Watch Party credentials apply to that deployment.
+- One v1 instance must not be presented as a universal bot for unrelated guilds with different backends.
+- The MediaOps Community bot is a restricted demo bot only.
+
+This is documented in `DISCORD_BOT_SETUP.md`, `RELEASE_SCOPE_V1.md`, and `KNOWN_LIMITATIONS.md`.
+
+## Fresh-install progress already validated
+
+A clean Portainer/ADM installation using the public `:latest` image has already demonstrated:
+
+- creation/use of a dedicated Discord application and bot;
+- bot connection to a fresh guild;
+- runtime `npm run deploy-commands` registration of all 15 commands;
+- `/health` reporting the expected `latest` build and provider connectivity;
+- `/mediaops-setup`, `/watchparty-setup`, and `/mediaops-admin-setup` publication;
+- `/movie`, `/tv`, and `/latest` against Emby;
+- `/request` search and real Ombi request creation.
+
+The clean-install acceptance test remains open until the optional router/Forum, Watch Party lifecycle, persistence/recreation, and final screenshot/publication checks are complete.
+
 ## Remaining blockers before tagging the first public release
 
-### 1. Merge final documentation truth pass
+### 1. Self-hosted Discord bot documentation
 
-- README and feature documentation must describe the exact release behavior.
-- Docker/Portainer and Unraid paths must use public images and generic placeholders.
-- Known limitations and release scope must remain explicit.
-- No transitional maintainer-only wording should remain in the public installation path.
+- Verify `DISCORD_BOT_SETUP.md` from a clean operator perspective.
+- Confirm recommended gateway intents and least-privilege bot permissions.
+- Confirm the guide explains that `Manage Server` is a human command permission, not a required bot permission.
+- Confirm operators understand how to disable public installation after adding their bot to the intended guild.
 
 ### 2. Exact-release build validation
 
@@ -40,32 +66,27 @@ From the final merged `main` commit:
 - verify the release candidate SHA/version through `/health`;
 - verify GHCR pullability without relying on locally cached development images.
 
-### 3. Fresh-install acceptance test
+### 3. Finish clean-install acceptance
 
-Perform one clean deployment using only the public documentation and published images. Prefer a host/environment that does not contain the maintainer's existing MediaOps appdata.
+Remaining acceptance work:
 
-Acceptance pass:
-
-1. Create persistent MediaOps data storage.
-2. Configure a Discord application/bot, guild ID, Emby credentials, and optional Ombi/Watch Party integrations from documented fields only.
-3. Start the container successfully.
-4. Run `docker exec <container> npm run deploy-commands` successfully from the published runtime image.
-5. Confirm `/health` reports the expected release build/provider health.
-6. Publish `/mediaops-setup`, `/watchparty-setup`, and `/mediaops-admin-setup` in appropriate test channels.
-7. Validate `/movie`, `/tv`, and `/latest`.
-8. Validate `/request` with a mapped normal Discord/Ombi user when Ombi is enabled.
-9. Validate one Forum request lifecycle when the optional router is enabled.
-10. Schedule a Watch Party, RSVP, receive one T-15 reminder, and confirm automatic room opening/direct join link.
-11. Cancel the active Watch Party as organizer and confirm tracked Discord posts are cleaned up on the lifecycle pass.
-12. Verify `/watchparty-upcoming` and `/watchparty-status`.
-13. Restart/recreate the container and verify persistent state survives.
+1. deploy the optional Ombi Discord Router as an independent fresh instance;
+2. create/validate its own Discord Forum webhook and tag configuration;
+3. validate one request lifecycle through Requested -> Processing -> Available/Failed/Denied as applicable;
+4. schedule a Watch Party and RSVP;
+5. receive exactly one T-15 reminder;
+6. confirm automatic room opening and direct join link;
+7. cancel the active Watch Party as organizer;
+8. confirm tracked Discord posts are cleaned up on the lifecycle pass;
+9. verify `/watchparty-upcoming` and `/watchparty-status`;
+10. restart/recreate containers and verify persistent state survives.
 
 ### 4. Secret and privacy check
 
 Before tagging:
 
 - confirm no Discord tokens, webhook credentials, Ombi/Emby API keys, passwords, private hostnames, private IP addresses, or personal credentials are committed;
-- inspect screenshots before publication for secrets, private addresses, personal usernames, and unrelated server information;
+- inspect screenshots for secrets, private addresses, personal usernames, and unrelated server information;
 - verify runtime logs do not print secrets;
 - rotate any credential accidentally exposed during testing.
 
@@ -73,16 +94,17 @@ Before tagging:
 
 After the clean-install pass:
 
-- capture a small set of sanitized screenshots showing the MediaOps setup panel, media/request flow, Watch Party panel/scheduling/open-room flow, and optionally admin health diagnostics;
+- capture sanitized screenshots of the MediaOps setup panel, media/request flow, Watch Party panel/scheduling/open-room flow, and optionally admin health diagnostics;
 - add only the strongest screenshots to GitHub documentation;
-- use the MediaOps Community Discord for broader examples/support content;
+- use MediaOps Community Discord for broader examples/support content;
 - prepare release notes from `CHANGELOG.md`.
 
-### 6. Unraid Community Apps submission preparation
+### 6. Unraid Community Apps preparation
 
-The repository already contains `ca_profile.xml`, the main/companion templates, icon, GPLv3 license, project links, and public GHCR image references. Before submission:
+Before submission:
 
 - install once from the public templates as a clean user would;
+- verify the Discord bot creation guide is linked from the Unraid path;
 - run the current Community Apps **Validate** workflow;
 - run the current Community Apps **Scan** workflow;
 - resolve every reported template/metadata issue;
@@ -91,6 +113,9 @@ The repository already contains `ca_profile.xml`, the main/companion templates, 
 
 ## Non-blocking post-release work
 
+- official universal multi-tenant MediaOps bot architecture;
+- per-guild provider configuration and encrypted tenant secret storage;
+- optional local-agent model for private backend connectivity;
 - Jellyfin support;
 - Plex support;
 - additional request providers;
@@ -98,9 +123,8 @@ The repository already contains `ca_profile.xml`, the main/companion templates, 
 - additional localization;
 - configurable reminder policies;
 - broader deployment presets;
-- additional Discord UI polish;
-- optional hosted/SaaS operation.
+- additional Discord UI polish.
 
 ## Release philosophy
 
-The first public release is intentionally a small, documented, reproducible, and safe baseline. Its advertised Emby/Ombi/Watch Party workflows should work reliably for a new operator before additional providers or features are added.
+The first public release is intentionally a small, documented, reproducible, and safe self-hosted baseline. Its advertised Emby/Ombi/Watch Party workflows should work reliably for a new operator without silently sharing one deployment's backend with unrelated Discord guilds.
