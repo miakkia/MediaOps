@@ -4,11 +4,12 @@ All notable changes to MediaOps are documented here.
 
 ## [Unreleased]
 
-The current `main` baseline is being validated as the first public release candidate. Final release tagging follows the clean-install acceptance test.
+The current baseline is being validated as the first public release candidate. Final release tagging follows the clean-install acceptance test.
 
 ### Added
 
 - Discord bot foundation with automatic modular slash-command discovery.
+- Operator-owned Discord bot setup documentation for the self-hosted v1 model.
 - Emby health, movie search, TV-series search, and recently-added discovery.
 - Ombi-backed `/request` workflow with Discord requester attribution and configurable auto-approval.
 - Persistent request tracking and one-time Discord DM availability notification.
@@ -33,10 +34,11 @@ The current `main` baseline is being validated as the first public release candi
 - GHCR development, latest, SHA, and semantic-version tagging strategy.
 - Persistent Docker runtime data under `/data`.
 - Unraid templates, Community Apps profile, application icon, and deployment documentation.
-- Release-scope, readiness, known-limitations, security, architecture, provider, Discord UX, and deployment documentation.
 
 ### Security
 
+- V1 deployment model explicitly documented as self-hosted/single-tenant with an operator-owned Discord application/bot.
+- Public Community demo bot is documented as non-universal and should not be invited into unrelated guilds.
 - Hardened Emby API client with URL/protocol validation, bounded timeouts, explicit redirect behavior, and response validation.
 - Input validation for Discord identifiers and scheduling data.
 - User-bound, short-lived request-selection tokens.
@@ -60,12 +62,14 @@ The current `main` baseline is being validated as the first public release candi
 
 ### Changed
 
+- Public v1 is explicitly defined as one self-hosted MediaOps instance + one operator-owned Discord bot + one backend configuration.
+- Universal multi-tenant bot operation is moved to the post-v1 roadmap pending per-guild isolation and secure backend connectivity.
 - Shared Watch Party scheduling logic is used by manual and random scheduling flows.
 - Organizer cancellation remains available after a scheduled Watch Party becomes active.
-- Discord and Watch Party consumers use generic provider boundaries instead of direct service imports where applicable.
+- Discord and Watch Party consumers use generic provider boundaries where applicable.
 - Public-facing branding defaults are generic and deployment-configurable.
 - Public setup panels reduce the need for members to discover or memorize slash commands.
-- README and deployment documentation now describe the first public release candidate and clean-install acceptance path.
+- README, Docker, Unraid, release scope, limitations, and Community Apps template wording now reflect the supported self-hosted deployment model.
 
 ## Development history
 
