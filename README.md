@@ -32,7 +32,7 @@ The public **MediaOps Community demo bot is not a universal hosted bot** for oth
 
 See **[`docs/DISCORD_BOT_SETUP.md`](docs/DISCORD_BOT_SETUP.md)** for the complete Discord Developer Portal setup, intents, permissions, installation restrictions, and command deployment procedure.
 
-A future official universal/multi-tenant bot is on the roadmap and will require explicit per-guild configuration, tenant isolation, secure secret storage, and safe connectivity to each operator's private media services.
+A hosted official universal/multi-tenant bot is retained only as a **Future / Maybe** concept. It is not committed or scheduled. If it is ever pursued, it will require a separate security-first architecture with per-guild isolation and secure private-backend connectivity rather than extending the current global v1 configuration directly.
 
 ## What MediaOps provides
 
@@ -218,7 +218,7 @@ Before Community Apps submission, the templates must pass the current Unraid **V
 - [`docs/REQUEST_FORUM.md`](docs/REQUEST_FORUM.md) — optional Forum workflow
 - [`docs/DOCKER.md`](docs/DOCKER.md) — Docker/GHCR deployment
 - [`docs/UNRAID.md`](docs/UNRAID.md) — Unraid deployment
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — future work including multi-tenant architecture
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — future work and Future/Maybe concepts
 - [`CHANGELOG.md`](CHANGELOG.md)
 
 ## License
