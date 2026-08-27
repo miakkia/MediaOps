@@ -25,71 +25,9 @@ import {
   scheduleWatchParty,
 } from './scheduling.js';
 
-function parseLocalDateTime(
-  date: string,
-  time: string,
-): Date | undefined {
-  if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
-    !/^\d{2}:\d{2}$/.test(time)
-  ) {
-    return undefined;
-  }
-
-  const [yearText, monthText, dayText] = date.split('-');
-  const [hourText, minuteText] = time.split(':');
-
-  const year = Number(yearText);
-  const month = Number(monthText);
-  const day = Number(dayText);
-  const hour = Number(hourText);
-  const minute = Number(minuteText);
-
-  if (
-    !Number.isInteger(year) ||
-    !Number.isInteger(month) ||
-    !Number.isInteger(day) ||
-    !Number.isInteger(hour) ||
-    !Number.isInteger(minute)
-  ) {
-    return undefined;
-  }
-
-  if (
-    month < 1 ||
-    month > 12 ||
-    day < 1 ||
-    day > 31 ||
-    hour < 0 ||
-    hour > 23 ||
-    minute < 0 ||
-    minute > 59
-  ) {
-    return undefined;
-  }
-
-  const localDate = new Date(
-    year,
-    month - 1,
-    day,
-    hour,
-    minute,
-    0,
-    0,
-  );
-
-  if (
-    localDate.getFullYear() !== year ||
-    localDate.getMonth() !== month - 1 ||
-    localDate.getDate() !== day ||
-    localDate.getHours() !== hour ||
-    localDate.getMinutes() !== minute
-  ) {
-    return undefined;
-  }
-
-  return localDate;
-}
+import {
+  parseWatchPartyDateTime,
+} from './timezone.js';
 
 export async function handleWatchPartyRandomModal(
   interaction: ModalSubmitInteraction,
@@ -108,9 +46,9 @@ export async function handleWatchPartyRandomModal(
 
   try {
     const { date, time } = getRandomScheduleDateTime(interaction.fields);
-    const scheduledDate = parseLocalDateTime(date, time);
+    const scheduledDate = parseWatchPartyDateTime(`${date} ${time}`);
 
-    if (!scheduledDate) {
+    if (Number.isNaN(scheduledDate.getTime())) {
       await interaction.editReply(
         t(locale, 'watchparty.scheduling.invalidDate'),
       );
