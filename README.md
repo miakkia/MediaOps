@@ -4,6 +4,42 @@ MediaOps is an open-source Discord companion for self-hosted media communities. 
 
 > **Release status:** first public release candidate. Emby is the supported media provider, Ombi is the supported request provider, and Emby Watch Party is the supported Watch Party integration for this release.
 
+## MediaOps in action
+
+MediaOps keeps the day-to-day media workflow inside Discord: search what is already in your library, request missing content, track request status, and organize synchronized Watch Parties.
+
+### Search the Emby library
+
+Use `/movie` or `/tv` to quickly find matching titles already available in your media library.
+
+![MediaOps movie search](Images/movie%20command.jpg)
+
+### Request missing media through Ombi
+
+Use `/request` to search Ombi, choose the exact movie or series, and submit the request without leaving Discord.
+
+![MediaOps movie request workflow](Images/Request%20movie%20Feature.jpg)
+
+### Keep request history in a Discord Forum
+
+The optional MediaOps Ombi Discord Router can maintain persistent request threads and lifecycle tags such as Requested, Processing, Available, Failed, and Denied.
+
+![MediaOps request forum lifecycle](Images/forum%20request%20feature.jpg)
+
+### Schedule and launch Watch Parties
+
+MediaOps can schedule Watch Parties, collect RSVPs, send reminders, open the synchronized viewing room automatically, and provide direct join links.
+
+![MediaOps Watch Party](Images/Watchparty%20feature.jpg)
+
+MediaOps integrates with the open-source [Emby Watch Party project by Oratorian](https://github.com/Oratorian/emby-watchparty) for synchronized playback. MediaOps handles the Discord-side scheduling and lifecycle orchestration; Emby Watch Party provides the synchronized viewing experience.
+
+### Publish a simple command guide for members
+
+Administrators can publish a bilingual command panel so members can discover the main MediaOps features without memorizing slash commands.
+
+![MediaOps Discord command guide](Images/Discord%20Bot%20Commands.jpg)
+
 ## Important: Discord deployment model for v1
 
 MediaOps v1 is **self-hosted and single-tenant**.
@@ -58,7 +94,7 @@ A future official universal/multi-tenant bot is on the roadmap and will require 
 | Discord model | Operator-owned bot / one self-hosted MediaOps deployment |
 | Media provider | Emby |
 | Request provider | Ombi |
-| Watch Party | Emby Watch Party |
+| Watch Party | [Emby Watch Party by Oratorian](https://github.com/Oratorian/emby-watchparty) |
 | Discord request history | Optional Discord Forum + MediaOps Ombi Discord Router |
 | Deployment | Docker, Portainer/Compose, Unraid |
 
@@ -114,6 +150,8 @@ The companion Ombi Discord Router can maintain persistent request history in a D
 The router is independently deployable and keeps its own `/data/media-threads.json` state. See [`docs/REQUEST_FORUM.md`](docs/REQUEST_FORUM.md) and [`addons/ombi-discord-router/README.md`](addons/ombi-discord-router/README.md).
 
 ## Watch Party lifecycle
+
+MediaOps integrates with [Oratorian/emby-watchparty](https://github.com/Oratorian/emby-watchparty) as the supported Watch Party provider for v1.
 
 ```text
 scheduled
@@ -218,7 +256,7 @@ Before Community Apps submission, the templates must pass the current Unraid **V
 - [`docs/REQUEST_FORUM.md`](docs/REQUEST_FORUM.md) — optional Forum workflow
 - [`docs/DOCKER.md`](docs/DOCKER.md) — Docker/GHCR deployment
 - [`docs/UNRAID.md`](docs/UNRAID.md) — Unraid deployment
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — future work including multi-tenant architecture
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — future work including richer media discovery and multi-tenant architecture
 - [`CHANGELOG.md`](CHANGELOG.md)
 
 ## License
