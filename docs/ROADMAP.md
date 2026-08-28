@@ -28,6 +28,21 @@ The public MediaOps Community bot is a restricted demo bot, not a universal bot 
 
 ## Near-term post-v1 priorities
 
+### Rich / interactive media discovery
+
+The current `/movie` and `/tv` commands return matching library results. A planned post-v1 enhancement is an interactive result flow that lets a user select a title and open a richer Discord media card.
+
+Potential details and actions include:
+
+- poster artwork;
+- title, year, runtime, and overview;
+- available resolution/quality and language metadata where the provider exposes it reliably;
+- direct **Open in Emby** action;
+- relevant **Watch Together** action when Watch Party integration is configured;
+- equivalent behavior for additional media providers as they are added.
+
+This is a planned feature, not part of the current v1 command behavior.
+
 ### Multi-tenant / official universal bot architecture
 
 A future official MediaOps bot that can be invited into many unrelated Discord servers is a major architecture project, not a v1 configuration switch.
@@ -102,6 +117,8 @@ Remaining path:
 ## Watch Party provider architecture
 
 Media library support and synchronized Watch Party support remain related but separate capabilities.
+
+Current v1 synchronized playback is provided through the open-source [Oratorian/emby-watchparty](https://github.com/Oratorian/emby-watchparty) integration, while MediaOps handles the Discord-side scheduling and lifecycle orchestration.
 
 Future architecture direction:
 
