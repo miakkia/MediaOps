@@ -142,6 +142,8 @@ export async function scheduleWatchParty(
   const publicMessage =
     await channel.send({
       content:
+        '@here\n\n' +
+
         `${t(
           input.locale,
           'watchparty.scheduling.title',
@@ -166,6 +168,13 @@ export async function scheduleWatchParty(
           input.locale,
           'watchparty.scheduling.relativeTime',
         )}: <t:${timestamp}:R>`,
+
+      allowedMentions: {
+        parse: [
+          'everyone',
+          'users',
+        ],
+      },
 
       components: [
         rsvpRow,
