@@ -151,6 +151,16 @@ ghcr.io/miakkia/mediaops-ombi-discord-router:latest
 
 It uses its own Discord Forum webhook/tag configuration and its own persistent `/data/media-threads.json`. See [`REQUEST_FORUM.md`](REQUEST_FORUM.md) and [`../addons/ombi-discord-router/README.md`](../addons/ombi-discord-router/README.md).
 
+The router is intentionally independent from the main MediaOps container. It may run on the same Docker host as Ombi or on another trusted LAN Docker/NAS host.
+
+For same-host deployments, prefer a private shared Docker network and `http://ombi-discord-router:8080/ombi` without publishing port 8080.
+
+For separate trusted LAN hosts, publish router port 8080 only as required on the LAN and configure Ombi with `http://ROUTER_LAN_IP:8080/ombi`. Confirm `GET /health` works from the Ombi host before troubleshooting Discord delivery.
+
+The hardened router example runs as UID/GID `1000:1000`. Its host directory bound to `/data` must therefore be writable by `1000:1000`. A NAS/Portainer bind such as `/volume1/docker/ombi-discord-router/data:/data` is valid only when that host `data` directory has suitable ownership/permissions. Keep `ROUTER_DATA_DIR=/data`; do not put the NAS host path in that environment variable.
+
+If Ombi reaches `/ombi` but the router returns HTTP 502 and logs `Permission denied: '/data/media-threads.tmp'`, network delivery is already working. Fix the bind-mount ownership/permissions instead of weakening the container. On Portainer/NAS systems without SSH, a temporary root utility container can mount the directory, apply ownership `1000:1000` and mode `750`, and then be removed. Avoid `777`, privileged router execution, or exposing `/ombi` to the Internet.
+
 ## Security notes
 
 - Use an operator-owned Discord bot/token for each v1 deployment.
