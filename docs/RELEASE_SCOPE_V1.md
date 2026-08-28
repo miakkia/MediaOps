@@ -1,6 +1,6 @@
-# First public development release scope
+# MediaOps v1.0.0 release scope
 
-The first public MediaOps release is intentionally a self-hosted development baseline rather than a universal hosted Discord service.
+The first public MediaOps release is intentionally a self-hosted baseline rather than a universal hosted Discord service.
 
 ## Deployment model for v1
 
@@ -19,29 +19,31 @@ Operators should not invite one v1 bot instance into unrelated guilds that requi
 ### Discord bot
 
 - operator-owned Discord application/bot setup;
-- guild-scoped command deployment;
+- 15 guild-scoped commands;
 - health/status reporting;
 - media lookup commands backed by Emby;
 - request workflow backed by Ombi;
-- Discord Forum request lifecycle integration;
+- optional Discord Forum request lifecycle integration;
 - Watch Party scheduling and lifecycle commands;
 - persistent user/admin setup panels.
 
 ### Requests
 
 - Discord-to-Ombi requester mapping;
-- request submission;
-- approval/processing/availability Forum lifecycle through the companion router;
-- persistent request tracking and lifecycle recovery.
+- request submission with configurable auto-approval;
+- approval/processing/availability Forum lifecycle through the optional companion router;
+- persistent request tracking and one-time requester availability notification.
 
 ### Watch Party
 
-- scheduling;
-- RSVP;
+- integration with the external open-source [Oratorian/emby-watchparty](https://github.com/Oratorian/emby-watchparty) service;
+- scheduling interpreted in `MEDIAOPS_TIMEZONE`;
+- RSVP and initial `@here` announcement support;
 - T-15 reminder;
 - automatic room creation at scheduled start;
+- direct room join links;
 - organizer cancellation, including after activation;
-- tracked Discord announcement cleanup;
+- tracked Discord announcement/reminder/open-room cleanup;
 - persistent lifecycle state and restart recovery;
 - runtime-aware/fallback expiry.
 
@@ -51,7 +53,8 @@ Operators should not invite one v1 bot instance into unrelated guilds that requi
 - companion Ombi router image;
 - Docker/Portainer/Unraid deployment examples;
 - operator-owned Discord bot setup guide;
-- persistent data directories and documented configuration.
+- persistent data directories and documented configuration;
+- runtime slash-command registration from the published MediaOps container.
 
 ## Explicitly out of scope for this release
 
@@ -61,6 +64,7 @@ Operators should not invite one v1 bot instance into unrelated guilds that requi
 - Jellyfin integration;
 - Plex integration;
 - additional request providers;
+- rich interactive `/movie`/`/tv` detail cards and actions beyond the current matching-result search;
 - complete multilingual coverage of every Discord string;
 - advanced moderation/administration UI.
 
@@ -70,4 +74,4 @@ A future official universal MediaOps bot must not reuse one operator's backend c
 
 ## Release quality bar
 
-The release is ready when the self-hosted single-tenant workflow can be deployed on a clean host using only repository documentation, the release images pass the documented acceptance test, Discord bot creation is reproducible, secrets/configuration have been audited, and the release commit passes typecheck, automated tests and dependency audit.
+The implementation quality gate has been demonstrated through clean-host deployment, published-image validation, typecheck, automated tests, dependency audit, application/container builds, and live workflow testing. Final v1.0.0 publication still requires the public-repository/privacy/distribution checks tracked in `RELEASE_READINESS.md`.

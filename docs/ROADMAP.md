@@ -28,11 +28,45 @@ The public MediaOps Community bot is a restricted demo bot, not a universal bot 
 
 ## Near-term post-v1 priorities
 
+### Rich / interactive media discovery
+
+The current `/movie` and `/tv` commands return matching library results. A planned post-v1 enhancement is an interactive result flow that lets a user select a title and open a richer Discord media card.
+
+Potential details and actions include:
+
+- poster artwork;
+- title, year, runtime, and overview;
+- available resolution/quality and language metadata where the provider exposes it reliably;
+- direct **Open in Emby** action;
+- relevant **Watch Together** action when Watch Party integration is configured;
+- equivalent behavior for additional media providers as they are added.
+
+This is a planned feature, not part of the current v1 command behavior.
+
+### Multi-tenant / official universal bot architecture
+
+A future official MediaOps bot that can be invited into many unrelated Discord servers is a major architecture project, not a v1 configuration switch.
+
+Requirements include:
+
+- per-guild MediaOps configuration;
+- strict tenant isolation;
+- encrypted secret storage;
+- guild onboarding and administrator authorization;
+- per-guild locale/timezone/provider selection;
+- per-guild persistent request/Watch Party state;
+- safe lifecycle cleanup scoped to the correct guild;
+- rate limiting and abuse controls;
+- revocation/offboarding;
+- a secure way for the hosted bot/service to reach each operator's private Emby/Ombi/Watch Party services without exposing or accidentally sharing another tenant's backend.
+
+Possible future patterns include a central hosted bot/control plane plus a local MediaOps agent running beside the operator's media services. This must be designed explicitly before any universal bot is offered publicly.
+
 ### Internationalization
 
 - continue moving user-facing text into the i18n layer;
-- expand localized slash-command descriptions/options;
-- keep timezone handling portable across Docker/NAS environments.
+- support per-server language configuration when multi-guild configuration exists;
+- expand localized slash-command descriptions/options.
 
 ### Reliability and testing
 
@@ -84,6 +118,8 @@ Remaining path:
 
 Media library support and synchronized Watch Party support remain related but separate capabilities.
 
+Current v1 synchronized playback is provided through the open-source [Oratorian/emby-watchparty](https://github.com/Oratorian/emby-watchparty) integration, while MediaOps handles the Discord-side scheduling and lifecycle orchestration.
+
 Future architecture direction:
 
 ```text
@@ -99,6 +135,8 @@ Watch Party Provider
 ```
 
 Provider-specific complexity should remain behind adapters while Discord UX stays simple.
+
+## Hosted / commercial option
 
 ## Future / Maybe — hosted multi-tenant MediaOps
 
@@ -128,8 +166,7 @@ Before any implementation, this concept would require a dedicated cybersecurity 
 - No secrets committed to Git.
 - Self-hosted remains a first-class deployment model.
 - V1 users own their Discord bot identity and provider credentials.
-- A universal bot is never treated as a simple configuration mode of the current single-tenant runtime.
-- Any future hosted service must be designed for tenant isolation and security from the start.
+- A universal bot is not released until multi-tenant isolation is intentionally implemented and reviewed.
 - Deployment hosts consume prebuilt images rather than source repositories.
 - Unraid Community Apps distributes a proven container rather than defining application architecture.
 - New abstractions are introduced when they solve a real integration or security need.
