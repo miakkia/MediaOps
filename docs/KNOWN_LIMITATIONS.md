@@ -1,6 +1,6 @@
 # Known limitations
 
-This file describes intentional limitations of the first MediaOps public release candidate. These are not release blockers unless `RELEASE_READINESS.md` explicitly promotes one to a blocker.
+This file describes intentional limitations of the MediaOps v1 self-hosted baseline currently being prepared for public v1.0.0 release. These are not release blockers unless `RELEASE_READINESS.md` explicitly promotes one to a blocker.
 
 ## Self-hosted single-tenant Discord model
 
@@ -18,7 +18,9 @@ An official universal MediaOps bot is a future architecture item. Safe multi-ten
 
 ## Media providers
 
-Emby is the supported and validated media provider for the first public release. Jellyfin and Plex are planned but are not included in this release.
+Emby is the supported and validated media provider for v1. Jellyfin and Plex are planned but are not included in this release.
+
+Current `/movie` and `/tv` commands return matching library results; richer interactive media-detail cards/actions are a post-v1 roadmap item rather than current v1 behavior.
 
 ## Request providers
 
@@ -26,7 +28,7 @@ Ombi is the supported and validated request provider. Additional request provide
 
 ## Watch Party provider
 
-The current Watch Party integration targets Emby Watch Party. MediaOps orchestrates that external service; its availability, authentication, browser compatibility, and playback behavior remain separate runtime dependencies.
+The current Watch Party integration targets the external open-source [Oratorian/emby-watchparty](https://github.com/Oratorian/emby-watchparty) project. MediaOps orchestrates the Discord-side scheduling and lifecycle; availability, authentication, browser compatibility, and synchronized playback behavior of the Watch Party service remain separate runtime dependencies.
 
 ## Discord command registration
 
@@ -39,6 +41,8 @@ docker exec <mediaops-container> npm run deploy-commands
 ## Discord permissions
 
 Administrative setup and diagnostic commands use Discord Manage Server permission by default. More granular configurable role policies are planned after the first release.
+
+The initial Watch Party RSVP announcement can use `@here`; Discord must allow the bot to mention `@everyone`, `@here`, and roles for that notification to reach members as intended.
 
 ## Internationalization
 
@@ -62,4 +66,4 @@ Persisted records created before launch/reminder message tracking remain readabl
 
 ## Deployment scope
 
-The documented first-release deployment targets Docker-compatible hosts, Portainer/Compose, and Unraid. A dedicated graphical installer, hosted service, Kubernetes chart, platform-specific package, and central multi-tenant control plane are not part of this release.
+The documented v1 deployment targets Docker-compatible hosts, Portainer/Compose, and Unraid. A dedicated graphical installer, hosted service, Kubernetes chart, platform-specific package, and central multi-tenant control plane are not part of this release.
