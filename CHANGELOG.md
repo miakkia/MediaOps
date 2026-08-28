@@ -4,7 +4,7 @@ All notable changes to MediaOps are documented here.
 
 ## [Unreleased]
 
-The current baseline is being validated as the first public release candidate. Final release tagging follows the clean-install acceptance test.
+The current baseline is in final preparation for the first public self-hosted v1.0.0 release. Core feature work, clean-install validation, and the final automated release gate are complete; public repository/distribution checks remain before tagging.
 
 ### Added
 
@@ -34,6 +34,7 @@ The current baseline is being validated as the first public release candidate. F
 - GHCR development, latest, SHA, and semantic-version tagging strategy.
 - Persistent Docker runtime data under `/data`.
 - Unraid templates, Community Apps profile, application icon, and deployment documentation.
+- Public feature screenshots covering library search, Ombi requests, Forum lifecycle, Watch Party, and the Discord command guide.
 
 ### Security
 
@@ -59,6 +60,7 @@ The current baseline is being validated as the first public release candidate. F
 - Watch Party fallback expiry is consistently 4.5 hours.
 - Watch Party reminders and launch messages are tracked for lifecycle cleanup.
 - Production containers can deploy Discord commands without the development-only `tsx` package.
+- Manual and random Watch Party modal scheduling now interprets entered date/time in `MEDIAOPS_TIMEZONE` instead of depending on the container process timezone.
 
 ### Changed
 
@@ -66,10 +68,12 @@ The current baseline is being validated as the first public release candidate. F
 - Universal multi-tenant bot operation is moved to the post-v1 roadmap pending per-guild isolation and secure backend connectivity.
 - Shared Watch Party scheduling logic is used by manual and random scheduling flows.
 - Organizer cancellation remains available after a scheduled Watch Party becomes active.
+- Initial Watch Party RSVP announcements can use `@here` to surface the event when the bot has the required Discord mention permission.
 - Discord and Watch Party consumers use generic provider boundaries where applicable.
 - Public-facing branding defaults are generic and deployment-configurable.
 - Public setup panels reduce the need for members to discover or memorize slash commands.
-- README, Docker, Unraid, release scope, limitations, and Community Apps template wording now reflect the supported self-hosted deployment model.
+- README, Docker, Unraid, release scope, limitations, and Community Apps template wording reflect the supported self-hosted deployment model.
+- README now credits the external [Oratorian/emby-watchparty](https://github.com/Oratorian/emby-watchparty) project used for synchronized Watch Party playback.
 
 ## Development history
 
