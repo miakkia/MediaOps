@@ -1,5 +1,15 @@
 # MediaOps
 
+[![CI](https://github.com/miakkia/MediaOps/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/miakkia/MediaOps/actions/workflows/docker-publish.yml)
+[![License](https://img.shields.io/github/license/miakkia/MediaOps)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](package.json)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](package.json)
+[![GHCR](https://img.shields.io/badge/GHCR-mediaops-2496ED?logo=docker&logoColor=white)](https://github.com/miakkia/MediaOps/pkgs/container/mediaops)
+[![Discord](https://img.shields.io/badge/Discord-MediaOps-5865F2?logo=discord&logoColor=white)](https://discord.gg/39EG2Y6fhA)
+[![Emby](https://img.shields.io/badge/Media-Emby-52B54B)](https://emby.media/)
+[![Ombi](https://img.shields.io/badge/Requests-Ombi-4C8BF5)](https://ombi.io/)
+[![Watch Party](https://img.shields.io/badge/Watch%20Party-Emby%20Watch%20Party-8A2BE2)](https://github.com/Oratorian/emby-watchparty)
+
 MediaOps is an open-source Discord companion for self-hosted media communities. It connects Discord to a media server, request provider, and Watch Party service so members can discover media, submit requests, coordinate Watch Parties, and receive useful status updates without memorizing a large command set.
 
 > **Release status:** first public release candidate. Emby is the supported media provider, Ombi is the supported request provider, and Emby Watch Party is the supported Watch Party integration for this release.
