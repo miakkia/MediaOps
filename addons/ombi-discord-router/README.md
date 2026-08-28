@@ -25,8 +25,6 @@ MediaOps then performs the privileged Discord-side lifecycle management, includi
 
 ## Published image
 
-GitHub Actions publishes the companion image separately from MediaOps:
-
 ```text
 ghcr.io/miakkia/mediaops-ombi-discord-router:latest
 ghcr.io/miakkia/mediaops-ombi-discord-router:dev
@@ -42,8 +40,8 @@ ghcr.io/miakkia/mediaops-ombi-discord-router:sha-<commit>
 - a Discord webhook created for that Forum;
 - Forum tags for `Movie`, `Series`, `Requested`, `Processing`, `Available`, `Failed`, and `Denied`;
 - optional Forum tag for webhook diagnostics, such as `Test`;
-- persistent storage for `/data`;
-- a user-defined Docker network shared by Ombi and the router.
+- persistent storage for `/data` that is writable by UID/GID `1000:1000` when using the hardened example Compose configuration;
+- network reachability from Ombi to the router.
 
 The visible tag names are administrator choices. Configuration uses Discord IDs.
 
@@ -72,11 +70,42 @@ MEDIAOPS_NETWORK=mediaops-backend
 
 MediaOps itself should receive only the webhook **ID** through `MEDIA_REQUESTS_WEBHOOK_ID`, not this secret URL.
 
-## Docker network
+## Persistent data and permissions
 
-Use a user-defined Docker network so Ombi can reach the router by container name instead of a changing container IP.
+The router persists its request/thread index under `/data` and uses an atomic temporary-file write before replacing `media-threads.json`. The hardened Compose example runs the container as UID/GID `1000:1000`, so the host directory mounted at `/data` must be writable by that identity.
 
-Example:
+A typical host mapping is:
+
+```yaml
+volumes:
+  - /path/on/host/ombi-discord-router/data:/data
+```
+
+Keep `ROUTER_DATA_DIR=/data`; host filesystem paths do not belong in `ROUTER_DATA_DIR`.
+
+On a shell-capable Docker host, prepare the directory before starting the router:
+
+```bash
+mkdir -p /path/on/host/ombi-discord-router/data
+chown -R 1000:1000 /path/on/host/ombi-discord-router/data
+chmod -R 750 /path/on/host/ombi-discord-router/data
+```
+
+Portainer/NAS deployments without SSH can perform the same one-time ownership change with a temporary privileged/root utility container that bind-mounts the host directory, runs `chown -R 1000:1000` and `chmod -R 750`, then is removed. Do not make the router itself privileged and do not use world-writable `777` permissions as a workaround.
+
+If permissions are wrong, Ombi delivery may reach the router but return HTTP 502 with a log similar to:
+
+```text
+PermissionError: [Errno 13] Permission denied: '/data/media-threads.tmp'
+```
+
+That error means network delivery is working; correct the host bind-mount ownership/permissions and restart the router.
+
+## Networking
+
+### Ombi and router on the same Docker host/network
+
+Prefer a user-defined Docker network so Ombi can reach the router by container name instead of a changing container IP.
 
 ```bash
 docker network create mediaops-backend
@@ -90,6 +119,24 @@ http://ombi-discord-router:8080/ombi
 
 `compose.example.yaml` expects the network to already exist and defaults to `mediaops-backend`. Set `MEDIAOPS_NETWORK` if you use a different external network name.
 
+### Ombi and router on different LAN hosts
+
+If Ombi and the router are intentionally on different trusted LAN hosts, they cannot use a shared Docker network. Publish the router port only to the trusted LAN as required by your platform and point Ombi at the router host, for example:
+
+```text
+http://ROUTER_LAN_IP:8080/ombi
+```
+
+Verify reachability first with:
+
+```text
+http://ROUTER_LAN_IP:8080/health
+```
+
+A successful response reports `status: ok`, `version: 1.9`, `mode: discord-forum`, and the `/data/media-threads.json` index path.
+
+Do not port-forward router port 8080 from the Internet. `/ombi` is designed for a private Docker/LAN trust boundary.
+
 ## Compose deployment
 
 ```bash
@@ -102,7 +149,7 @@ docker compose -f compose.example.yaml up -d
 
 The example Compose file uses the published GHCR image and deliberately keeps least-privilege defaults: non-root execution, read-only root filesystem, dropped Linux capabilities, `no-new-privileges`, PID/memory limits, and a dedicated persistent `/data` mount.
 
-For development or reproducible local testing, the same image can still be built directly from this directory:
+For development or reproducible local testing:
 
 ```bash
 docker build -t local/ombi-discord-router:test .
@@ -133,7 +180,7 @@ Expected response from `GET /health`:
 }
 ```
 
-The packaged service does not publish port `8080` to the host by default. Check `/health` from inside the container or from another container on the shared Docker network.
+The packaged example does not publish port `8080` to the host by default. Check `/health` from inside the container or another container on the shared Docker network. Publish the port only when a separate trusted LAN host such as Ombi must reach the router.
 
 ## Ombi notification behavior
 

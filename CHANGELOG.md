@@ -65,7 +65,7 @@ The current baseline is in final preparation for the first public self-hosted v1
 ### Changed
 
 - Public v1 is explicitly defined as one self-hosted MediaOps instance + one operator-owned Discord bot + one backend configuration.
-- Universal multi-tenant bot operation is moved to the post-v1 roadmap pending per-guild isolation and secure backend connectivity.
+- Hosted/universal multi-tenant operation is classified as **Future / Maybe**, with no committed target release; any future implementation requires a separate security-first multi-tenant architecture.
 - Shared Watch Party scheduling logic is used by manual and random scheduling flows.
 - Organizer cancellation remains available after a scheduled Watch Party becomes active.
 - Initial Watch Party RSVP announcements can use `@here` to surface the event when the bot has the required Discord mention permission.
