@@ -59,17 +59,18 @@ The current baseline is being validated as the first public release candidate. F
 - Watch Party fallback expiry is consistently 4.5 hours.
 - Watch Party reminders and launch messages are tracked for lifecycle cleanup.
 - Production containers can deploy Discord commands without the development-only `tsx` package.
+- Manual and random Watch Party scheduling modals now interpret local date/time input through `MEDIAOPS_TIMEZONE` instead of the Docker/Node process timezone, fixing false "scheduled in the past" errors on UTC containers/NAS hosts.
 
 ### Changed
 
 - Public v1 is explicitly defined as one self-hosted MediaOps instance + one operator-owned Discord bot + one backend configuration.
-- Universal multi-tenant bot operation is moved to the post-v1 roadmap pending per-guild isolation and secure backend connectivity.
-- Shared Watch Party scheduling logic is used by manual and random scheduling flows.
+- Hosted/universal multi-tenant operation is classified as **Future / Maybe**, with no committed target release; any future implementation requires a separate security-first multi-tenant architecture.
+- Shared Watch Party timezone parsing is used by slash-command, manual-modal, and random-modal scheduling flows.
 - Organizer cancellation remains available after a scheduled Watch Party becomes active.
 - Discord and Watch Party consumers use generic provider boundaries where applicable.
 - Public-facing branding defaults are generic and deployment-configurable.
 - Public setup panels reduce the need for members to discover or memorize slash commands.
-- README, Docker, Unraid, release scope, limitations, and Community Apps template wording now reflect the supported self-hosted deployment model.
+- README, Docker, Unraid, release scope, limitations, Community Apps wording, product scope, and roadmap reflect the supported self-hosted deployment model.
 
 ## Development history
 

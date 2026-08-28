@@ -117,6 +117,10 @@ The scheduling flow asks for:
 - Date (`YYYY-MM-DD`)
 - Time (`HH:MM`)
 
+Date/time fields entered through the manual scheduling panel, the random-movie scheduling modal, and `/watchparty-schedule` are interpreted using `MEDIAOPS_TIMEZONE`. They do not depend on the Docker host or container process timezone. This is important on NAS/container platforms that keep the process clock in UTC even when the intended community timezone is local.
+
+For example, with `MEDIAOPS_TIMEZONE=America/Toronto`, `2026-08-27 21:30` is interpreted as 21:30 Toronto local time whether the container exposes `TZ=America/Toronto`, `TZ=UTC`, or leaves `TZ` unset. Discord timestamps are generated from the resulting absolute instant and therefore render correctly for each Discord user's locale/timezone.
+
 MediaOps attempts to resolve the intended movie using normalized provider metadata, currently including display title, original title, and sort title where available.
 
 Once resolved, MediaOps publishes a public scheduled Watch Party message containing the movie identity, organizer, Discord timestamp, relative start time, RSVP controls, and organizer cancellation control.
@@ -166,7 +170,7 @@ MediaOps currently has an EN/FR i18n foundation.
 - technical logs may remain in English;
 - new commands should include localized descriptions where Discord supports them.
 
-The default timezone for scheduling input without an explicit offset is configurable through `MEDIAOPS_TIMEZONE` using an IANA timezone such as `America/Toronto`.
+The default timezone for scheduling input without an explicit offset is configurable through `MEDIAOPS_TIMEZONE` using an IANA timezone such as `America/Toronto`. `MEDIAOPS_TIMEZONE`, not the container's `TZ` setting, is the authoritative timezone for local Watch Party scheduling input.
 
 ## Permissions and trust boundaries
 

@@ -46,10 +46,6 @@ A Discord/media administrator should be able to:
 - deploy updates without losing persistent state;
 - keep credentials outside source control.
 
-### Future hosted customer
-
-A future hosted edition may allow an administrator to use an official MediaOps universal bot without operating the main application themselves. That requires true multi-tenant architecture and is not part of v1.
-
 ## Current functional scope
 
 - Discord runtime and 15 guild-scoped commands;
@@ -84,25 +80,30 @@ Expected characteristics:
 - Portainer/Compose and Unraid deployment support;
 - optional independently deployed Ombi Discord Router.
 
-### Future hosted/multi-tenant
+### Future / Maybe hosted multi-tenant model
 
-A future hosted edition may provide:
+A hosted edition is **not committed or scheduled**. It is retained only as a future concept that may be evaluated after the self-hosted product is established.
 
-- official universal bot;
+If pursued, it could provide:
+
+- an official universal Discord bot;
 - per-guild provider configuration;
-- encrypted tenant secret storage;
 - strict tenant isolation;
-- secure private-backend connectivity, potentially through a local agent;
+- encrypted secret handling;
+- secure private-backend connectivity, potentially through a local outbound agent;
 - managed upgrades/monitoring/backups;
 - simplified onboarding;
-- optional subscription/billing support.
+- optional paid/VIP service to cover commercial hosting and operations costs.
 
-This hosted option must never route one guild to another operator's backend and must not replace the self-hosted edition.
+The hosted service would ideally run on dedicated commercial cloud/VPS infrastructure rather than a personal homelab, so customer availability would not depend on the maintainer's residential Internet, electricity, or hardware.
+
+Any such model requires a separate architecture/security review before development. It must never route one guild to another operator's backend, must minimize the secrets held centrally where practical, and must not replace the free self-hosted edition.
 
 ## Out of scope for v1
 
 - universal hosted MediaOps bot;
 - multi-tenant per-guild backend configuration;
+- hosted SaaS/VIP service;
 - Jellyfin/Plex support;
 - replacing/transcoding/streaming through MediaOps itself;
 - directly scanning media filesystem mounts;

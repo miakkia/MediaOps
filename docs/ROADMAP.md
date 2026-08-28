@@ -1,6 +1,6 @@
 # MediaOps Roadmap
 
-MediaOps is being built first as a reliable **self-hosted, single-tenant Discord/media automation platform**, with room to grow into a provider-agnostic product and later an optional hosted multi-tenant service.
+MediaOps is being built first as a reliable **self-hosted, single-tenant Discord/media automation platform**. The current roadmap focuses on making that model stable, secure, easy to deploy, and provider-agnostic over time.
 
 ## Current v1 foundation
 
@@ -28,30 +28,11 @@ The public MediaOps Community bot is a restricted demo bot, not a universal bot 
 
 ## Near-term post-v1 priorities
 
-### Multi-tenant / official universal bot architecture
-
-A future official MediaOps bot that can be invited into many unrelated Discord servers is a major architecture project, not a v1 configuration switch.
-
-Requirements include:
-
-- per-guild MediaOps configuration;
-- strict tenant isolation;
-- encrypted secret storage;
-- guild onboarding and administrator authorization;
-- per-guild locale/timezone/provider selection;
-- per-guild persistent request/Watch Party state;
-- safe lifecycle cleanup scoped to the correct guild;
-- rate limiting and abuse controls;
-- revocation/offboarding;
-- a secure way for the hosted bot/service to reach each operator's private Emby/Ombi/Watch Party services without exposing or accidentally sharing another tenant's backend.
-
-Possible future patterns include a central hosted bot/control plane plus a local MediaOps agent running beside the operator's media services. This must be designed explicitly before any universal bot is offered publicly.
-
 ### Internationalization
 
 - continue moving user-facing text into the i18n layer;
-- support per-server language configuration when multi-guild configuration exists;
-- expand localized slash-command descriptions/options.
+- expand localized slash-command descriptions/options;
+- keep timezone handling portable across Docker/NAS environments.
 
 ### Reliability and testing
 
@@ -119,19 +100,26 @@ Watch Party Provider
 
 Provider-specific complexity should remain behind adapters while Discord UX stays simple.
 
-## Hosted / commercial option
+## Future / Maybe — hosted multi-tenant MediaOps
 
-A future optional hosted edition may provide:
+A centrally hosted official MediaOps bot is an **idea to revisit later**, not a committed roadmap item, release target, or promised product.
 
-- an official universal MediaOps Discord bot;
-- multi-tenant guild configuration;
-- local-agent/private-backend connectivity;
-- hosted updates/monitoring;
-- managed backups;
-- simplified onboarding;
-- subscription/billing support.
+If the project eventually explores this model, it would require a dedicated architecture and security design rather than extending the v1 global configuration directly. Possible capabilities could include:
 
-A hosted edition must keep strict tenant isolation and encrypted secret storage. It must never route one guild to another guild/operator's media backend.
+- one official Discord bot serving multiple unrelated guilds;
+- per-guild/tenant MediaOps configuration;
+- strict tenant isolation and authorization;
+- encrypted secret handling and credential rotation;
+- per-guild locale/timezone/provider selection;
+- isolated request and Watch Party state;
+- rate limiting, abuse controls, revocation, and offboarding;
+- secure connectivity to private Emby/Ombi/Watch Party services, potentially through a local outbound MediaOps agent;
+- commercial cloud/VPS hosting instead of depending on a personal homelab's power, Internet, or hardware;
+- an optional paid/VIP managed tier to offset hosted infrastructure, monitoring, backup, and maintenance costs while keeping the self-hosted edition free.
+
+Before any implementation, this concept would require a dedicated cybersecurity review covering tenant isolation, secret storage, SSRF/backend reachability, compromise blast radius, authentication between cloud and local agents, logging/privacy boundaries, backups, incident response, and operational availability.
+
+**Status: Future / Maybe. No commitment and no target release.**
 
 ## Design principles
 
@@ -140,7 +128,8 @@ A hosted edition must keep strict tenant isolation and encrypted secret storage.
 - No secrets committed to Git.
 - Self-hosted remains a first-class deployment model.
 - V1 users own their Discord bot identity and provider credentials.
-- A universal bot is not released until multi-tenant isolation is intentionally implemented and reviewed.
+- A universal bot is never treated as a simple configuration mode of the current single-tenant runtime.
+- Any future hosted service must be designed for tenant isolation and security from the start.
 - Deployment hosts consume prebuilt images rather than source repositories.
 - Unraid Community Apps distributes a proven container rather than defining application architecture.
 - New abstractions are introduced when they solve a real integration or security need.

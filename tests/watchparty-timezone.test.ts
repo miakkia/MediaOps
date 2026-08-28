@@ -7,12 +7,19 @@ import {
 } from '../src/watchparty/timezone.js';
 
 const originalTimezone = process.env.MEDIAOPS_TIMEZONE;
+const originalProcessTimezone = process.env.TZ;
 
 afterEach(() => {
   if (originalTimezone === undefined) {
     delete process.env.MEDIAOPS_TIMEZONE;
   } else {
     process.env.MEDIAOPS_TIMEZONE = originalTimezone;
+  }
+
+  if (originalProcessTimezone === undefined) {
+    delete process.env.TZ;
+  } else {
+    process.env.TZ = originalProcessTimezone;
   }
 });
 
@@ -73,6 +80,30 @@ test('interprets winter wall-clock time in America/Toronto', () => {
       '2026-12-25 21:00',
     ).toISOString(),
     '2026-12-26T02:00:00.000Z',
+  );
+});
+
+test('uses MEDIAOPS_TIMEZONE when the container process timezone is UTC', () => {
+  process.env.TZ = 'UTC';
+  process.env.MEDIAOPS_TIMEZONE = 'America/Toronto';
+
+  assert.equal(
+    parseWatchPartyDateTime(
+      '2026-08-27 21:30',
+    ).toISOString(),
+    '2026-08-28T01:30:00.000Z',
+  );
+});
+
+test('uses MEDIAOPS_TIMEZONE when the container process timezone is unset', () => {
+  delete process.env.TZ;
+  process.env.MEDIAOPS_TIMEZONE = 'America/Toronto';
+
+  assert.equal(
+    parseWatchPartyDateTime(
+      '2026-08-28 21:30',
+    ).toISOString(),
+    '2026-08-29T01:30:00.000Z',
   );
 });
 
