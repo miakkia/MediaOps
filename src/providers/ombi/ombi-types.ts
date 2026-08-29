@@ -62,6 +62,7 @@ export interface OmbiMultiSearchResult {
 export interface OmbiTvSearchDetail {
   title?: string;
   firstAired?: string | null;
+  status?: string | null;
   fullyAvailable?: boolean;
   partlyAvailable?: boolean;
   requested?: boolean;
