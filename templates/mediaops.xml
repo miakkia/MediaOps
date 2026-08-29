@@ -21,6 +21,7 @@
   <Config Name="MediaOps Data" Target="/data" Default="/mnt/user/appdata/mediaops" Mode="rw" Description="Persistent MediaOps runtime data and scheduled Watch Party state." Type="Path" Display="always" Required="true" Mask="false"/>
   <Config Name="Bot Display Name" Target="MEDIAOPS_BOT_NAME" Default="MediaOps Bot" Description="Public-facing bot name used by MediaOps panels and messages. This does not rename your Discord application itself." Type="Variable" Display="always" Required="false" Mask="false"/>
   <Config Name="Media Server Display Name" Target="MEDIAOPS_SERVER_NAME" Default="My Media Server" Description="Friendly media-server/community name used in public MediaOps panels." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Demo Mode" Target="MEDIAOPS_DEMO_MODE" Default="false" Description="Set true for public/demo deployments. MediaOps keeps Watch Party controls visible but disables join links so configured Watch Party URLs are never emitted into Discord." Type="Variable" Display="always" Required="false" Mask="false"/>
   <Config Name="Media Provider" Target="MEDIA_PROVIDER" Default="emby" Description="Media provider backend. Emby is currently supported." Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="Discord Token" Target="DISCORD_TOKEN" Default="" Description="Secret token for the Discord bot/application you created for this MediaOps deployment." Type="Variable" Display="always" Required="true" Mask="true"/>
   <Config Name="Discord Client ID" Target="DISCORD_CLIENT_ID" Default="" Description="Application/client ID for your Discord application." Type="Variable" Display="always" Required="true" Mask="false"/>
@@ -43,7 +44,7 @@
   <Config Name="Movie Media Tag ID" Target="MEDIA_TAG_MOVIE" Default="" Description="Discord Forum tag ID identifying movie requests." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Series Media Tag ID" Target="MEDIA_TAG_SERIES" Default="" Description="Discord Forum tag ID identifying TV-series requests." Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
-  <Config Name="Watch Party URL" Target="WATCHPARTY_URL" Default="" Description="Public URL of the Watch Party service." Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Watch Party URL" Target="WATCHPARTY_URL" Default="" Description="Public URL of the Watch Party service. Demo Mode prevents this URL from being emitted into Discord." Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="Watch Party Internal URL" Target="WATCHPARTY_INTERNAL_URL" Default="" Description="Optional LAN/internal Watch Party URL used by MediaOps API calls." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Watch Party Emby User" Target="WATCHPARTY_EMBY_USER" Default="" Description="Dedicated non-admin Emby account used to create and host Watch Parties." Type="Variable" Display="advanced" Required="false" Mask="false"/>
   <Config Name="Watch Party Emby Password" Target="WATCHPARTY_EMBY_PASSWORD" Default="" Description="Password for the dedicated Watch Party Emby account." Type="Variable" Display="advanced" Required="false" Mask="true"/>
