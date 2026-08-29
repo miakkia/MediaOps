@@ -36,7 +36,8 @@ export function createWatchPartyRsvpRow(
   notGoingLabel = 'I’m not going',
   startEarlyLabel = 'Start Now',
   cancelLabel = 'Cancel Watch Party',
-  disabled = false,
+  controlsDisabled = false,
+  cancelDisabled = controlsDisabled,
 ): ActionRowBuilder<ButtonBuilder> {
   const goingButton =
     new ButtonBuilder()
@@ -49,7 +50,7 @@ export function createWatchPartyRsvpRow(
       .setLabel(goingLabel)
       .setEmoji('✅')
       .setStyle(ButtonStyle.Success)
-      .setDisabled(disabled);
+      .setDisabled(controlsDisabled);
 
   const notGoingButton =
     new ButtonBuilder()
@@ -62,7 +63,7 @@ export function createWatchPartyRsvpRow(
       .setLabel(notGoingLabel)
       .setEmoji('❌')
       .setStyle(ButtonStyle.Secondary)
-      .setDisabled(disabled);
+      .setDisabled(controlsDisabled);
 
   const startEarlyButton =
     new ButtonBuilder()
@@ -75,7 +76,7 @@ export function createWatchPartyRsvpRow(
       .setLabel(startEarlyLabel)
       .setEmoji('▶️')
       .setStyle(ButtonStyle.Primary)
-      .setDisabled(disabled);
+      .setDisabled(controlsDisabled);
 
   const cancelButton =
     new ButtonBuilder()
@@ -88,7 +89,7 @@ export function createWatchPartyRsvpRow(
       .setLabel(cancelLabel)
       .setEmoji('🛑')
       .setStyle(ButtonStyle.Danger)
-      .setDisabled(disabled);
+      .setDisabled(cancelDisabled);
 
   return new ActionRowBuilder<ButtonBuilder>()
     .addComponents(
