@@ -3,6 +3,10 @@ import type {
 } from 'discord.js';
 
 import {
+  isMediaOpsDemoMode,
+} from '../config/demo-mode.js';
+
+import {
   createWatchParty,
 } from '../services/watchparty.js';
 
@@ -82,13 +86,21 @@ export async function openScheduledWatchParty(
         ? ` (${party.mediaYear})`
         : '';
 
+    const demoMode =
+      isMediaOpsDemoMode();
+
+    const accessLine =
+      demoMode
+        ? '🔒 **Mode démo / Demo mode:** lien Watch Party désactivé / Watch Party link disabled.'
+        : `➡️ ${room.joinUrl}`;
+
     const launchMessage =
       await channel.send({
         content:
           '🎬 **Watch Party ouverte / Watch Party is open!**\n\n' +
           `**${party.mediaTitle}**${year}\n` +
           `Code: \`${room.partyCode}\`\n` +
-          `➡️ ${room.joinUrl}`,
+          accessLine,
       });
 
     activeParty =
