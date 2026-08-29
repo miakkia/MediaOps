@@ -1,0 +1,109 @@
+name: Discord notifications
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  notify-pr-merge:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send merged PR notification to Discord
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_GITHUB_WEBHOOK }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${WEBHOOK_URL:-}" ]; then
+            echo "DISCORD_GITHUB_WEBHOOK is not configured."
+            exit 1
+          fi
+
+          short_sha="${MERGE_SHA:0:7}"
+          payload=$(jq -n \
+            --arg title "🔀 PR #${PR_NUMBER} merged into main" \
+            --arg description "${PR_TITLE}" \
+            --arg url "${PR_URL}" \
+            --arg author "${PR_AUTHOR}" \
+            --arg sha "${short_sha}" \
+            '{
+              username: "MediaOps GitHub",
+              embeds: [{
+                title: $title,
+                description: $description,
+                url: $url,
+                color: 5763719,
+                fields: [
+                  {name: "Author", value: $author, inline: true},
+                  {name: "Merge", value: $sha, inline: true}
+                ],
+                footer: {text: "MediaOps • GitHub Updates"}
+              }]
+            }')
+
+          curl --fail-with-body --silent --show-error \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "$WEBHOOK_URL"
+
+  notify-release:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send release notification to Discord
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          RELEASE_AUTHOR: ${{ github.event.release.author.login }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${WEBHOOK_URL:-}" ]; then
+            echo "DISCORD_RELEASE_WEBHOOK is not configured."
+            exit 1
+          fi
+
+          display_name="${RELEASE_NAME:-$RELEASE_TAG}"
+          payload=$(jq -n \
+            --arg title "🚀 ${display_name} released" \
+            --arg description "A new MediaOps release is now available." \
+            --arg url "${RELEASE_URL}" \
+            --arg tag "${RELEASE_TAG}" \
+            --arg author "${RELEASE_AUTHOR}" \
+            '{
+              username: "MediaOps Releases",
+              content: "@here",
+              allowed_mentions: {parse: ["everyone"]},
+              embeds: [{
+                title: $title,
+                description: $description,
+                url: $url,
+                color: 5763719,
+                fields: [
+                  {name: "Version", value: $tag, inline: true},
+                  {name: "Published by", value: $author, inline: true}
+                ],
+                footer: {text: "MediaOps • Releases"}
+              }]
+            }')
+
+          curl --fail-with-body --silent --show-error \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "$WEBHOOK_URL"
