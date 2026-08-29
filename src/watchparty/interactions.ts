@@ -14,6 +14,7 @@ import {
 import {
   findWatchPartyById,
   setParticipantResponse,
+  setWatchPartyLaunchMessageId,
   setWatchPartyReminderMessageId,
   setWatchPartyStatus,
 } from '../storage/watchparty-store.js';
@@ -251,6 +252,9 @@ export async function handleWatchPartyButton(
         return true;
       }
 
+      const wasActive =
+        party.status === 'active';
+
       const cancelledParty =
         await setWatchPartyStatus(
           party.id,
@@ -258,7 +262,8 @@ export async function handleWatchPartyButton(
         );
 
       // Discord Scheduled Events are supplementary. Their API state must never
-      // prevent the existing Watch Party cancellation from succeeding.
+      // prevent the existing Watch Party cancellation from succeeding. An
+      // active event is completed; a future event is cancelled.
       if (interaction.guild) {
         await cancelDiscordScheduledEventForParty(
           interaction.guild,
@@ -266,9 +271,57 @@ export async function handleWatchPartyButton(
         );
       }
 
-      // A cancelled Watch Party no longer needs a public RSVP post. Keep the
-      // persisted party record for history/auditing, but remove the Discord
-      // message so the channel only contains active/relevant Watch Parties.
+      // Clean up every Discord message MediaOps created for this lifecycle.
+      // This does not dissolve Oratorian's Watch Party room; MediaOps only
+      // cancels the orchestration and artifacts it owns.
+      for (const trackedMessage of [
+        {
+          id: party.reminderMessageId,
+          kind: 'reminder',
+        },
+        {
+          id: party.launchMessageId,
+          kind: 'launch',
+        },
+      ]) {
+        if (!trackedMessage.id) {
+          continue;
+        }
+
+        try {
+          const message =
+            await interaction.channel?.messages.fetch(
+              trackedMessage.id,
+            );
+
+          if (message) {
+            await message.delete();
+          }
+        } catch (error) {
+          console.warn(
+            `Unable to remove ${trackedMessage.kind} message for Watch Party ${party.id}:`,
+            error,
+          );
+        }
+      }
+
+      if (party.reminderMessageId) {
+        await setWatchPartyReminderMessageId(
+          party.id,
+          undefined,
+        );
+      }
+
+      if (party.launchMessageId) {
+        await setWatchPartyLaunchMessageId(
+          party.id,
+          undefined,
+        );
+      }
+
+      // A cancelled/ended Watch Party no longer needs its public RSVP post.
+      // Keep the persisted party record for history/auditing, but remove the
+      // Discord message so the channel only contains active/relevant parties.
       try {
         await interaction.message.delete();
       } catch (error) {
@@ -277,8 +330,6 @@ export async function handleWatchPartyButton(
           error,
         );
 
-        // Fall back to the previous behaviour so cancellation still succeeds
-        // even if Discord refuses message deletion for any reason.
         const renderedMessage =
           buildScheduledWatchPartyMessage(
             cancelledParty,
@@ -295,14 +346,20 @@ export async function handleWatchPartyButton(
       }
 
       await interaction.editReply(
-        t(
-          locale,
-          'watchparty.cancel.confirmed',
-          {
-            title:
-              cancelledParty.mediaTitle,
-          },
-        ),
+        wasActive
+          ? (
+              locale === 'fr'
+                ? `🛑 La Watch Party pour **${cancelledParty.mediaTitle}** a été terminée dans MediaOps.`
+                : `🛑 The Watch Party for **${cancelledParty.mediaTitle}** has been ended in MediaOps.`
+            )
+          : t(
+              locale,
+              'watchparty.cancel.confirmed',
+              {
+                title:
+                  cancelledParty.mediaTitle,
+              },
+            ),
       );
 
       return true;
