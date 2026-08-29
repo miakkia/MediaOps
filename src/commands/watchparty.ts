@@ -1,16 +1,15 @@
 import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   ChatInputCommandInteraction,
   MessageFlags,
   SlashCommandBuilder,
 } from 'discord.js';
 
 import { getMediaOpsBranding } from '../config/branding.js';
+import { isMediaOpsDemoMode } from '../config/demo-mode.js';
 import { getInteractionLocale } from '../i18n/discord-locale.js';
 import { t } from '../i18n/index.js';
 import { createWatchParty } from '../services/watchparty.js';
+import { createWatchPartyJoinRow } from '../watchparty/components.js';
 
 export const data = new SlashCommandBuilder()
   .setName('watchparty')
@@ -25,19 +24,26 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   try {
     const party = await createWatchParty();
-    const openButton = new ButtonBuilder()
-      .setLabel(t(locale, 'watchparty.openButton'))
-      .setEmoji('🎬')
-      .setStyle(ButtonStyle.Link)
-      .setURL(party.joinUrl);
-
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(openButton);
+    const demoMode = isMediaOpsDemoMode();
+    const row = createWatchPartyJoinRow(
+      t(locale, 'watchparty.openButton'),
+      party.joinUrl,
+      demoMode,
+    );
+    const demoNotice = demoMode
+      ? (
+          locale === 'fr'
+            ? '\n\n🔒 Mode démo : le lien Watch Party est volontairement désactivé.'
+            : '\n\n🔒 Demo mode: the Watch Party link is intentionally disabled.'
+        )
+      : '';
 
     await interaction.editReply({
       content:
         `${t(locale, 'watchparty.title', { serverName })}\n\n` +
         `**${party.partyCode}**\n\n` +
-        t(locale, 'watchparty.securityNotice', { botName }),
+        t(locale, 'watchparty.securityNotice', { botName }) +
+        demoNotice,
       components: [row],
     });
   } catch (error) {

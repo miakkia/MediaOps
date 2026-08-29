@@ -4,7 +4,12 @@ import {
   ButtonStyle,
 } from 'discord.js';
 
+import {
+  isMediaOpsDemoMode,
+} from '../config/demo-mode.js';
+
 const CUSTOM_ID_PREFIX = 'watchparty';
+const DEMO_JOIN_CUSTOM_ID = 'watchparty:demo:join';
 
 export type WatchPartyRsvpAction =
   | 'going'
@@ -28,6 +33,37 @@ export interface WatchPartyStartEarlyCustomId {
 export interface WatchPartyCancelCustomId {
   action: 'cancel';
   partyId: string;
+}
+
+export function createWatchPartyJoinRow(
+  label: string,
+  joinUrl?: string,
+  demoMode = isMediaOpsDemoMode(),
+): ActionRowBuilder<ButtonBuilder> {
+  const joinButton =
+    new ButtonBuilder()
+      .setLabel(label)
+      .setEmoji('🎬');
+
+  if (demoMode) {
+    joinButton
+      .setCustomId(DEMO_JOIN_CUSTOM_ID)
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true);
+  } else {
+    if (!joinUrl) {
+      throw new Error(
+        'Watch Party join URL is required outside demo mode.',
+      );
+    }
+
+    joinButton
+      .setStyle(ButtonStyle.Link)
+      .setURL(joinUrl);
+  }
+
+  return new ActionRowBuilder<ButtonBuilder>()
+    .addComponents(joinButton);
 }
 
 export function createWatchPartyRsvpRow(

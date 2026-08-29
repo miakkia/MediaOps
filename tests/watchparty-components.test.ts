@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  createWatchPartyJoinRow,
   parseWatchPartyCancelCustomId,
   parseWatchPartyRsvpCustomId,
   parseWatchPartyStartEarlyCustomId,
@@ -62,4 +63,33 @@ test('rejects malformed or unrelated custom IDs', () => {
     assert.equal(parseWatchPartyStartEarlyCustomId(customId), undefined);
     assert.equal(parseWatchPartyCancelCustomId(customId), undefined);
   }
+});
+
+test('demo join button is disabled and never serializes the configured URL', () => {
+  const row = createWatchPartyJoinRow(
+    'Join Watch Party',
+    'https://private.example/party/ABCDE',
+    true,
+  ).toJSON();
+
+  const button = row.components[0] as unknown as Record<string, unknown>;
+
+  assert.equal(button.disabled, true);
+  assert.equal(button.style, 2);
+  assert.equal(button.custom_id, 'watchparty:demo:join');
+  assert.equal('url' in button, false);
+});
+
+test('normal join button keeps the configured Watch Party URL', () => {
+  const row = createWatchPartyJoinRow(
+    'Join Watch Party',
+    'https://watch.example.com/party/ABCDE',
+    false,
+  ).toJSON();
+
+  const button = row.components[0] as unknown as Record<string, unknown>;
+
+  assert.equal(button.style, 5);
+  assert.equal(button.url, 'https://watch.example.com/party/ABCDE');
+  assert.equal('custom_id' in button, false);
 });
