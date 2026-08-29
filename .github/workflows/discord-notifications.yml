@@ -89,7 +89,7 @@ jobs:
             '{
               username: "MediaOps Releases",
               content: "@here",
-              allowed_mentions: {parse: ["here"]},
+              allowed_mentions: {parse: ["everyone"]},
               embeds: [{
                 title: $title,
                 description: $description,
