@@ -1,17 +1,14 @@
 import type { Client } from 'discord.js';
-import { createWatchParty } from '../services/watchparty.js';
 import {
   cleanupWatchPartyHistory,
   getWatchParties,
   refreshWatchPartyLifecycle,
-  setWatchPartyCode,
-  setWatchPartyLaunchMessageId,
   setWatchPartyReminderMessageId,
   setWatchPartyReminderSentAt,
-  setWatchPartyStatus,
 } from '../storage/watchparty-store.js';
 import { synchronizeDiscordScheduledEventForParty } from './discord-events.js';
 import { buildWatchPartyReminderContent, shouldSendWatchPartyReminder } from './reminders.js';
+import { openScheduledWatchParty } from './start.js';
 
 const LIFECYCLE_INTERVAL_MS = 60 * 1000;
 const configuredLocale = process.env.MEDIAOPS_LOCALE?.trim().toLowerCase();
@@ -53,21 +50,8 @@ async function openScheduledWatchParties(client: Client): Promise<void> {
     const scheduledTime = new Date(party.scheduledAt).getTime();
     if (Number.isNaN(scheduledTime) || now < scheduledTime) continue;
     try {
-      const room = await createWatchParty();
-      await setWatchPartyCode(party.id, room.partyCode);
-      await setWatchPartyStatus(party.id, 'active');
-      const channel = await client.channels.fetch(party.channelId);
-      if (!channel || !channel.isSendable()) {
-        console.warn(`Watch Party launch channel is unavailable: ${party.channelId}`);
-        continue;
-      }
-      const year = party.mediaYear !== undefined ? ` (${party.mediaYear})` : '';
-      const launchMessage = await channel.send({
-        content: '🎬 **Watch Party ouverte / Watch Party is open!**\n\n' +
-          `**${party.mediaTitle}**${year}\n` + `Code: \`${room.partyCode}\`\n` + `➡️ ${room.joinUrl}`,
-      });
-      await setWatchPartyLaunchMessageId(party.id, launchMessage.id);
-      console.log(`Scheduled Watch Party ${party.id} opened automatically as ${room.partyCode}`);
+      const opened = await openScheduledWatchParty(client, party.id);
+      console.log(`Scheduled Watch Party ${party.id} opened automatically as ${opened.partyCode}`);
     } catch (error) {
       console.error(`Automatic Watch Party creation failed for ${party.id}:`, error);
     }
