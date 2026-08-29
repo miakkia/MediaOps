@@ -1,7 +1,4 @@
 import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   ChatInputCommandInteraction,
   MessageFlags,
   PermissionFlagsBits,
@@ -11,10 +8,7 @@ import {
 import { getMediaOpsBranding } from '../config/branding.js';
 import { isMediaOpsDemoMode } from '../config/demo-mode.js';
 import { getWatchPartyUrl } from '../services/watchparty.js';
-
-const RANDOM_BUTTON_ID = 'watchpartysetup:random';
-const SCHEDULE_BUTTON_ID = 'watchpartysetup:schedule';
-const DEMO_OPEN_BUTTON_ID = 'watchpartysetup:demo:open';
+import { createWatchPartySetupRow } from '../watchparty/setup-panel.js';
 
 export const data = new SlashCommandBuilder()
   .setName('watchparty-setup')
@@ -42,34 +36,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const demoMode = isMediaOpsDemoMode();
   const { botName, serverName } = getMediaOpsBranding();
-
-  const openButton = new ButtonBuilder()
-    .setLabel('Ouvrir / Open')
-    .setEmoji('🌐');
-
-  if (demoMode) {
-    openButton
-      .setCustomId(DEMO_OPEN_BUTTON_ID)
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(true);
-  } else {
-    openButton
-      .setStyle(ButtonStyle.Link)
-      .setURL(getWatchPartyUrl());
-  }
-
-  const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(RANDOM_BUTTON_ID)
-      .setLabel('Random / Aléatoire')
-      .setEmoji('🎲')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(SCHEDULE_BUTTON_ID)
-      .setLabel('Planifier / Schedule')
-      .setEmoji('📅')
-      .setStyle(ButtonStyle.Primary),
-    openButton,
+  const actionRow = createWatchPartySetupRow(
+    demoMode,
+    demoMode ? undefined : getWatchPartyUrl(),
   );
 
   const demoNotice = demoMode
