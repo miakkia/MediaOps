@@ -11,10 +11,10 @@ import {
 import { getMediaOpsBranding } from '../config/branding.js';
 import { isMediaOpsDemoMode } from '../config/demo-mode.js';
 import { getWatchPartyUrl } from '../services/watchparty.js';
-import { createWatchPartyJoinRow } from '../watchparty/components.js';
 
 const RANDOM_BUTTON_ID = 'watchpartysetup:random';
 const SCHEDULE_BUTTON_ID = 'watchpartysetup:schedule';
+const DEMO_OPEN_BUTTON_ID = 'watchpartysetup:demo:open';
 
 export const data = new SlashCommandBuilder()
   .setName('watchparty-setup')
@@ -41,10 +41,24 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   const demoMode = isMediaOpsDemoMode();
-  const watchPartyUrl = demoMode ? undefined : getWatchPartyUrl();
   const { botName, serverName } = getMediaOpsBranding();
 
-  const controlsRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+  const openButton = new ButtonBuilder()
+    .setLabel('Ouvrir / Open')
+    .setEmoji('🌐');
+
+  if (demoMode) {
+    openButton
+      .setCustomId(DEMO_OPEN_BUTTON_ID)
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true);
+  } else {
+    openButton
+      .setStyle(ButtonStyle.Link)
+      .setURL(getWatchPartyUrl());
+  }
+
+  const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(RANDOM_BUTTON_ID)
       .setLabel('Random / Aléatoire')
@@ -55,16 +69,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .setLabel('Planifier / Schedule')
       .setEmoji('📅')
       .setStyle(ButtonStyle.Primary),
+    openButton,
   );
-
-  const openRow = createWatchPartyJoinRow(
-    'Ouvrir / Open',
-    watchPartyUrl,
-    demoMode,
-  );
-  const openButton = openRow.components[0];
-  openButton.setEmoji('🌐');
-  controlsRow.addComponents(openButton);
 
   const demoNotice = demoMode
     ? [
@@ -98,7 +104,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     ...demoNotice,
   ].join('\n');
 
-  await channel.send({ content, components: [controlsRow] });
+  await channel.send({ content, components: [actionRow] });
   await interaction.reply({
     content: '✅ Watch Party panel published / Panneau Watch Party publié.',
     flags: MessageFlags.Ephemeral,
