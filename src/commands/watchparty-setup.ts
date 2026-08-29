@@ -1,7 +1,4 @@
 import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   ChatInputCommandInteraction,
   MessageFlags,
   PermissionFlagsBits,
@@ -9,10 +6,9 @@ import {
 } from 'discord.js';
 
 import { getMediaOpsBranding } from '../config/branding.js';
+import { isMediaOpsDemoMode } from '../config/demo-mode.js';
 import { getWatchPartyUrl } from '../services/watchparty.js';
-
-const RANDOM_BUTTON_ID = 'watchpartysetup:random';
-const SCHEDULE_BUTTON_ID = 'watchpartysetup:schedule';
+import { createWatchPartySetupRow } from '../watchparty/setup-panel.js';
 
 export const data = new SlashCommandBuilder()
   .setName('watchparty-setup')
@@ -38,26 +34,21 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  const watchPartyUrl = getWatchPartyUrl();
+  const demoMode = isMediaOpsDemoMode();
   const { botName, serverName } = getMediaOpsBranding();
-
-  const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(RANDOM_BUTTON_ID)
-      .setLabel('Random / Aléatoire')
-      .setEmoji('🎲')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(SCHEDULE_BUTTON_ID)
-      .setLabel('Planifier / Schedule')
-      .setEmoji('📅')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setLabel('Ouvrir / Open')
-      .setEmoji('🌐')
-      .setStyle(ButtonStyle.Link)
-      .setURL(watchPartyUrl),
+  const actionRow = createWatchPartySetupRow(
+    demoMode,
+    demoMode ? undefined : getWatchPartyUrl(),
   );
+
+  const demoNotice = demoMode
+    ? [
+        '',
+        '🔒 **Mode démo / Demo mode**',
+        'Le lien public Watch Party est volontairement désactivé dans cette démonstration.',
+        'The public Watch Party link is intentionally disabled in this demonstration.',
+      ]
+    : [];
 
   const content = [
     '## 🎬 Watch Party',
@@ -75,6 +66,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     '🌐 Create or join a session with **Ouvrir / Open**.',
     '📋 Use `/watchparty-upcoming` to see upcoming parties.',
     'ℹ️ Use `/watchparty-status` to check the Watch Party service.',
+    ...demoNotice,
     '',
     '🔐 **Sécurité / Security**',
     `Votre mot de passe Emby est saisi uniquement dans Watch Party et n’est jamais envoyé à ${botName}.`,
