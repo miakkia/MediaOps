@@ -1,6 +1,6 @@
 import type {
   RequestMediaType, RequestProvider, RequestProviderCapabilities, RequestSearchResult,
-  RequestStatus, RequestSubmissionResult,
+  RequestSeriesLifecycleStatus, RequestStatus, RequestSubmissionResult,
 } from '../request-provider.js';
 import { OmbiClient } from './ombi-client.js';
 import type {
@@ -15,6 +15,23 @@ function parseYear(value: string | number | null | undefined): number | undefine
   if (!match?.[1]) return undefined;
   const year = Number.parseInt(match[1], 10);
   return Number.isFinite(year) ? year : undefined;
+}
+
+function parseSeriesStatus(value: string | null | undefined): RequestSeriesLifecycleStatus | undefined {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (normalized === 'ended' || normalized === 'canceled' || normalized === 'cancelled') {
+    return 'ended';
+  }
+  if (
+    normalized === 'returning series' ||
+    normalized === 'continuing' ||
+    normalized === 'in production' ||
+    normalized === 'planned'
+  ) {
+    return 'continuing';
+  }
+  return undefined;
 }
 
 function mapMovie(item: OmbiSearchMovieResult): RequestSearchResult | undefined {
@@ -39,6 +56,7 @@ function mapSeries(item: OmbiMultiSearchResult, detail?: OmbiTvSearchDetail): Re
   return {
     providerId: item.id, mediaType: 'series', title, originalTitle: undefined, year,
     overview: item.overview ?? undefined, posterUrl: item.poster ?? undefined,
+    seriesStatus: parseSeriesStatus(detail?.status),
     status: available ? 'available' : requested ? 'requested' : 'unavailable',
     requested, available,
   };
