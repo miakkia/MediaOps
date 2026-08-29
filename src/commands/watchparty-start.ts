@@ -1,11 +1,12 @@
 import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   ChatInputCommandInteraction,
   MessageFlags,
   SlashCommandBuilder,
 } from 'discord.js';
+
+import {
+  isMediaOpsDemoMode,
+} from '../config/demo-mode.js';
 
 import {
   getInteractionLocale,
@@ -19,6 +20,10 @@ import {
   getWatchPartyJoinUrl,
   watchPartyExists,
 } from '../services/watchparty.js';
+
+import {
+  createWatchPartyJoinRow,
+} from '../watchparty/components.js';
 
 export const data =
   new SlashCommandBuilder()
@@ -99,32 +104,34 @@ export async function execute(
       return;
     }
 
-    const joinUrl =
-      getWatchPartyJoinUrl(
-        code,
-      );
+    const demoMode =
+      isMediaOpsDemoMode();
 
-    const joinButton =
-      new ButtonBuilder()
-        .setLabel(
-          t(
-            locale,
-            'watchparty.joinButton',
-          ),
-        )
-        .setEmoji('🎬')
-        .setStyle(
-          ButtonStyle.Link,
-        )
-        .setURL(
-          joinUrl,
-        );
+    const joinUrl =
+      demoMode
+        ? undefined
+        : getWatchPartyJoinUrl(
+            code,
+          );
 
     const row =
-      new ActionRowBuilder<ButtonBuilder>()
-        .addComponents(
-          joinButton,
-        );
+      createWatchPartyJoinRow(
+        t(
+          locale,
+          'watchparty.joinButton',
+        ),
+        joinUrl,
+        demoMode,
+      );
+
+    const demoNotice =
+      demoMode
+        ? (
+            locale === 'fr'
+              ? '\n\n🔒 Mode démo : le lien Watch Party est volontairement désactivé.'
+              : '\n\n🔒 Demo mode: the Watch Party link is intentionally disabled.'
+          )
+        : '';
 
     await interaction.editReply({
       content:
@@ -134,7 +141,7 @@ export async function execute(
           {
             code,
           },
-        ),
+        ) + demoNotice,
 
       components: [
         row,
