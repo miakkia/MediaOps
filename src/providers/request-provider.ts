@@ -11,6 +11,10 @@ export type RequestStatus =
   | 'unavailable'
   | 'unknown';
 
+export type RequestSeriesLifecycleStatus =
+  | 'continuing'
+  | 'ended';
+
 export interface RequestSearchResult {
   providerId: string;
   mediaType: RequestMediaType;
@@ -19,6 +23,7 @@ export interface RequestSearchResult {
   year: number | undefined;
   overview: string | undefined;
   posterUrl: string | undefined;
+  seriesStatus: RequestSeriesLifecycleStatus | undefined;
   status: RequestStatus;
   requested: boolean;
   available: boolean;
