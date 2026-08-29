@@ -83,6 +83,10 @@ export function buildScheduledWatchPartyMessage(
   const isCancelled =
     party.status === 'cancelled';
 
+  const controlsDisabled =
+    party.status !== 'scheduled' &&
+    party.status !== 'ready';
+
   const title =
     isCancelled
       ? t(
@@ -151,12 +155,16 @@ export function buildScheduledWatchPartyMessage(
         'watchparty.scheduling.notGoing',
       ),
 
+      locale === 'fr'
+        ? 'Démarrer maintenant'
+        : 'Start Now',
+
       t(
         locale,
         'watchparty.cancel.button',
       ),
 
-      isCancelled,
+      controlsDisabled,
     );
 
   return {
