@@ -259,6 +259,7 @@ Before Community Apps submission, the templates must pass the current Unraid **V
 ## Documentation
 
 - [`docs/DISCORD_BOT_SETUP.md`](docs/DISCORD_BOT_SETUP.md) — create and secure your v1 Discord bot
+- [`docs/GITHUB_DISCORD_NOTIFICATIONS.md`](docs/GITHUB_DISCORD_NOTIFICATIONS.md) — maintainer setup for merged-PR and release notifications to Discord
 - [`docs/RELEASE_SCOPE_V1.md`](docs/RELEASE_SCOPE_V1.md) — release boundaries
 - [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md) — acceptance checklist
 - [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) — current limitations
