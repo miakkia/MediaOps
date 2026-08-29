@@ -1,0 +1,1 @@
+Persistent Watch Party setup panels are covered by Demo Mode URL privacy regression tests.
