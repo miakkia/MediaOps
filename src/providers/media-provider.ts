@@ -25,7 +25,7 @@ export interface MediaItem {
   overview: string | undefined;
   type: MediaType | undefined;
   dateCreated: string | undefined;
-  seriesStatus: SeriesLifecycleStatus | undefined;
+  seriesStatus?: SeriesLifecycleStatus | undefined;
 }
 
 export type MediaMovie = MediaItem;
