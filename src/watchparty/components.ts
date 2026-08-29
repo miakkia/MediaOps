@@ -12,10 +12,16 @@ export type WatchPartyRsvpAction =
 
 export type WatchPartyAction =
   | WatchPartyRsvpAction
+  | 'start_early'
   | 'cancel';
 
 export interface WatchPartyRsvpCustomId {
   action: WatchPartyRsvpAction;
+  partyId: string;
+}
+
+export interface WatchPartyStartEarlyCustomId {
+  action: 'start_early';
   partyId: string;
 }
 
@@ -28,8 +34,10 @@ export function createWatchPartyRsvpRow(
   partyId: string,
   goingLabel = 'I’m going',
   notGoingLabel = 'I’m not going',
+  startEarlyLabel = 'Start Now',
   cancelLabel = 'Cancel Watch Party',
-  disabled = false,
+  controlsDisabled = false,
+  cancelDisabled = controlsDisabled,
 ): ActionRowBuilder<ButtonBuilder> {
   const goingButton =
     new ButtonBuilder()
@@ -42,7 +50,7 @@ export function createWatchPartyRsvpRow(
       .setLabel(goingLabel)
       .setEmoji('✅')
       .setStyle(ButtonStyle.Success)
-      .setDisabled(disabled);
+      .setDisabled(controlsDisabled);
 
   const notGoingButton =
     new ButtonBuilder()
@@ -55,7 +63,20 @@ export function createWatchPartyRsvpRow(
       .setLabel(notGoingLabel)
       .setEmoji('❌')
       .setStyle(ButtonStyle.Secondary)
-      .setDisabled(disabled);
+      .setDisabled(controlsDisabled);
+
+  const startEarlyButton =
+    new ButtonBuilder()
+      .setCustomId(
+        createCustomId(
+          partyId,
+          'start_early',
+        ),
+      )
+      .setLabel(startEarlyLabel)
+      .setEmoji('▶️')
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(controlsDisabled);
 
   const cancelButton =
     new ButtonBuilder()
@@ -68,12 +89,13 @@ export function createWatchPartyRsvpRow(
       .setLabel(cancelLabel)
       .setEmoji('🛑')
       .setStyle(ButtonStyle.Danger)
-      .setDisabled(disabled);
+      .setDisabled(cancelDisabled);
 
   return new ActionRowBuilder<ButtonBuilder>()
     .addComponents(
       goingButton,
       notGoingButton,
+      startEarlyButton,
       cancelButton,
     );
 }
@@ -97,6 +119,25 @@ export function parseWatchPartyRsvpCustomId(
 
   return {
     action: parsed.action,
+    partyId: parsed.partyId,
+  };
+}
+
+export function parseWatchPartyStartEarlyCustomId(
+  customId: string,
+): WatchPartyStartEarlyCustomId | undefined {
+  const parsed =
+    parseCustomId(customId);
+
+  if (
+    !parsed ||
+    parsed.action !== 'start_early'
+  ) {
+    return undefined;
+  }
+
+  return {
+    action: 'start_early',
     partyId: parsed.partyId,
   };
 }
@@ -151,6 +192,7 @@ function parseCustomId(
   if (
     action !== 'going' &&
     action !== 'not_going' &&
+    action !== 'start_early' &&
     action !== 'cancel'
   ) {
     return undefined;

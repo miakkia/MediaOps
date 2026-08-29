@@ -133,6 +133,10 @@ export async function scheduleWatchParty(
         'watchparty.scheduling.notGoing',
       ),
 
+      input.locale === 'fr'
+        ? 'Démarrer maintenant'
+        : 'Start Now',
+
       t(
         input.locale,
         'watchparty.cancel.button',

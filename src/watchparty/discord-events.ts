@@ -119,10 +119,18 @@ export async function cancelDiscordScheduledEventForParty(
         GuildScheduledEventStatus.Canceled,
         'MediaOps Watch Party cancelled',
       );
+      return;
+    }
+
+    if (event.status === GuildScheduledEventStatus.Active) {
+      await event.setStatus(
+        GuildScheduledEventStatus.Completed,
+        'MediaOps Watch Party ended',
+      );
     }
   } catch (error) {
     console.error(
-      `Unable to cancel Discord Scheduled Event ${event.id}:`,
+      `Unable to cancel or complete Discord Scheduled Event ${event.id}:`,
       error,
     );
   }
