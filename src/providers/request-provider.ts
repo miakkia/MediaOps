@@ -23,7 +23,7 @@ export interface RequestSearchResult {
   year: number | undefined;
   overview: string | undefined;
   posterUrl: string | undefined;
-  seriesStatus: RequestSeriesLifecycleStatus | undefined;
+  seriesStatus?: RequestSeriesLifecycleStatus | undefined;
   status: RequestStatus;
   requested: boolean;
   available: boolean;
