@@ -9,7 +9,9 @@ import {
 } from 'discord.js';
 
 import { getMediaOpsBranding } from '../config/branding.js';
+import { isMediaOpsDemoMode } from '../config/demo-mode.js';
 import { getWatchPartyUrl } from '../services/watchparty.js';
+import { createWatchPartyJoinRow } from '../watchparty/components.js';
 
 const RANDOM_BUTTON_ID = 'watchpartysetup:random';
 const SCHEDULE_BUTTON_ID = 'watchpartysetup:schedule';
@@ -38,10 +40,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  const watchPartyUrl = getWatchPartyUrl();
+  const demoMode = isMediaOpsDemoMode();
+  const watchPartyUrl = demoMode ? undefined : getWatchPartyUrl();
   const { botName, serverName } = getMediaOpsBranding();
 
-  const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+  const controlsRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(RANDOM_BUTTON_ID)
       .setLabel('Random / Aléatoire')
@@ -52,12 +55,25 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .setLabel('Planifier / Schedule')
       .setEmoji('📅')
       .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setLabel('Ouvrir / Open')
-      .setEmoji('🌐')
-      .setStyle(ButtonStyle.Link)
-      .setURL(watchPartyUrl),
   );
+
+  const openRow = createWatchPartyJoinRow(
+    'Ouvrir / Open',
+    watchPartyUrl,
+    demoMode,
+  );
+  const openButton = openRow.components[0];
+  openButton.setEmoji('🌐');
+  controlsRow.addComponents(openButton);
+
+  const demoNotice = demoMode
+    ? [
+        '',
+        '🔒 **Mode démo / Demo mode**',
+        'Le lien Watch Party est volontairement désactivé et aucune URL configurée n’est publiée dans Discord.',
+        'The Watch Party link is intentionally disabled and no configured URL is published to Discord.',
+      ]
+    : [];
 
   const content = [
     '## 🎬 Watch Party',
@@ -79,9 +95,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     '🔐 **Sécurité / Security**',
     `Votre mot de passe Emby est saisi uniquement dans Watch Party et n’est jamais envoyé à ${botName}.`,
     `Your Emby password is entered only in Watch Party and is never sent to ${botName}.`,
+    ...demoNotice,
   ].join('\n');
 
-  await channel.send({ content, components: [actionRow] });
+  await channel.send({ content, components: [controlsRow] });
   await interaction.reply({
     content: '✅ Watch Party panel published / Panneau Watch Party publié.',
     flags: MessageFlags.Ephemeral,
