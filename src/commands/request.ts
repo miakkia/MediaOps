@@ -46,6 +46,13 @@ function getStatusLabel(item: RequestSearchResult): string {
   return '➕ Requestable';
 }
 
+function getSeriesStatusLabel(item: RequestSearchResult): string | undefined {
+  if (item.mediaType !== 'series') return undefined;
+  if (item.seriesStatus === 'ended') return '🔴 Ended';
+  if (item.seriesStatus === 'continuing') return '🟢 Continuing';
+  return undefined;
+}
+
 function normalizePosterUrl(
   value: string | undefined,
 ): string | undefined {
@@ -79,10 +86,15 @@ function createResultEmbed(
   item: RequestSearchResult,
   index: number,
 ): EmbedBuilder {
-  const year =
+  const metadata = [
     item.year !== undefined
       ? String(item.year)
-      : '—';
+      : undefined,
+    getSeriesStatusLabel(item),
+    getStatusLabel(item),
+  ].filter(
+    (value): value is string => value !== undefined,
+  );
 
   const embed =
     new EmbedBuilder()
@@ -90,7 +102,7 @@ function createResultEmbed(
         `${index + 1}. ${item.title}`,
       )
       .setDescription(
-        `${year} • ${getStatusLabel(item)}`,
+        metadata.join(' • '),
       );
 
   const posterUrl =
