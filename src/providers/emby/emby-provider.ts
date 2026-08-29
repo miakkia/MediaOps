@@ -1,5 +1,6 @@
 import {
   getEmbyMovieById,
+  getEmbyPoster,
   getEmbySystemInfo,
   getLatestEmbyItems,
   getRandomEmbyMovie,
@@ -10,6 +11,7 @@ import {
 import type {
   MediaItem,
   MediaMovie,
+  MediaPoster,
   MediaProvider,
   MediaSeries,
   MediaServerInfo,
@@ -70,5 +72,11 @@ implements MediaProvider {
     return getEmbyMovieById(
       movieId,
     );
+  }
+
+  async getPoster(
+    itemId: string,
+  ): Promise<MediaPoster | undefined> {
+    return getEmbyPoster(itemId);
   }
 }
