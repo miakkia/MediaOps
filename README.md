@@ -92,6 +92,7 @@ A hosted official universal/multi-tenant bot is retained only as a **Future / Ma
 - `/mediaops-setup` and `/watchparty-setup` persistent self-service guides;
 - administrator diagnostics through `/ping`, `/health`, and `/mediaops-admin-setup`;
 - configurable public branding through `MEDIAOPS_BOT_NAME` and `MEDIAOPS_SERVER_NAME`;
+- privacy-safe public/demo deployments through `MEDIAOPS_DEMO_MODE`;
 - EN/FR internationalization foundation;
 - Docker/GHCR distribution with a non-root runtime and persistent `/data` storage;
 - Portainer/Compose and Unraid deployment paths;
@@ -200,6 +201,7 @@ services:
     environment:
       MEDIAOPS_BOT_NAME: MediaOps Bot
       MEDIAOPS_SERVER_NAME: My Media Server
+      MEDIAOPS_DEMO_MODE: "false"
       MEDIA_PROVIDER: emby
       DISCORD_TOKEN: REPLACE_ME
       DISCORD_CLIENT_ID: REPLACE_ME
@@ -217,6 +219,8 @@ services:
     volumes:
       - ./mediaops-data:/data
 ```
+
+`MEDIAOPS_DEMO_MODE=false` is the normal self-hosted behavior. For a public/demo deployment where Watch Party controls should remain visible without publishing the configured Watch Party URL into Discord, set it to `true`. See [`docs/DEMO_MODE.md`](docs/DEMO_MODE.md).
 
 No privileged mode, Docker socket, media-library filesystem mount, or inbound MediaOps application port is required for current features.
 
@@ -259,6 +263,7 @@ Before Community Apps submission, the templates must pass the current Unraid **V
 ## Documentation
 
 - [`docs/DISCORD_BOT_SETUP.md`](docs/DISCORD_BOT_SETUP.md) — create and secure your v1 Discord bot
+- [`docs/DEMO_MODE.md`](docs/DEMO_MODE.md) — privacy-safe public/demo deployments
 - [`docs/RELEASE_SCOPE_V1.md`](docs/RELEASE_SCOPE_V1.md) — release boundaries
 - [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md) — acceptance checklist
 - [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) — current limitations
