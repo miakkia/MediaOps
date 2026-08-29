@@ -52,7 +52,7 @@ export interface MediaProvider {
     movieId: string,
   ): Promise<MediaMovie | undefined>;
 
-  getPoster(
+  getPoster?(
     itemId: string,
   ): Promise<MediaPoster | undefined>;
 }
