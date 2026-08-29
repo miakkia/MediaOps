@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  createWatchPartyJoinButton,
   createWatchPartyJoinRow,
   parseWatchPartyCancelCustomId,
   parseWatchPartyRsvpCustomId,
@@ -11,40 +12,28 @@ import {
 test('parses a going RSVP custom ID', () => {
   assert.deepEqual(
     parseWatchPartyRsvpCustomId('watchparty:rsvp:going:party-123'),
-    {
-      action: 'going',
-      partyId: 'party-123',
-    },
+    { action: 'going', partyId: 'party-123' },
   );
 });
 
 test('parses a not-going RSVP custom ID', () => {
   assert.deepEqual(
     parseWatchPartyRsvpCustomId('watchparty:rsvp:not_going:party-123'),
-    {
-      action: 'not_going',
-      partyId: 'party-123',
-    },
+    { action: 'not_going', partyId: 'party-123' },
   );
 });
 
 test('parses a start-early custom ID', () => {
   assert.deepEqual(
     parseWatchPartyStartEarlyCustomId('watchparty:rsvp:start_early:party-123'),
-    {
-      action: 'start_early',
-      partyId: 'party-123',
-    },
+    { action: 'start_early', partyId: 'party-123' },
   );
 });
 
 test('parses a cancel custom ID', () => {
   assert.deepEqual(
     parseWatchPartyCancelCustomId('watchparty:rsvp:cancel:party-123'),
-    {
-      action: 'cancel',
-      partyId: 'party-123',
-    },
+    { action: 'cancel', partyId: 'party-123' },
   );
 });
 
@@ -73,6 +62,20 @@ test('demo join button is disabled and never serializes the configured URL', () 
   ).toJSON();
 
   const button = row.components[0] as unknown as Record<string, unknown>;
+
+  assert.equal(button.disabled, true);
+  assert.equal(button.style, 2);
+  assert.equal(button.custom_id, 'watchparty:demo:join');
+  assert.equal('url' in button, false);
+});
+
+test('demo panel open button is disabled and never serializes the configured base URL', () => {
+  const button = createWatchPartyJoinButton(
+    'Ouvrir / Open',
+    'https://private.example/',
+    true,
+    '🌐',
+  ).toJSON() as unknown as Record<string, unknown>;
 
   assert.equal(button.disabled, true);
   assert.equal(button.style, 2);

@@ -9,7 +9,9 @@ import {
 } from 'discord.js';
 
 import { getMediaOpsBranding } from '../config/branding.js';
+import { isMediaOpsDemoMode } from '../config/demo-mode.js';
 import { getWatchPartyUrl } from '../services/watchparty.js';
+import { createWatchPartyJoinButton } from '../watchparty/components.js';
 
 const RANDOM_BUTTON_ID = 'watchpartysetup:random';
 const SCHEDULE_BUTTON_ID = 'watchpartysetup:schedule';
@@ -38,7 +40,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  const watchPartyUrl = getWatchPartyUrl();
+  const demoMode = isMediaOpsDemoMode();
+  const watchPartyUrl = demoMode ? undefined : getWatchPartyUrl();
   const { botName, serverName } = getMediaOpsBranding();
 
   const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -52,12 +55,15 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .setLabel('Planifier / Schedule')
       .setEmoji('📅')
       .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setLabel('Ouvrir / Open')
-      .setEmoji('🌐')
-      .setStyle(ButtonStyle.Link)
-      .setURL(watchPartyUrl),
+    createWatchPartyJoinButton('Ouvrir / Open', watchPartyUrl, demoMode, '🌐'),
   );
+
+  const openLineFr = demoMode
+    ? '🔒 **Ouvrir / Open** est désactivé en mode démo; aucune URL Watch Party configurée n’est publiée dans Discord.'
+    : '🌐 Créez ou rejoignez une session avec **Ouvrir / Open**.';
+  const openLineEn = demoMode
+    ? '🔒 **Ouvrir / Open** is disabled in Demo Mode; no configured Watch Party URL is published to Discord.'
+    : '🌐 Create or join a session with **Ouvrir / Open**.';
 
   const content = [
     '## 🎬 Watch Party',
@@ -65,14 +71,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     `🇫🇷 Regardez un film ensemble sur **${serverName}** avec **${botName}**.`,
     '🎲 Choisissez un film au hasard avec **Random / Aléatoire**.',
     '📅 Planifiez une soirée avec **Planifier / Schedule**.',
-    '🌐 Créez ou rejoignez une session avec **Ouvrir / Open**.',
+    openLineFr,
     '📋 Utilisez `/watchparty-upcoming` pour voir les soirées à venir.',
     'ℹ️ Utilisez `/watchparty-status` pour vérifier l’état du service Watch Party.',
     '',
     `🇬🇧 Watch a movie together on **${serverName}** with **${botName}**.`,
     '🎲 Let the bot choose a movie with **Random / Aléatoire**.',
     '📅 Plan your next movie night with **Planifier / Schedule**.',
-    '🌐 Create or join a session with **Ouvrir / Open**.',
+    openLineEn,
     '📋 Use `/watchparty-upcoming` to see upcoming parties.',
     'ℹ️ Use `/watchparty-status` to check the Watch Party service.',
     '',

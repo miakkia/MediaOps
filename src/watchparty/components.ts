@@ -35,35 +35,43 @@ export interface WatchPartyCancelCustomId {
   partyId: string;
 }
 
+export function createWatchPartyJoinButton(
+  label: string,
+  joinUrl?: string,
+  demoMode = isMediaOpsDemoMode(),
+  emoji = '🎬',
+): ButtonBuilder {
+  const joinButton = new ButtonBuilder()
+    .setLabel(label)
+    .setEmoji(emoji);
+
+  if (demoMode) {
+    return joinButton
+      .setCustomId(DEMO_JOIN_CUSTOM_ID)
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true);
+  }
+
+  if (!joinUrl) {
+    throw new Error(
+      'Watch Party join URL is required outside demo mode.',
+    );
+  }
+
+  return joinButton
+    .setStyle(ButtonStyle.Link)
+    .setURL(joinUrl);
+}
+
 export function createWatchPartyJoinRow(
   label: string,
   joinUrl?: string,
   demoMode = isMediaOpsDemoMode(),
 ): ActionRowBuilder<ButtonBuilder> {
-  const joinButton =
-    new ButtonBuilder()
-      .setLabel(label)
-      .setEmoji('🎬');
-
-  if (demoMode) {
-    joinButton
-      .setCustomId(DEMO_JOIN_CUSTOM_ID)
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(true);
-  } else {
-    if (!joinUrl) {
-      throw new Error(
-        'Watch Party join URL is required outside demo mode.',
-      );
-    }
-
-    joinButton
-      .setStyle(ButtonStyle.Link)
-      .setURL(joinUrl);
-  }
-
   return new ActionRowBuilder<ButtonBuilder>()
-    .addComponents(joinButton);
+    .addComponents(
+      createWatchPartyJoinButton(label, joinUrl, demoMode),
+    );
 }
 
 export function createWatchPartyRsvpRow(
