@@ -118,7 +118,9 @@ export async function execute(
     const posters =
       await Promise.all(
         displayedMovies.map(movie =>
-          mediaProvider.getPoster(movie.id),
+          mediaProvider.getPoster
+            ? mediaProvider.getPoster(movie.id)
+            : Promise.resolve(undefined),
         ),
       );
 
