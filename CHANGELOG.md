@@ -8,6 +8,11 @@ The current baseline is in final preparation for the first public self-hosted v1
 
 ### Added
 
+- **Rich Media Cards** for `/movie`, `/tv`, `/latest`, and `/request`, replacing plain text search output with compact visual results.
+- Movie cards show poster artwork, title, and year.
+- TV cards show poster artwork, title, year, and lifecycle status such as Continuing / En cours or Ended / Terminée when the provider exposes it.
+- Ombi request search keeps the existing request state/actions while adding the same Rich Media Card presentation.
+- Emby poster artwork is fetched server-side and uploaded to Discord as an attachment so the Emby API key is never placed in a Discord image URL.
 - Discord bot foundation with automatic modular slash-command discovery.
 - Operator-owned Discord bot setup documentation for the self-hosted v1 model.
 - Emby health, movie search, TV-series search, and recently-added discovery.
@@ -34,13 +39,15 @@ The current baseline is in final preparation for the first public self-hosted v1
 - GHCR development, latest, SHA, and semantic-version tagging strategy.
 - Persistent Docker runtime data under `/data`.
 - Unraid templates, Community Apps profile, application icon, and deployment documentation.
-- Public feature screenshots covering library search, Ombi requests, Forum lifecycle, Watch Party, and the Discord command guide.
+- Public feature screenshots covering Rich Media Cards, library search, Ombi requests, Forum lifecycle, Watch Party, and the Discord command guide.
 
 ### Security
 
 - V1 deployment model explicitly documented as self-hosted/single-tenant with an operator-owned Discord application/bot.
 - Public Community demo bot is documented as non-universal and should not be invited into unrelated guilds.
 - Hardened Emby API client with URL/protocol validation, bounded timeouts, explicit redirect behavior, and response validation.
+- Rich Media Card artwork handling keeps Emby credentials server-side, caps poster downloads, and avoids exposing provider API keys in Discord image URLs.
+- Ombi Rich Media Card artwork is limited to trusted TMDB HTTPS image URLs.
 - Input validation for Discord identifiers and scheduling data.
 - User-bound, short-lived request-selection tokens.
 - Runtime data and secrets kept outside source control.
@@ -64,6 +71,7 @@ The current baseline is in final preparation for the first public self-hosted v1
 
 ### Changed
 
+- `/movie`, `/tv`, `/latest`, and `/request` now use a consistent compact Rich Media Card UX for media discovery.
 - Public v1 is explicitly defined as one self-hosted MediaOps instance + one operator-owned Discord bot + one backend configuration.
 - Hosted/universal multi-tenant operation is classified as **Future / Maybe**, with no committed target release; any future implementation requires a separate security-first multi-tenant architecture.
 - Shared Watch Party scheduling logic is used by manual and random scheduling flows.
