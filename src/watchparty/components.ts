@@ -136,6 +136,26 @@ export function createWatchPartyRsvpRow(
     );
 }
 
+export function createWatchPartyActiveRow(
+  partyId: string,
+  closeLabel = 'Close Room',
+): ActionRowBuilder<ButtonBuilder> {
+  const closeButton =
+    new ButtonBuilder()
+      .setCustomId(
+        createCustomId(
+          partyId,
+          'cancel',
+        ),
+      )
+      .setLabel(closeLabel)
+      .setEmoji('🛑')
+      .setStyle(ButtonStyle.Danger);
+
+  return new ActionRowBuilder<ButtonBuilder>()
+    .addComponents(closeButton);
+}
+
 export function parseWatchPartyRsvpCustomId(
   customId: string,
 ): WatchPartyRsvpCustomId | undefined {
