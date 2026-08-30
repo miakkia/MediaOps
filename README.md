@@ -18,15 +18,27 @@ MediaOps is an open-source Discord companion for self-hosted media communities. 
 
 MediaOps keeps the day-to-day media workflow inside Discord: search what is already in your library, request missing content, track request status, and organize synchronized Watch Parties.
 
+### Rich Media Cards
+
+Media discovery is now visual without becoming noisy. `/movie`, `/tv`, `/latest`, and `/request` use compact Rich Media Cards so members can identify the correct title at a glance.
+
+Movie cards show the **poster, title, and year**. TV cards also show the series lifecycle when available, such as **Continuing / En cours** or **Ended / Terminée**. Request cards keep the existing request status and actions while adding the same visual identity.
+
+![MediaOps Rich Media Cards](Images/Rich%20cards.jpg)
+
+Emby artwork is fetched by MediaOps through the authenticated provider connection and uploaded to Discord as an attachment. The Emby API key is never embedded in a Discord poster URL. Ombi artwork is limited to trusted TMDB HTTPS image URLs.
+
 ### Search the Emby library
 
-Use `/movie` or `/tv` to quickly find matching titles already available in your media library.
+Use `/movie` or `/tv` to quickly find matching titles already available in your media library. Search results are capped to a compact set of visual cards instead of a plain text list.
 
-![MediaOps movie search](Images/movie%20command.jpg)
+### See recently added media
+
+Use `/latest` to see recently added movies and series using the same Rich Media Card presentation, including TV lifecycle status when the provider exposes it.
 
 ### Request missing media through Ombi
 
-Use `/request` to search Ombi, choose the exact movie or series, and submit the request without leaving Discord.
+Use `/request` to search Ombi, choose the exact movie or series, and submit the request without leaving Discord. Search results use poster cards while preserving request availability, selection, and confirmation controls.
 
 ![MediaOps movie request workflow](Images/Request%20movie%20Feature.jpg)
 
@@ -82,6 +94,7 @@ A hosted official universal/multi-tenant bot is retained only as a **Future / Ma
 
 ## What MediaOps provides
 
+- compact Rich Media Cards for `/movie`, `/tv`, `/latest`, and `/request`;
 - Emby movie and TV-series search;
 - recently added media discovery;
 - Ombi movie/TV request submission with requester attribution and optional auto-approval;
@@ -117,10 +130,10 @@ MediaOps currently registers **15 guild-scoped commands**.
 
 | Command | Purpose |
 | --- | --- |
-| `/movie` | Search the movie library |
-| `/tv` | Search the TV-series library |
-| `/latest` | Show recently added media |
-| `/request` | Search Ombi and submit a movie or TV request |
+| `/movie` | Search the movie library with Rich Media Cards |
+| `/tv` | Search the TV-series library with Rich Media Cards |
+| `/latest` | Show recently added media with Rich Media Cards |
+| `/request` | Search Ombi with Rich Media Cards and submit a movie or TV request |
 | `/watchparty` | Open the configured Watch Party service |
 | `/watchparty-start` | Validate a Watch Party code and provide a join action |
 | `/watchparty-status` | Check a Watch Party session |
@@ -144,6 +157,7 @@ With Ombi configured:
 ```text
 /request
   -> search Ombi
+  -> show Rich Media Card results
   -> choose result
   -> confirm exact title/year
   -> create request as mapped Ombi user
@@ -240,6 +254,7 @@ The published runtime contains the compiled command deployment utility. `tsx`, G
 - Do not expose the project Community demo bot for unrelated guilds.
 - Do not reuse one v1 instance across unrelated customers with different backends.
 - Do not commit Discord tokens, provider API keys, webhook credentials, or passwords.
+- Rich Media Card poster handling does not expose the Emby API key in Discord image URLs.
 - No privileged container mode.
 - No Docker socket.
 - No media-library mounts required.
@@ -271,7 +286,7 @@ Before Community Apps submission, the templates must pass the current Unraid **V
 - [`docs/REQUEST_FORUM.md`](docs/REQUEST_FORUM.md) — optional Forum workflow
 - [`docs/DOCKER.md`](docs/DOCKER.md) — Docker/GHCR deployment
 - [`docs/UNRAID.md`](docs/UNRAID.md) — Unraid deployment
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — future work including richer media discovery and multi-tenant architecture
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — current foundation and future work
 - [`CHANGELOG.md`](CHANGELOG.md)
 
 ## License

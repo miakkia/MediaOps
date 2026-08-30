@@ -1,12 +1,16 @@
 # MediaOps Roadmap
 
-MediaOps is being built first as a reliable **self-hosted, single-tenant Discord/media automation platform**. The current roadmap focuses on making that model stable, secure, easy to deploy, and provider-agnostic over time.
+MediaOps is being built first as a reliable **self-hosted, single-tenant Discord/media automation platform**. The roadmap focuses on making that model stable, secure, easy to deploy, and provider-agnostic over time.
 
 ## Current v1 foundation
 
 - operator-owned Discord application/bot per deployment;
 - guild-scoped slash-command registration;
 - Emby integration for health, movie search, TV search, latest additions, exact item lookup, and library-wide random movie selection;
+- compact **Rich Media Cards** across `/movie`, `/tv`, `/latest`, and `/request`;
+- poster + title + year for movie discovery;
+- poster + title + year + lifecycle status for TV when available;
+- server-side authenticated Emby poster retrieval so provider API credentials are not exposed in Discord image URLs;
 - `MediaProvider` abstraction with Emby as the first provider adapter;
 - Ombi request-provider integration;
 - optional Ombi Discord Router / Forum lifecycle;
@@ -26,24 +30,60 @@ The first public release intentionally uses one MediaOps instance for one operat
 
 The public MediaOps Community bot is a restricted demo bot, not a universal bot that other operators should invite. Public v1 users create their own Discord application and bot using `DISCORD_BOT_SETUP.md`.
 
+## Rich Media Cards — shipped
+
+Rich Media Cards are now part of the normal MediaOps media-discovery experience instead of a future roadmap item.
+
+Current behavior is intentionally compact:
+
+- `/movie` — up to five visual results with poster, title, and year;
+- `/tv` — up to five visual results with poster, title, year, and Continuing/Ended lifecycle status when available;
+- `/latest` — recently added media using the same card language;
+- `/request` — visual Ombi search results while preserving request state and actions.
+
+The v1 card intentionally avoids runtime, codec, bitrate, language, subtitle, and similar technical metadata. Richer details can be added later only where they improve the normal user flow without making Discord search results noisy.
+
+![MediaOps Rich Media Cards](../Images/Rich%20cards.jpg)
+
 ## Near-term post-v1 priorities
 
-### Rich / interactive media discovery
+### Additional request providers
 
-The current `/movie` and `/tv` commands return matching library results. A planned post-v1 enhancement is an interactive result flow that lets a user select a title and open a richer Discord media card.
+MediaOps should remain request-provider agnostic. Ombi is the current provider; Seerr is a planned provider option so deployments can choose the request system that fits their environment.
 
-Potential details and actions include:
+### Discord Account Linking v1
 
-- poster artwork;
-- title, year, runtime, and overview;
-- available resolution/quality and language metadata where the provider exposes it reliably;
-- direct **Open in Emby** action;
-- relevant **Watch Together** action when Watch Party integration is configured;
-- equivalent behavior for additional media providers as they are added.
+A future account-linking flow can associate a Discord identity with a supported media/request-provider identity for commands such as `/link`, `/unlink`, and `/account`.
 
-This is a planned feature, not part of the current v1 command behavior.
+This feature requires a dedicated threat model and security design before implementation. Credentials must not be exposed in Discord, logged, or retained unnecessarily.
 
-### Multi-tenant / official universal bot architecture
+### Internationalization
+
+- continue moving user-facing text into the i18n layer;
+- support per-server language configuration when multi-guild configuration exists;
+- expand localized slash-command descriptions/options.
+
+### Reliability and testing
+
+- expand automated provider/lifecycle tests;
+- improve structured logging and operational diagnostics;
+- keep dependency auditing and secret/configuration review in CI/release processes;
+- continue clean-install/update/persistence acceptance testing.
+
+### Additional media providers
+
+Current provider:
+
+1. **Emby** — implemented reference provider
+
+Planned:
+
+2. **Jellyfin**
+3. **Plex**
+
+Provider-specific complexity should remain behind adapters so the Discord UX, including Rich Media Cards, stays consistent.
+
+## Multi-tenant / official universal bot architecture
 
 A future official MediaOps bot that can be invited into many unrelated Discord servers is a major architecture project, not a v1 configuration switch.
 
@@ -62,35 +102,9 @@ Requirements include:
 
 Possible future patterns include a central hosted bot/control plane plus a local MediaOps agent running beside the operator's media services. This must be designed explicitly before any universal bot is offered publicly.
 
-### Internationalization
-
-- continue moving user-facing text into the i18n layer;
-- support per-server language configuration when multi-guild configuration exists;
-- expand localized slash-command descriptions/options.
-
-### Reliability and testing
-
-- expand automated provider/lifecycle tests;
-- improve structured logging and operational diagnostics;
-- keep dependency auditing and secret/configuration review in CI/release processes;
-- continue clean-install/update/persistence acceptance testing.
-
-### Additional providers
-
-Current provider:
-
-1. **Emby** — implemented reference provider
-
-Planned:
-
-2. **Jellyfin**
-3. **Plex**
-
-Additional request-provider adapters may follow the same provider-boundary model.
-
 ## Public self-hosted release
 
-The first public release should prove:
+The first public release should continue proving that:
 
 - a new user can create their own Discord application/bot from documentation;
 - the bot can be safely restricted to the intended guild;
@@ -102,17 +116,16 @@ The first public release should prove:
 
 ## Unraid Community Apps
 
-MediaOps has a working Unraid deployment path, templates, profile metadata, icon, and public GHCR images. Community Apps remains a distribution step after the clean public-release acceptance pass.
+MediaOps is available through the Unraid Community Apps distribution path. The project should keep the published templates, GHCR images, documentation, and application metadata aligned with stable releases.
 
-Remaining path:
+Ongoing requirements include:
 
 1. keep GHCR images and templates aligned with stable tags;
-2. validate clean install/restart/Force Update/appdata persistence;
-3. verify Discord bot creation/setup documentation from a clean operator perspective;
+2. validate clean install/restart/Force Update/appdata persistence after material deployment changes;
+3. keep Discord bot creation/setup documentation current;
 4. keep credentials masked where supported;
 5. maintain the no-media-mount, no-privileged, no-Docker-socket security posture;
-6. run Community Apps Validate and Scan;
-7. resolve all reported issues before submission.
+6. run Community Apps Validate and Scan when template changes require it.
 
 ## Watch Party provider architecture
 
@@ -135,8 +148,6 @@ Watch Party Provider
 ```
 
 Provider-specific complexity should remain behind adapters while Discord UX stays simple.
-
-## Hosted / commercial option
 
 ## Future / Maybe — hosted multi-tenant MediaOps
 

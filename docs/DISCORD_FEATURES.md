@@ -6,16 +6,18 @@ MediaOps uses Discord as the primary user interface for media discovery, request
 
 Normal users should not need to memorize a large command set. Slash commands remain available for direct access, while persistent setup panels, buttons, confirmations, and modals provide guided paths for common tasks.
 
+Media discovery follows the same principle: enough visual context to identify the correct title quickly, without turning normal Discord results into oversized metadata dumps.
+
 ## Current commands
 
 MediaOps currently registers 15 guild-scoped Discord commands.
 
 ### User-facing media commands
 
-- `/movie` — search for movies in the connected media library.
-- `/tv` — search for TV series.
-- `/latest` — show recently added movies and series.
-- `/request` — search the configured request provider, currently Ombi, and submit a movie or TV request.
+- `/movie` — search for movies in the connected media library using Rich Media Cards.
+- `/tv` — search for TV series using Rich Media Cards.
+- `/latest` — show recently added movies and series using Rich Media Cards.
+- `/request` — search the configured request provider, currently Ombi, and submit a movie or TV request using Rich Media Cards.
 
 ### Watch Party
 
@@ -36,6 +38,31 @@ MediaOps currently registers 15 guild-scoped Discord commands.
 
 `/ping`, `/health`, `/mediaops-setup`, `/mediaops-admin-setup`, and `/watchparty-setup` require the Discord **Manage Server** permission by default. Diagnostic replies are ephemeral.
 
+## Rich Media Cards
+
+`/movie`, `/tv`, `/latest`, and `/request` share a compact visual presentation for media discovery.
+
+![MediaOps Rich Media Cards](../Images/Rich%20cards.jpg)
+
+The current card design is intentionally restrained:
+
+- movie: poster + title + year;
+- TV: poster + title + year + lifecycle status when available;
+- latest: the same visual identity for recently added movies and series;
+- request: poster + title + year while preserving request availability, status, and actions.
+
+TV lifecycle status is presented as **Continuing / En cours** or **Ended / Terminée** when the provider exposes a usable value. MediaOps does not fabricate a status when the provider does not supply one.
+
+Rich Media Cards deliberately do not include runtime, codec, bitrate, language, subtitle, or other technical metadata in the default discovery flow. The goal is fast identification, especially when multiple results have similar titles.
+
+### Artwork security
+
+Emby poster artwork is fetched server-side using the configured authenticated provider connection and then uploaded to Discord as an attachment. The Emby API key is not embedded into an image URL sent to Discord.
+
+Poster downloads are bounded, redirects are not trusted as an arbitrary fetch mechanism, and artwork requests are derived from validated media item identifiers rather than user-provided external URLs.
+
+For Ombi request search, MediaOps only renders trusted TMDB HTTPS poster URLs or normalized TMDB poster paths. Unknown external poster hosts are ignored instead of being fetched or displayed automatically.
+
 ## Request flow
 
 The request workflow is button-driven and keeps provider details out of the normal user experience.
@@ -43,7 +70,7 @@ The request workflow is button-driven and keeps provider details out of the norm
 ```text
 /request
     -> Search Ombi
-    -> Show up to five results
+    -> Show up to five Rich Media Card results
     -> Choose requestable result
     -> Confirm exact title/year
     -> Create request
@@ -174,7 +201,7 @@ The default timezone for scheduling input without an explicit offset is configur
 
 ## Permissions and trust boundaries
 
-Administrative setup and diagnostic actions require appropriate Discord permissions. Normal media discovery, requests, and Watch Party participation remain usable by regular members unless a future per-guild policy restricts them.
+Administrative setup and diagnostic actions require appropriate Discord permissions. Normal media discovery, requests, and Watch Party participation remain usable by regular members unless Discord command permissions restrict them.
 
 Request selection tokens are bound to the Discord user who created them. Watch Party cancellation validates the organizer against persistent server-side state rather than trusting a button identifier alone.
 
@@ -182,4 +209,4 @@ Optional Forum automation is scoped to the configured Forum and configured integ
 
 ## Planned after the first public release
 
-Planned work includes configurable Discord roles for scheduling/admin actions, additional media and request-provider adapters, broader localization, richer administration UX, and optional hosted-bot onboarding. Jellyfin and Plex are not part of the first public release.
+Planned work includes additional media and request-provider adapters, broader localization, richer administration UX, and optional hosted-bot onboarding. Jellyfin and Plex are not part of the first public release.
