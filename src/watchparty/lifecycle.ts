@@ -6,6 +6,7 @@ import {
   setWatchPartyReminderMessageId,
   setWatchPartyReminderSentAt,
 } from '../storage/watchparty-store.js';
+import { createWatchPartyActiveRow } from './components.js';
 import { synchronizeDiscordScheduledEventForParty } from './discord-events.js';
 import { buildWatchPartyReminderContent, shouldSendWatchPartyReminder } from './reminders.js';
 import { openScheduledWatchParty } from './start.js';
@@ -51,6 +52,29 @@ async function openScheduledWatchParties(client: Client): Promise<void> {
     if (Number.isNaN(scheduledTime) || now < scheduledTime) continue;
     try {
       const opened = await openScheduledWatchParty(client, party.id);
+
+      // Once the room is active, the scheduling controls no longer describe
+      // the available action. Keep the announcement itself intact and replace
+      // its controls with the single organizer-facing Close Room action.
+      if (opened.party.messageId) {
+        const channel = await client.channels.fetch(opened.party.channelId);
+        if (channel?.isTextBased()) {
+          const message = await channel.messages.fetch(opened.party.messageId).catch(() => null);
+          if (message) {
+            await message.edit({
+              components: [
+                createWatchPartyActiveRow(
+                  opened.party.id,
+                  reminderLocale === 'fr'
+                    ? 'Fermer la salle'
+                    : 'Close Room',
+                ),
+              ],
+            });
+          }
+        }
+      }
+
       console.log(`Scheduled Watch Party ${party.id} opened automatically as ${opened.partyCode}`);
     } catch (error) {
       console.error(`Automatic Watch Party creation failed for ${party.id}:`, error);
