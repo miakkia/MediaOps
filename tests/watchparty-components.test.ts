@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  createWatchPartyActiveRow,
   createWatchPartyJoinRow,
   parseWatchPartyCancelCustomId,
   parseWatchPartyRsvpCustomId,
@@ -63,6 +64,22 @@ test('rejects malformed or unrelated custom IDs', () => {
     assert.equal(parseWatchPartyStartEarlyCustomId(customId), undefined);
     assert.equal(parseWatchPartyCancelCustomId(customId), undefined);
   }
+});
+
+test('active Watch Party row exposes only the Close Room action', () => {
+  const row = createWatchPartyActiveRow(
+    'party-123',
+    'Close Room',
+  ).toJSON();
+
+  assert.equal(row.components.length, 1);
+
+  const button = row.components[0] as unknown as Record<string, unknown>;
+
+  assert.equal(button.label, 'Close Room');
+  assert.equal(button.custom_id, 'watchparty:rsvp:cancel:party-123');
+  assert.equal(button.style, 4);
+  assert.notEqual(button.disabled, true);
 });
 
 test('demo join button is disabled and never serializes the configured URL', () => {
