@@ -25,6 +25,7 @@ import {
 
 import {
   createDiscordScheduledEventForParty,
+  shouldCreateDiscordScheduledEvent,
 } from './discord-events.js';
 
 interface ScheduleWatchPartyInput {
@@ -43,6 +44,34 @@ interface ScheduleWatchPartyInput {
   channel:
     | TextBasedChannel
     | null;
+}
+
+async function getScheduledEventPoster(
+  movieId: string,
+): Promise<Buffer | undefined> {
+  try {
+    const { mediaProvider } =
+      await import(
+        '../providers/media-provider-instance.js'
+      );
+
+    if (!mediaProvider.getPoster) {
+      return undefined;
+    }
+
+    const poster =
+      await mediaProvider.getPoster(movieId);
+
+    return poster
+      ? Buffer.from(poster.data)
+      : undefined;
+  } catch (error) {
+    console.warn(
+      `Unable to load poster for Discord Scheduled Event movie ${movieId}:`,
+      error,
+    );
+    return undefined;
+  }
 }
 
 export async function scheduleWatchParty(
@@ -191,11 +220,21 @@ export async function scheduleWatchParty(
   );
 
   // Scheduled Events are an enhancement, never a prerequisite for the
-  // existing Watch Party announcement/RSVP workflow. If Discord refuses the
-  // event because of permissions or API state, the Watch Party remains valid.
+  // existing Watch Party announcement/RSVP workflow. Poster retrieval is
+  // also best-effort: a missing or rejected image must never block the party.
+  const eventImage =
+    shouldCreateDiscordScheduledEvent(
+      scheduledDate,
+    )
+      ? await getScheduledEventPoster(
+          input.movie.id,
+        )
+      : undefined;
+
   await createDiscordScheduledEventForParty(
     input.guild,
     party,
+    eventImage,
   );
 }
 
