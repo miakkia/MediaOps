@@ -9,6 +9,7 @@ const MAX_SEARCH_RESULTS = 5;
 const MAX_LATEST_RESULTS = 5;
 const MAX_SEARCH_LENGTH = 100;
 const MAX_ITEM_ID_LENGTH = 128;
+const MAX_POSTER_BYTES = 5 * 1024 * 1024;
 
 export interface EmbySystemInfo {
   ServerName: string | undefined;
@@ -19,6 +20,15 @@ export type EmbyMediaType =
   | 'Movie'
   | 'Series';
 
+export type EmbySeriesStatus =
+  | 'continuing'
+  | 'ended';
+
+export interface EmbyMediaPoster {
+  data: Uint8Array;
+  contentType: string;
+}
+
 export interface EmbyMediaItem {
   id: string;
   name: string;
@@ -28,6 +38,7 @@ export interface EmbyMediaItem {
   overview: string | undefined;
   type: EmbyMediaType | undefined;
   dateCreated: string | undefined;
+  seriesStatus: EmbySeriesStatus | undefined;
 }
 
 export type EmbyMovie =
@@ -145,6 +156,35 @@ async function embyFetch(
   }
 }
 
+function mapSeriesStatus(
+  value: unknown,
+): EmbySeriesStatus | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const normalized =
+    value.trim().toLowerCase();
+
+  if (
+    normalized === 'ended' ||
+    normalized === 'cancelled' ||
+    normalized === 'canceled'
+  ) {
+    return 'ended';
+  }
+
+  if (
+    normalized === 'continuing' ||
+    normalized === 'returning series' ||
+    normalized === 'in production'
+  ) {
+    return 'continuing';
+  }
+
+  return undefined;
+}
+
 function parseEmbyMediaItem(
   value: unknown,
 ): EmbyMediaItem | undefined {
@@ -212,6 +252,11 @@ function parseEmbyMediaItem(
       typeof item.DateCreated ===
       'string'
         ? item.DateCreated
+        : undefined,
+
+    seriesStatus:
+      type === 'Series'
+        ? mapSeriesStatus(item.Status)
         : undefined,
   };
 }
@@ -363,7 +408,7 @@ async function searchEmbyItems(
         ),
 
       Fields:
-        'Overview,ProductionYear,DateCreated,OriginalTitle,SortName',
+        'Overview,ProductionYear,DateCreated,OriginalTitle,SortName,Status',
     });
 
   const response =
@@ -460,7 +505,7 @@ export async function getEmbyMovieById(
         '1',
 
       Fields:
-        'Overview,ProductionYear,DateCreated,OriginalTitle,SortName',
+        'Overview,ProductionYear,DateCreated,OriginalTitle,SortName,Status',
     });
 
   const response =
@@ -513,7 +558,7 @@ export async function getLatestEmbyItems(): Promise<EmbyMediaItem[]> {
         ),
 
       Fields:
-        'Overview,ProductionYear,DateCreated,OriginalTitle,SortName',
+        'Overview,ProductionYear,DateCreated,OriginalTitle,SortName,Status',
     });
 
   const response =
@@ -545,7 +590,7 @@ export async function getRandomEmbyMovie(): Promise<
         '1',
 
       Fields:
-        'Overview,ProductionYear,DateCreated,OriginalTitle,SortName',
+        'Overview,ProductionYear,DateCreated,OriginalTitle,SortName,Status',
     });
 
   const countResponse =
@@ -601,7 +646,7 @@ export async function getRandomEmbyMovie(): Promise<
         '1',
 
       Fields:
-        'Overview,ProductionYear,DateCreated,OriginalTitle,SortName',
+        'Overview,ProductionYear,DateCreated,OriginalTitle,SortName,Status',
     });
 
   const movieResponse =
@@ -619,4 +664,63 @@ export async function getRandomEmbyMovie(): Promise<
     );
 
   return movieResult.items[0];
+}
+
+export async function getEmbyPoster(
+  itemId: string,
+): Promise<EmbyMediaPoster | undefined> {
+  const normalizedItemId =
+    normalizeEmbyItemId(itemId);
+
+  let response: Response;
+
+  try {
+    response = await embyFetch(
+      `/Items/${encodeURIComponent(normalizedItemId)}/Images/Primary?maxWidth=342&quality=90`,
+    );
+  } catch (error) {
+    console.warn(
+      `Unable to fetch Emby poster for ${normalizedItemId}:`,
+      error,
+    );
+    return undefined;
+  }
+
+  const contentType =
+    response.headers.get('content-type')
+      ?.split(';', 1)[0]
+      ?.trim()
+      .toLowerCase();
+
+  if (!contentType?.startsWith('image/')) {
+    return undefined;
+  }
+
+  const contentLength =
+    Number.parseInt(
+      response.headers.get('content-length') ?? '',
+      10,
+    );
+
+  if (
+    Number.isFinite(contentLength) &&
+    contentLength > MAX_POSTER_BYTES
+  ) {
+    return undefined;
+  }
+
+  const buffer =
+    await response.arrayBuffer();
+
+  if (
+    buffer.byteLength === 0 ||
+    buffer.byteLength > MAX_POSTER_BYTES
+  ) {
+    return undefined;
+  }
+
+  return {
+    data: new Uint8Array(buffer),
+    contentType,
+  };
 }

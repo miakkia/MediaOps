@@ -1,5 +1,7 @@
 import {
+  AttachmentBuilder,
   ChatInputCommandInteraction,
+  EmbedBuilder,
   MessageFlags,
   SlashCommandBuilder,
 } from 'discord.js';
@@ -15,6 +17,10 @@ import {
 import {
   mediaProvider,
 } from '../providers/media-provider-instance.js';
+
+import type {
+  MediaPoster,
+} from '../providers/media-provider.js';
 
 export const data =
   new SlashCommandBuilder()
@@ -52,6 +58,21 @@ export const data =
         .setMaxLength(100),
     );
 
+function posterExtension(
+  poster: MediaPoster,
+): string {
+  switch (poster.contentType) {
+    case 'image/png':
+      return 'png';
+    case 'image/webp':
+      return 'webp';
+    case 'image/gif':
+      return 'gif';
+    default:
+      return 'jpg';
+  }
+}
+
 export async function execute(
   interaction: ChatInputCommandInteraction,
 ): Promise<void> {
@@ -72,10 +93,11 @@ export async function execute(
   });
 
   try {
-      const movies =
-         await mediaProvider.searchMovies(
-           title,
-  );
+    const movies =
+      await mediaProvider.searchMovies(
+        title,
+      );
+
     if (movies.length === 0) {
       await interaction.editReply(
         t(
@@ -90,25 +112,62 @@ export async function execute(
       return;
     }
 
-    const results =
-      movies.map(movie => {
-        const year =
-          movie.year !== undefined
-            ? ` (${movie.year})`
-            : '';
+    const displayedMovies =
+      movies.slice(0, 5);
 
-        return (
-          `• **${movie.name}**${year}`
-        );
+    const posters =
+      await Promise.all(
+        displayedMovies.map(movie =>
+          mediaProvider.getPoster
+            ? mediaProvider.getPoster(movie.id)
+            : Promise.resolve(undefined),
+        ),
+      );
+
+    const files: AttachmentBuilder[] = [];
+
+    const embeds =
+      displayedMovies.map((movie, index) => {
+        const embed =
+          new EmbedBuilder()
+            .setTitle(movie.name)
+            .setDescription(
+              movie.year !== undefined
+                ? String(movie.year)
+                : '—',
+            );
+
+        const poster =
+          posters[index];
+
+        if (poster) {
+          const filename =
+            `movie-${index + 1}.${posterExtension(poster)}`;
+
+          files.push(
+            new AttachmentBuilder(
+              Buffer.from(poster.data),
+              { name: filename },
+            ),
+          );
+
+          embed.setThumbnail(
+            `attachment://${filename}`,
+          );
+        }
+
+        return embed;
       });
 
-    await interaction.editReply(
-      `${t(
-        locale,
-        'emby.movie.results',
-      )}\n\n` +
-      results.join('\n'),
-    );
+    await interaction.editReply({
+      content:
+        `🎬 ${t(
+          locale,
+          'emby.movie.results',
+        )}`,
+      embeds,
+      files,
+    });
   } catch (error) {
     console.error(
       'Emby movie search failed:',

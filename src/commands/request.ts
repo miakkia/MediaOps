@@ -3,6 +3,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   ChatInputCommandInteraction,
+  EmbedBuilder,
   MessageFlags,
   SlashCommandBuilder,
 } from 'discord.js';
@@ -45,9 +46,73 @@ function getStatusLabel(item: RequestSearchResult): string {
   return '➕ Requestable';
 }
 
-function formatResult(item: RequestSearchResult, index: number): string {
-  const year = item.year !== undefined ? ` (${item.year})` : '';
-  return `**${index + 1}. ${item.title}**${year}\n${getStatusLabel(item)}`;
+function getSeriesStatusLabel(item: RequestSearchResult): string | undefined {
+  if (item.mediaType !== 'series') return undefined;
+  if (item.seriesStatus === 'ended') return '🔴 Ended';
+  if (item.seriesStatus === 'continuing') return '🟢 Continuing';
+  return undefined;
+}
+
+function normalizePosterUrl(
+  value: string | undefined,
+): string | undefined {
+  if (!value) return undefined;
+
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  if (trimmed.startsWith('/')) {
+    return `https://image.tmdb.org/t/p/w342${trimmed}`;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    if (
+      url.protocol !== 'https:' ||
+      url.username ||
+      url.password ||
+      url.hostname !== 'image.tmdb.org'
+    ) {
+      return undefined;
+    }
+
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+function createResultEmbed(
+  item: RequestSearchResult,
+  index: number,
+): EmbedBuilder {
+  const metadata = [
+    item.year !== undefined
+      ? String(item.year)
+      : undefined,
+    getSeriesStatusLabel(item),
+    getStatusLabel(item),
+  ].filter(
+    (value): value is string => value !== undefined,
+  );
+
+  const embed =
+    new EmbedBuilder()
+      .setTitle(
+        `${index + 1}. ${item.title}`,
+      )
+      .setDescription(
+        metadata.join(' • '),
+      );
+
+  const posterUrl =
+    normalizePosterUrl(item.posterUrl);
+
+  if (posterUrl) {
+    embed.setThumbnail(posterUrl);
+  }
+
+  return embed;
 }
 
 export async function execute(
@@ -99,9 +164,8 @@ export async function execute(
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(buttons);
     await interaction.editReply({
-      content:
-        `🔎 **${requestProvider.name} search results**\n\n` +
-        displayedResults.map(formatResult).join('\n\n'),
+      content: `🔎 **${requestProvider.name} search results**`,
+      embeds: displayedResults.map(createResultEmbed),
       components: [row],
     });
   } catch (error) {
