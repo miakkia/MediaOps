@@ -1,8 +1,10 @@
 import {
   ActionRowBuilder,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonInteraction,
   ButtonStyle,
+  EmbedBuilder,
 } from 'discord.js';
 
 import {
@@ -17,6 +19,10 @@ import {
   mediaProvider,
 } from '../providers/media-provider-instance.js';
 
+import type {
+  MediaPoster,
+} from '../providers/media-provider.js';
+
 import {
   createRandomScheduleModal,
 } from './random-modal.js';
@@ -28,6 +34,21 @@ interface RandomInteractionId {
 
   movieId:
     string | undefined;
+}
+
+function posterExtension(
+  poster: MediaPoster,
+): string {
+  switch (poster.contentType) {
+    case 'image/png':
+      return 'png';
+    case 'image/webp':
+      return 'webp';
+    case 'image/gif':
+      return 'gif';
+    default:
+      return 'jpg';
+  }
 }
 
 function parseRandomInteractionId(
@@ -125,6 +146,8 @@ export async function handleWatchPartyRandomButton(
               'watchparty.random.empty',
             ),
 
+          embeds: [],
+          files: [],
           components: [],
         });
 
@@ -197,17 +220,47 @@ export async function handleWatchPartyRandomButton(
             chooseButton,
           );
 
+      const embed =
+        new EmbedBuilder()
+          .setTitle(
+            `🎬 ${movie.name}${year}`,
+          )
+          .setDescription(description);
+
+      const files: AttachmentBuilder[] = [];
+
+      if (mediaProvider.getPoster) {
+        const poster =
+          await mediaProvider.getPoster(
+            movie.id,
+          );
+
+        if (poster) {
+          const filename =
+            `watchparty-random.${posterExtension(poster)}`;
+
+          files.push(
+            new AttachmentBuilder(
+              Buffer.from(poster.data),
+              { name: filename },
+            ),
+          );
+
+          embed.setThumbnail(
+            `attachment://${filename}`,
+          );
+        }
+      }
+
       await interaction.editReply({
         content:
-          `${t(
+          t(
             locale,
             'watchparty.random.title',
-          )}\n\n` +
+          ),
 
-          `🎬 **${movie.name}**${year}\n\n` +
-
-          description,
-
+        embeds: [embed],
+        files,
         components: [
           row,
         ],
@@ -227,6 +280,8 @@ export async function handleWatchPartyRandomButton(
             'watchparty.random.error',
           ),
 
+        embeds: [],
+        files: [],
         components: [],
       });
 

@@ -38,6 +38,7 @@ function getEventName(party: ScheduledWatchParty): string {
 export async function createDiscordScheduledEventForParty(
   guild: Guild,
   party: ScheduledWatchParty,
+  eventImage?: Buffer,
 ): Promise<string | undefined> {
   const scheduledAt = new Date(party.scheduledAt);
 
@@ -63,6 +64,7 @@ export async function createDiscordScheduledEventForParty(
       entityMetadata: {
         location: `${serverName} Watch Party`.slice(0, 100),
       },
+      ...(eventImage ? { image: eventImage } : {}),
       reason: `MediaOps Watch Party ${party.id}`,
     });
 

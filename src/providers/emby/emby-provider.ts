@@ -1,4 +1,5 @@
 import {
+  getEmbyEventArtwork,
   getEmbyMovieById,
   getEmbyPoster,
   getEmbySystemInfo,
@@ -19,64 +20,38 @@ import type {
 
 export class EmbyMediaProvider
 implements MediaProvider {
-  readonly name =
-    'emby';
+  readonly name = 'emby';
 
-  async getSystemInfo():
-    Promise<MediaServerInfo> {
-    const info =
-      await getEmbySystemInfo();
-
-    return {
-      serverName:
-        info.ServerName,
-
-      version:
-        info.Version,
-    };
+  async getSystemInfo(): Promise<MediaServerInfo> {
+    const info = await getEmbySystemInfo();
+    return { serverName: info.ServerName, version: info.Version };
   }
 
-  async searchMovies(
-    searchTerm: string,
-  ): Promise<MediaMovie[]> {
-    return searchEmbyMovies(
-      searchTerm,
-    );
+  async searchMovies(searchTerm: string): Promise<MediaMovie[]> {
+    return searchEmbyMovies(searchTerm);
   }
 
-  async searchSeries(
-    searchTerm: string,
-  ): Promise<MediaSeries[]> {
-    return searchEmbySeries(
-      searchTerm,
-    );
+  async searchSeries(searchTerm: string): Promise<MediaSeries[]> {
+    return searchEmbySeries(searchTerm);
   }
 
-  async getLatestItems():
-    Promise<MediaItem[]> {
+  async getLatestItems(): Promise<MediaItem[]> {
     return getLatestEmbyItems();
   }
 
-  async getRandomMovie():
-    Promise<
-      MediaMovie | undefined
-    > {
+  async getRandomMovie(): Promise<MediaMovie | undefined> {
     return getRandomEmbyMovie();
   }
 
-  async getMovieById(
-    movieId: string,
-  ): Promise<
-    MediaMovie | undefined
-  > {
-    return getEmbyMovieById(
-      movieId,
-    );
+  async getMovieById(movieId: string): Promise<MediaMovie | undefined> {
+    return getEmbyMovieById(movieId);
   }
 
-  async getPoster(
-    itemId: string,
-  ): Promise<MediaPoster | undefined> {
+  async getPoster(itemId: string): Promise<MediaPoster | undefined> {
     return getEmbyPoster(itemId);
+  }
+
+  async getEventArtwork(itemId: string): Promise<MediaPoster | undefined> {
+    return getEmbyEventArtwork(itemId);
   }
 }

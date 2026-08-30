@@ -1,8 +1,10 @@
 import {
   ActionRowBuilder,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonInteraction,
   ButtonStyle,
+  EmbedBuilder,
   MessageFlags,
   ModalBuilder,
   TextInputBuilder,
@@ -20,6 +22,10 @@ import {
 import {
   mediaProvider,
 } from '../providers/media-provider-instance.js';
+
+import type {
+  MediaPoster,
+} from '../providers/media-provider.js';
 
 const RANDOM_BUTTON_ID =
   'watchpartysetup:random';
@@ -39,6 +45,21 @@ const DATE_INPUT_ID =
 const TIME_INPUT_ID =
   'time';
 
+function posterExtension(
+  poster: MediaPoster,
+): string {
+  switch (poster.contentType) {
+    case 'image/png':
+      return 'png';
+    case 'image/webp':
+      return 'webp';
+    case 'image/gif':
+      return 'gif';
+    default:
+      return 'jpg';
+  }
+}
+
 export async function handleWatchPartySetupButton(
   interaction: ButtonInteraction,
 ): Promise<boolean> {
@@ -52,7 +73,7 @@ export async function handleWatchPartySetupButton(
     RANDOM_BUTTON_ID
   ) {
     await interaction.deferReply({
-        flags:
+      flags:
         MessageFlags.Ephemeral,
     });
 
@@ -88,6 +109,18 @@ export async function handleWatchPartySetupButton(
               'watchparty.random.noOverview',
             );
 
+      const chooseCustomId =
+        `watchpartyrandom:choose:${movie.id}`;
+
+      if (
+        chooseCustomId.length >
+        100
+      ) {
+        throw new Error(
+          'Random Watch Party choose custom ID exceeds Discord limits.',
+        );
+      }
+
       const anotherButton =
         new ButtonBuilder()
           .setCustomId(
@@ -106,7 +139,7 @@ export async function handleWatchPartySetupButton(
       const chooseButton =
         new ButtonBuilder()
           .setCustomId(
-            `watchpartyrandom:choose:${movie.id}`,
+            chooseCustomId,
           )
           .setLabel(
             locale === 'fr'
@@ -125,14 +158,50 @@ export async function handleWatchPartySetupButton(
             chooseButton,
           );
 
+      const embed =
+        new EmbedBuilder()
+          .setTitle(
+            `🎬 ${movie.name}${year}`,
+          )
+          .setDescription(description);
+
+      const files: AttachmentBuilder[] = [];
+
+      if (mediaProvider.getPoster) {
+        const poster =
+          await mediaProvider.getPoster(
+            movie.id,
+          );
+
+        if (poster) {
+          const filename =
+            `watchparty-random.${posterExtension(poster)}`;
+
+          files.push(
+            new AttachmentBuilder(
+              Buffer.from(poster.data),
+              { name: filename },
+            ),
+          );
+
+          embed.setThumbnail(
+            `attachment://${filename}`,
+          );
+        }
+      }
+
       await interaction.editReply({
         content:
-          `${t(
+          t(
             locale,
             'watchparty.random.title',
-          )}\n\n` +
-          `🎬 **${movie.name}**${year}\n\n` +
-          description,
+          ),
+
+        embeds: [
+          embed,
+        ],
+
+        files,
 
         components: [
           row,

@@ -13,6 +13,9 @@ The current baseline is in final preparation for the first public self-hosted v1
 - TV cards show poster artwork, title, year, and lifecycle status such as Continuing / En cours or Ended / Terminée when the provider exposes it.
 - Ombi request search keeps the existing request state/actions while adding the same Rich Media Card presentation.
 - Emby poster artwork is fetched server-side and uploaded to Discord as an attachment so the Emby API key is never placed in a Discord image URL.
+- Random Watch Party selections now use the selected movie poster while preserving reroll, choose, and scheduling actions.
+- Discord Scheduled Events created for Watch Parties use Emby horizontal artwork when available: Banner first, then Backdrop, otherwise no event cover.
+- Active Watch Parties expose a single organizer-facing **Close Room / Fermer la salle** control in Discord.
 - Discord bot foundation with automatic modular slash-command discovery.
 - Operator-owned Discord bot setup documentation for the self-hosted v1 model.
 - Emby health, movie search, TV-series search, and recently-added discovery.
@@ -47,6 +50,7 @@ The current baseline is in final preparation for the first public self-hosted v1
 - Public Community demo bot is documented as non-universal and should not be invited into unrelated guilds.
 - Hardened Emby API client with URL/protocol validation, bounded timeouts, explicit redirect behavior, and response validation.
 - Rich Media Card artwork handling keeps Emby credentials server-side, caps poster downloads, and avoids exposing provider API keys in Discord image URLs.
+- Watch Party Scheduled Event artwork is fetched from the configured media provider and uploaded to Discord as bytes; no Emby API credential is exposed in Discord image URLs.
 - Ombi Rich Media Card artwork is limited to trusted TMDB HTTPS image URLs.
 - Input validation for Discord identifiers and scheduling data.
 - User-bound, short-lived request-selection tokens.
@@ -66,6 +70,7 @@ The current baseline is in final preparation for the first public self-hosted v1
 - Watch Party store mutations are serialized to avoid concurrent persistence loss.
 - Watch Party fallback expiry is consistently 4.5 hours.
 - Watch Party reminders and launch messages are tracked for lifecycle cleanup.
+- Automatically started Watch Parties now refresh their Discord controls so stale RSVP/Start/Cancel controls are not left visible after activation.
 - Production containers can deploy Discord commands without the development-only `tsx` package.
 - Manual and random Watch Party modal scheduling now interprets entered date/time in `MEDIAOPS_TIMEZONE` instead of depending on the container process timezone.
 
@@ -75,7 +80,8 @@ The current baseline is in final preparation for the first public self-hosted v1
 - Public v1 is explicitly defined as one self-hosted MediaOps instance + one operator-owned Discord bot + one backend configuration.
 - Hosted/universal multi-tenant operation is classified as **Future / Maybe**, with no committed target release; any future implementation requires a separate security-first multi-tenant architecture.
 - Shared Watch Party scheduling logic is used by manual and random scheduling flows.
-- Organizer cancellation remains available after a scheduled Watch Party becomes active.
+- Before activation, the organizer sees **Start Now** and **Cancel Watch Party**. Once active, those scheduling controls are replaced by the single **Close Room / Fermer la salle** action.
+- Closing an active Watch Party ends MediaOps/Discord orchestration and removes tracked announcement, reminder, and room-code/link posts; it intentionally does not call or modify the Emby Watch Party room-dissolve lifecycle.
 - Initial Watch Party RSVP announcements can use `@here` to surface the event when the bot has the required Discord mention permission.
 - Discord and Watch Party consumers use generic provider boundaries where applicable.
 - Public-facing branding defaults are generic and deployment-configurable.

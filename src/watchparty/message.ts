@@ -8,6 +8,7 @@ import type {
 } from '../storage/watchparty-store.js';
 
 import {
+  createWatchPartyActiveRow,
   createWatchPartyRsvpRow,
 } from './components.js';
 
@@ -150,37 +151,38 @@ export function buildScheduledWatchPartyMessage(
     cancellationNotice;
 
   const buttonRow =
-    createWatchPartyRsvpRow(
-      party.id,
+    isActive
+      ? createWatchPartyActiveRow(
+          party.id,
+          locale === 'fr'
+            ? 'Fermer la salle'
+            : 'Close Room',
+        )
+      : createWatchPartyRsvpRow(
+          party.id,
 
-      t(
-        locale,
-        'watchparty.scheduling.going',
-      ),
+          t(
+            locale,
+            'watchparty.scheduling.going',
+          ),
 
-      t(
-        locale,
-        'watchparty.scheduling.notGoing',
-      ),
+          t(
+            locale,
+            'watchparty.scheduling.notGoing',
+          ),
 
-      locale === 'fr'
-        ? 'Démarrer maintenant'
-        : 'Start Now',
+          locale === 'fr'
+            ? 'Démarrer maintenant'
+            : 'Start Now',
 
-      isActive
-        ? (
-            locale === 'fr'
-              ? 'Terminer la Watch Party'
-              : 'End Watch Party'
-          )
-        : t(
+          t(
             locale,
             'watchparty.cancel.button',
           ),
 
-      controlsDisabled,
-      cancelDisabled,
-    );
+          controlsDisabled,
+          cancelDisabled,
+        );
 
   return {
     content,
