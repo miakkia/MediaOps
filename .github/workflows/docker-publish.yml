@@ -44,6 +44,32 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Verify package versions are synchronized
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          LOCK_VERSION="$(node -p "require('./package-lock.json').version")"
+          LOCK_ROOT_VERSION="$(node -p "require('./package-lock.json').packages[''].version")"
+
+          if [[ "$PACKAGE_VERSION" != "$LOCK_VERSION" || "$PACKAGE_VERSION" != "$LOCK_ROOT_VERSION" ]]; then
+            echo "package.json ($PACKAGE_VERSION) and package-lock.json ($LOCK_VERSION / $LOCK_ROOT_VERSION) versions do not match."
+            exit 1
+          fi
+
+      - name: Verify release tag matches package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          EXPECTED_TAG="v${PACKAGE_VERSION}"
+
+          if [[ "$GITHUB_REF_NAME" != "$EXPECTED_TAG" ]]; then
+            echo "Release tag $GITHUB_REF_NAME does not match package.json version $PACKAGE_VERSION (expected $EXPECTED_TAG)."
+            exit 1
+          fi
+
       - name: Install dependencies
         run: npm ci
 
@@ -102,9 +128,12 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=false
           tags: |
             type=raw,value=dev,enable=${{ startsWith(github.ref, 'refs/heads/feat/') || startsWith(github.ref, 'refs/heads/fix/') || startsWith(github.ref, 'refs/heads/chore/') || startsWith(github.ref, 'refs/heads/harden/') }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=release,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=sha
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -114,9 +143,12 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.ROUTER_IMAGE_NAME }}
+          flavor: |
+            latest=false
           tags: |
             type=raw,value=dev,enable=${{ startsWith(github.ref, 'refs/heads/feat/') || startsWith(github.ref, 'refs/heads/fix/') || startsWith(github.ref, 'refs/heads/chore/') || startsWith(github.ref, 'refs/heads/harden/') }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=release,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=sha
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -145,3 +177,25 @@ jobs:
           labels: ${{ steps.router-meta.outputs.labels }}
           cache-from: type=gha,scope=ombi-discord-router
           cache-to: type=gha,mode=max,scope=ombi-discord-router
+
+  publish-github-release:
+    needs: build-and-push
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --title "MediaOps $GITHUB_REF_NAME" \
+            --generate-notes
