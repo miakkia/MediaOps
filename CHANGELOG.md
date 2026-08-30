@@ -4,7 +4,11 @@ All notable changes to MediaOps are documented here.
 
 ## [Unreleased]
 
-The current baseline is in final preparation for the first public self-hosted v1.0.0 release. Core feature work, clean-install validation, and the final automated release gate are complete; public repository/distribution checks remain before tagging.
+Future changes merged after the v1.0.0 baseline belong here until the next release is prepared.
+
+## [1.0.0] - 2026-08-30
+
+First stable public self-hosted MediaOps baseline.
 
 ### Added
 
@@ -39,7 +43,8 @@ The current baseline is in final preparation for the first public self-hosted v1
 - `MediaProvider` abstraction with Emby as the first adapter and request-provider abstraction with Ombi as the first adapter.
 - Multi-stage production Docker image with dedicated non-root runtime user.
 - Runtime-safe `npm run deploy-commands` using compiled JavaScript from the published container.
-- GHCR development, latest, SHA, and semantic-version tagging strategy.
+- GHCR development, latest, SHA, release, and semantic-version tagging strategy.
+- Automated GitHub Release creation after successful tagged release builds.
 - Persistent Docker runtime data under `/data`.
 - Unraid templates, Community Apps profile, application icon, and deployment documentation.
 - Public feature screenshots covering Rich Media Cards, library search, Ombi requests, Forum lifecycle, Watch Party, and the Discord command guide.
@@ -62,6 +67,7 @@ The current baseline is in final preparation for the first public self-hosted v1
 - Completed request states are terminal.
 - Discord webhook credentials remain isolated in the companion router and are sanitized from delivery errors/logs.
 - Administrator setup/diagnostic commands use Discord Manage Server permission by default; diagnostic replies are ephemeral.
+- Release tags are rejected when they do not exactly match the package version, and release publication occurs only after validation and image publication succeed.
 
 ### Fixed
 
@@ -88,6 +94,7 @@ The current baseline is in final preparation for the first public self-hosted v1
 - Public setup panels reduce the need for members to discover or memorize slash commands.
 - README, Docker, Unraid, release scope, limitations, and Community Apps template wording reflect the supported self-hosted deployment model.
 - README now credits the external [Oratorian/emby-watchparty](https://github.com/Oratorian/emby-watchparty) project used for synchronized Watch Party playback.
+- Tagged releases publish `release`, exact `X.Y.Z`, minor-line `X.Y`, and SHA image tags without moving the rolling `latest` tag.
 
 ## Development history
 
