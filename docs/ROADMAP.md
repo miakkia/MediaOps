@@ -78,10 +78,25 @@ Current provider:
 
 Planned:
 
-2. **Jellyfin**
+2. **Jellyfin** — media discovery plus native SyncPlay integration through Discord
 3. **Plex**
 
 Provider-specific complexity should remain behind adapters so the Discord UX, including Rich Media Cards, stays consistent.
+
+### Jellyfin + SyncPlay
+
+Jellyfin support should include both the normal `MediaProvider` capabilities and a Jellyfin-specific synchronized Watch Party adapter based on **Jellyfin SyncPlay**.
+
+The intended Discord experience should remain consistent with the existing Watch Party UX while the backend implementation changes according to the configured provider. Planned Jellyfin/SyncPlay capabilities include:
+
+- Discord commands/actions to create or prepare a Jellyfin SyncPlay session/group;
+- Discord join actions that guide authorized participants into the correct Jellyfin SyncPlay session;
+- integration with MediaOps Watch Party scheduling, RSVP, reminders, `Start Now`, active-session controls, and Discord cleanup;
+- random-movie and scheduled-movie flows using the configured Jellyfin library;
+- provider-specific SyncPlay state kept behind a Watch Party adapter rather than leaking Jellyfin implementation details into generic Discord commands;
+- security review of Jellyfin authentication/session requirements before implementation, with least-privilege credentials and no credentials, access tokens, or sensitive session material exposed in Discord or logs.
+
+MediaOps should orchestrate Jellyfin SyncPlay rather than implementing its own synchronized playback engine. Third-party Jellyfin Watch Party projects may be evaluated later, but adding another service/container is not the default when native SyncPlay can satisfy the requirement securely and reliably.
 
 ## Multi-tenant / official universal bot architecture
 
@@ -142,12 +157,12 @@ Media Provider
 └── Plex
 
 Watch Party Provider
-├── current Emby Watch Party integration
-├── Jellyfin-compatible synchronized playback
-└── Plex-compatible synchronized playback
+├── Emby -> current Emby Watch Party integration
+├── Jellyfin -> native Jellyfin SyncPlay adapter + Discord commands/actions
+└── Plex -> compatible synchronized playback to be evaluated
 ```
 
-Provider-specific complexity should remain behind adapters while Discord UX stays simple.
+Provider-specific complexity should remain behind adapters while Discord UX stays simple. MediaOps should orchestrate the configured provider's synchronized-playback capability instead of reimplementing media synchronization itself.
 
 ## Future / Maybe — hosted multi-tenant MediaOps
 
