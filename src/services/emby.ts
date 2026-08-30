@@ -53,63 +53,75 @@ interface EmbyItemsQueryResult {
     number | undefined;
 }
 
-const rawEmbyUrl =
-  process.env.EMBY_URL?.trim();
-
-const rawEmbyApiKey =
-  process.env.EMBY_API_KEY?.trim();
-
-if (
-  !rawEmbyUrl ||
-  !rawEmbyApiKey
-) {
-  throw new Error(
-    'EMBY_URL and EMBY_API_KEY are required.',
-  );
+interface EmbyConfig {
+  baseUrl: string;
+  apiKey: string;
 }
 
-const embyApiKey: string =
-  rawEmbyApiKey;
+function getEmbyConfig(): EmbyConfig {
+  const rawUrl =
+    process.env.EMBY_URL?.trim();
 
-let embyUrl: URL;
+  const apiKey =
+    process.env.EMBY_API_KEY?.trim();
 
-try {
-  embyUrl =
-    new URL(
-      rawEmbyUrl,
+  if (
+    !rawUrl ||
+    !apiKey
+  ) {
+    throw new Error(
+      'EMBY_URL and EMBY_API_KEY are required when MEDIA_PROVIDER=emby.',
     );
-} catch {
-  throw new Error(
-    'EMBY_URL must be a valid URL.',
-  );
-}
+  }
 
-if (
-  ![
-    'http:',
-    'https:',
-  ].includes(
-    embyUrl.protocol,
-  )
-) {
-  throw new Error(
-    'EMBY_URL must use HTTP or HTTPS.',
-  );
-}
+  let url: URL;
 
-const baseUrl =
-  embyUrl
-    .toString()
-    .replace(
-      /\/+$/,
-      '',
+  try {
+    url =
+      new URL(
+        rawUrl,
+      );
+  } catch {
+    throw new Error(
+      'EMBY_URL must be a valid URL.',
     );
+  }
+
+  if (
+    ![
+      'http:',
+      'https:',
+    ].includes(
+      url.protocol,
+    )
+  ) {
+    throw new Error(
+      'EMBY_URL must use HTTP or HTTPS.',
+    );
+  }
+
+  return {
+    baseUrl:
+      url
+        .toString()
+        .replace(
+          /\/+$/,
+          '',
+        ),
+    apiKey,
+  };
+}
 
 async function embyFetch(
   path: string,
   timeoutMs =
     DEFAULT_TIMEOUT_MS,
 ): Promise<Response> {
+  const {
+    baseUrl,
+    apiKey,
+  } = getEmbyConfig();
+
   try {
     const response =
       await fetch(
@@ -122,7 +134,7 @@ async function embyFetch(
               'application/json',
 
             'X-Emby-Token':
-              embyApiKey,
+              apiKey,
           },
 
           redirect:
@@ -140,7 +152,6 @@ async function embyFetch(
         `Emby API request failed with HTTP ${response.status}.`,
       );
     }
-
     return response;
   } catch (error) {
     if (
