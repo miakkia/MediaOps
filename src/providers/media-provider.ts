@@ -55,4 +55,8 @@ export interface MediaProvider {
   getPoster?(
     itemId: string,
   ): Promise<MediaPoster | undefined>;
+
+  getEventArtwork?(
+    itemId: string,
+  ): Promise<MediaPoster | undefined>;
 }
