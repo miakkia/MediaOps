@@ -7,7 +7,6 @@ import {
 } from 'discord.js';
 
 import { getMediaOpsBranding } from '../config/branding.js';
-import { mediaProvider } from '../providers/media-provider-instance.js';
 import type { ScheduledWatchParty } from '../storage/watchparty-store.js';
 import {
   getWatchPartyScheduledEventId,
@@ -36,28 +35,10 @@ function getEventName(party: ScheduledWatchParty): string {
   return `🎬 Watch Party — ${party.mediaTitle}${year}`.slice(0, 100);
 }
 
-async function getEventCoverImage(
-  party: ScheduledWatchParty,
-): Promise<Buffer | undefined> {
-  if (!mediaProvider.getPoster) {
-    return undefined;
-  }
-
-  try {
-    const poster = await mediaProvider.getPoster(party.embyItemId);
-    return poster ? Buffer.from(poster.data) : undefined;
-  } catch (error) {
-    console.warn(
-      `Unable to load poster for Watch Party ${party.id} Scheduled Event:`,
-      error,
-    );
-    return undefined;
-  }
-}
-
 export async function createDiscordScheduledEventForParty(
   guild: Guild,
   party: ScheduledWatchParty,
+  eventImage?: Buffer,
 ): Promise<string | undefined> {
   const scheduledAt = new Date(party.scheduledAt);
 
@@ -69,7 +50,6 @@ export async function createDiscordScheduledEventForParty(
   }
 
   const { botName, serverName } = getMediaOpsBranding();
-  const eventImage = await getEventCoverImage(party);
 
   try {
     const event = await guild.scheduledEvents.create({
