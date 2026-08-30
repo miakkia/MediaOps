@@ -1,8 +1,10 @@
 import {
   ActionRowBuilder,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   ChatInputCommandInteraction,
+  EmbedBuilder,
   MessageFlags,
   SlashCommandBuilder,
 } from 'discord.js';
@@ -18,6 +20,10 @@ import {
 import {
   mediaProvider,
 } from '../providers/media-provider-instance.js';
+
+import type {
+  MediaPoster,
+} from '../providers/media-provider.js';
 
 const RANDOM_BUTTON_ID =
   'watchpartyrandom:another';
@@ -41,6 +47,21 @@ export const data =
           'commands.watchpartyRandom.description',
         ),
     });
+
+function posterExtension(
+  poster: MediaPoster,
+): string {
+  switch (poster.contentType) {
+    case 'image/png':
+      return 'png';
+    case 'image/webp':
+      return 'webp';
+    case 'image/gif':
+      return 'gif';
+    default:
+      return 'jpg';
+  }
+}
 
 export async function execute(
   interaction: ChatInputCommandInteraction,
@@ -136,17 +157,46 @@ export async function execute(
           chooseButton,
         );
 
+    const embed =
+      new EmbedBuilder()
+        .setTitle(
+          `🎬 ${movie.name}${year}`,
+        )
+        .setDescription(description);
+
+    const files: AttachmentBuilder[] = [];
+
+    if (mediaProvider.getPoster) {
+      const poster =
+        await mediaProvider.getPoster(
+          movie.id,
+        );
+
+      if (poster) {
+        const filename =
+          `watchparty-random.${posterExtension(poster)}`;
+
+        files.push(
+          new AttachmentBuilder(
+            Buffer.from(poster.data),
+            { name: filename },
+          ),
+        );
+
+        embed.setThumbnail(
+          `attachment://${filename}`,
+        );
+      }
+    }
+
     await interaction.editReply({
       content:
-        `${t(
+        t(
           locale,
           'watchparty.random.title',
-        )}\n\n` +
-
-        `🎬 **${movie.name}**${year}\n\n` +
-
-        description,
-
+        ),
+      embeds: [embed],
+      files,
       components: [
         row,
       ],
