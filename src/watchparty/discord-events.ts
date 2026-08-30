@@ -84,7 +84,7 @@ export async function createDiscordScheduledEventForParty(
       entityMetadata: {
         location: `${serverName} Watch Party`.slice(0, 100),
       },
-      image: eventImage,
+      ...(eventImage ? { image: eventImage } : {}),
       reason: `MediaOps Watch Party ${party.id}`,
     });
 
