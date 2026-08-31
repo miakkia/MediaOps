@@ -89,6 +89,22 @@ function buildConfirmRow(
   );
 }
 
+function formatSubmissionStatus(
+  providerName: string,
+  status: string,
+  message: string | undefined,
+): string {
+  if (message) {
+    return status === 'approved'
+      ? `✅ ${message}`
+      : `🕒 ${message}`;
+  }
+
+  return status === 'approved'
+    ? `✅ Request submitted and approved by ${providerName}.`
+    : `🕒 Request submitted to ${providerName}.`;
+}
+
 async function submitRequest(
   interaction: ButtonInteraction,
   item: RequestSearchResult,
@@ -101,10 +117,11 @@ async function submitRequest(
     return true;
   }
 
+  const provider = requestProvider;
   await interaction.deferUpdate();
 
   try {
-    const result = await requestProvider.request(item, {
+    const result = await provider.request(item, {
       requester: {
         source: 'discord',
         id: interaction.user.id,
@@ -113,7 +130,7 @@ async function submitRequest(
 
     if (!result.success) {
       await interaction.editReply({
-        content: `❌ ${result.message ?? 'Unable to submit the request.'}`,
+        content: `❌ ${result.message ?? `Unable to submit the request to ${provider.name}.`}`,
         components: [],
       });
       return true;
@@ -135,13 +152,14 @@ async function submitRequest(
       });
     }
 
-    const statusLabel =
-      result.status === 'approved'
-        ? '✅ Request submitted and automatically approved.'
-        : '🕒 Request submitted to Ombi and awaiting approval.';
+    const statusLabel = formatSubmissionStatus(
+      provider.name,
+      result.status,
+      result.message,
+    );
 
     const requestId = result.providerRequestId
-      ? `\nOmbi Request ID: \`${result.providerRequestId}\``
+      ? `\n${provider.name} Request ID: \`${result.providerRequestId}\``
       : '';
 
     await interaction.editReply({
@@ -149,9 +167,9 @@ async function submitRequest(
       components: [],
     });
   } catch (error) {
-    console.error('Ombi request submission failed:', error);
+    console.error(`${provider.name} request submission failed:`, error);
     await interaction.editReply({
-      content: '❌ Unable to submit the request to Ombi right now.',
+      content: `❌ Unable to submit the request to ${provider.name} right now.`,
       components: [],
     });
   }
@@ -218,11 +236,19 @@ export async function handleRequestButton(
   const selected = parseRequestCustomId(interaction.customId, SELECT_PREFIX);
 
   if (selected) {
+    if (!requestProvider) {
+      await interaction.reply({
+        content: '❌ No request provider is configured.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return true;
+    }
+
     await interaction.reply({
       content:
         selected.mediaType === 'movie'
-          ? '⚠️ Confirm that you want to submit this movie request to Ombi.'
-          : '⚠️ Confirm that you want to request all available seasons of this TV series from Ombi.',
+          ? `⚠️ Confirm that you want to submit this movie request to ${requestProvider.name}.`
+          : `⚠️ Confirm that you want to request all available seasons of this TV series from ${requestProvider.name}.`,
       components: [
         buildConfirmRow(
           `${CONFIRM_PREFIX}${selected.mediaType}:${selected.providerId}`,
