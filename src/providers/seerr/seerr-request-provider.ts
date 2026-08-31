@@ -104,12 +104,14 @@ function normalizeQuery(
   return normalized;
 }
 
-function parseProviderId(
-  providerId:
+function parsePositiveId(
+  value:
+    string,
+  label:
     string,
 ): number {
   const normalized =
-    providerId.trim();
+    value.trim();
 
   if (
     !/^\d+$/.test(
@@ -117,7 +119,7 @@ function parseProviderId(
     )
   ) {
     throw new Error(
-      'Invalid Seerr media identifier.',
+      `Invalid Seerr ${label} identifier.`,
     );
   }
 
@@ -134,7 +136,7 @@ function parseProviderId(
     id <= 0
   ) {
     throw new Error(
-      'Invalid Seerr media identifier.',
+      `Invalid Seerr ${label} identifier.`,
     );
   }
 
@@ -198,8 +200,6 @@ function mapRequestStatus(
       return 'approved';
 
     case 3:
-      return 'unavailable';
-
     case 4:
       return 'unavailable';
 
@@ -395,7 +395,6 @@ implements RequestProvider {
     item:
       RequestSearchResult,
     _options?: {
-      autoApprove?: boolean;
       requester?: {
         source: 'discord';
         id: string;
@@ -439,8 +438,9 @@ implements RequestProvider {
     }
 
     const mediaId =
-      parseProviderId(
+      parsePositiveId(
         item.providerId,
+        'media',
       );
 
     const body =
@@ -511,11 +511,28 @@ implements RequestProvider {
   }
 
   async getRequestStatus(
-    _providerId:
+    providerRequestId:
       string,
     _mediaType:
       RequestMediaType,
   ): Promise<RequestStatus> {
-    return 'unknown';
+    const requestId =
+      parsePositiveId(
+        providerRequestId,
+        'request',
+      );
+
+    const response =
+      await seerrFetch(
+        `/request/${requestId}`,
+      );
+
+    const payload =
+      await response.json() as
+        SeerrRequestResponse;
+
+    return mapRequestStatus(
+      payload.status,
+    );
   }
 }
