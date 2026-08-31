@@ -17,6 +17,7 @@ const MAX_SEARCH_LENGTH = 100;
 const MAX_SEARCH_RESULTS = 5;
 const MAX_LATEST_RESULTS = 10;
 const MAX_ITEM_ID_LENGTH = 128;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 interface JellyfinItemsQueryResult {
   items: MediaItem[];
@@ -267,6 +268,74 @@ async function searchJellyfinItems(
   ).items;
 }
 
+async function getJellyfinImage(
+  itemId: string,
+  imageType: 'Primary' | 'Banner' | 'Backdrop',
+  options = '',
+): Promise<MediaPoster | undefined> {
+  const normalizedItemId =
+    normalizeJellyfinItemId(
+      itemId,
+    );
+
+  let response: Response;
+
+  try {
+    response =
+      await jellyfinFetch(
+        `/Items/${encodeURIComponent(normalizedItemId)}/Images/${imageType}${options}`,
+      );
+  } catch {
+    return undefined;
+  }
+
+  const contentType =
+    response.headers
+      .get('content-type')
+      ?.split(';', 1)[0]
+      ?.trim()
+      .toLowerCase();
+
+  if (
+    !contentType?.startsWith(
+      'image/',
+    )
+  ) {
+    return undefined;
+  }
+
+  const contentLength =
+    Number.parseInt(
+      response.headers.get('content-length') ?? '',
+      10,
+    );
+
+  if (
+    Number.isFinite(contentLength) &&
+    contentLength > MAX_IMAGE_BYTES
+  ) {
+    return undefined;
+  }
+
+  const buffer =
+    await response.arrayBuffer();
+
+  if (
+    buffer.byteLength === 0 ||
+    buffer.byteLength > MAX_IMAGE_BYTES
+  ) {
+    return undefined;
+  }
+
+  return {
+    data:
+      new Uint8Array(
+        buffer,
+      ),
+    contentType,
+  };
+}
+
 export class JellyfinMediaProvider
 implements MediaProvider {
   readonly name = 'jellyfin';
@@ -462,18 +531,31 @@ implements MediaProvider {
   }
 
   async getPoster(
-    _itemId: string,
+    itemId: string,
   ): Promise<MediaPoster | undefined> {
-    throw new Error(
-      'Jellyfin provider is not implemented yet.',
+    return getJellyfinImage(
+      itemId,
+      'Primary',
+      '?maxWidth=342&quality=90',
     );
   }
 
   async getEventArtwork(
-    _itemId: string,
+    itemId: string,
   ): Promise<MediaPoster | undefined> {
-    throw new Error(
-      'Jellyfin provider is not implemented yet.',
+    const banner =
+      await getJellyfinImage(
+        itemId,
+        'Banner',
+      );
+
+    if (banner) {
+      return banner;
+    }
+
+    return getJellyfinImage(
+      itemId,
+      'Backdrop',
     );
   }
 }
