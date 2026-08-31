@@ -58,7 +58,6 @@ export interface RequestProvider {
   request(
     item: RequestSearchResult,
     options?: {
-      autoApprove?: boolean;
       requester?: {
         source: 'discord';
         id: string;
@@ -67,7 +66,7 @@ export interface RequestProvider {
   ): Promise<RequestSubmissionResult>;
 
   getRequestStatus(
-    providerId: string,
+    providerRequestId: string,
     mediaType: RequestMediaType,
   ): Promise<RequestStatus>;
 }
