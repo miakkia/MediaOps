@@ -22,7 +22,7 @@ function providerWith(detail: unknown, detailError = false) {
       return undefined as T;
     },
   } as unknown as OmbiClient;
-  return { provider: new OmbiRequestProvider(client, { autoApprove: false }), gets };
+  return { provider: new OmbiRequestProvider(client), gets };
 }
 
 test('TV multi-search is enriched with Ombi detail year and availability', async () => {
