@@ -13,8 +13,7 @@ import { getMediaOpsBranding } from '../config/branding.js';
 import { getInteractionLocale } from '../i18n/discord-locale.js';
 import { t } from '../i18n/index.js';
 import { mediaProvider } from '../providers/media-provider-instance.js';
-
-const HEALTH_TIMEOUT_MS = 5_000;
+import { requestProvider } from '../providers/request-provider-instance.js';
 
 function getPackageVersion(): string {
   try {
@@ -28,23 +27,28 @@ function getPackageVersion(): string {
 }
 
 async function checkRequestProvider(): Promise<{ provider: string; online: boolean; detail: string }> {
-  const provider = process.env.REQUEST_PROVIDER?.trim().toLowerCase() || 'not configured';
-  const providerUrl = provider === 'ombi' ? process.env.OMBI_URL?.trim() : undefined;
-
-  if (!providerUrl) return { provider, online: false, detail: 'URL not configured' };
+  if (!requestProvider) {
+    return {
+      provider: 'not configured',
+      online: false,
+      detail: 'not configured',
+    };
+  }
 
   try {
-    const response = await fetch(providerUrl, {
-      method: 'GET',
-      redirect: 'follow',
-      signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
-    });
-    return { provider, online: response.ok, detail: `HTTP ${response.status}` };
+    await requestProvider.healthCheck();
+    return {
+      provider: requestProvider.name,
+      online: true,
+      detail: 'health check passed',
+    };
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'TimeoutError') {
-      return { provider, online: false, detail: 'timeout' };
-    }
-    return { provider, online: false, detail: 'unreachable' };
+    console.error(`${requestProvider.name} health check failed:`, error);
+    return {
+      provider: requestProvider.name,
+      online: false,
+      detail: 'health check failed',
+    };
   }
 }
 
@@ -63,19 +67,19 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const channel = process.env.MEDIAOPS_BUILD_CHANNEL?.trim() || process.env.NODE_ENV || 'unknown';
   const sha = process.env.MEDIAOPS_BUILD_SHA?.trim() || 'unknown';
   const shortSha = sha === 'unknown' ? sha : sha.slice(0, 8);
-  const requestProvider = await checkRequestProvider();
+  const requestProviderStatus = await checkRequestProvider();
 
-  let embyOnline = false;
+  let mediaOnline = false;
   let serverName = t(locale, 'health.unknown');
-  let embyVersion = t(locale, 'health.unknown');
+  let mediaVersion = t(locale, 'health.unknown');
 
   try {
     const info = await mediaProvider.getSystemInfo();
-    embyOnline = true;
+    mediaOnline = true;
     serverName = info.serverName ?? serverName;
-    embyVersion = info.version ?? embyVersion;
+    mediaVersion = info.version ?? mediaVersion;
   } catch (error) {
-    console.error('Emby health check failed:', error);
+    console.error(`${mediaProvider.name} health check failed:`, error);
   }
 
   const botAvatar = interaction.client.user?.displayAvatarURL({ size: 256 });
@@ -90,13 +94,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         inline: false,
       },
       {
-        name: 'Emby',
-        value: `${embyOnline ? '✅' : '❌'} ${embyOnline ? (isFrench ? 'En ligne' : 'Online') : (isFrench ? 'Hors ligne' : 'Offline')}\n${isFrench ? 'Serveur' : 'Server'}: \`${serverName}\`\nVersion: \`${embyVersion}\``,
+        name: mediaProvider.name,
+        value: `${mediaOnline ? '✅' : '❌'} ${mediaOnline ? (isFrench ? 'En ligne' : 'Online') : (isFrench ? 'Hors ligne' : 'Offline')}\n${isFrench ? 'Serveur' : 'Server'}: \`${serverName}\`\nVersion: \`${mediaVersion}\``,
         inline: false,
       },
       {
         name: isFrench ? 'Fournisseur de requêtes' : 'Request Provider',
-        value: `${requestProvider.online ? '✅' : '❌'} ${requestProvider.online ? (isFrench ? 'En ligne' : 'Online') : (isFrench ? 'Hors ligne' : 'Offline')}\nProvider: \`${requestProvider.provider}\`\nCheck: \`${requestProvider.detail}\``,
+        value: `${requestProviderStatus.online ? '✅' : '❌'} ${requestProviderStatus.online ? (isFrench ? 'En ligne' : 'Online') : (isFrench ? 'Hors ligne' : 'Offline')}\nProvider: \`${requestProviderStatus.provider}\`\nCheck: \`${requestProviderStatus.detail}\``,
         inline: false,
       },
     )
