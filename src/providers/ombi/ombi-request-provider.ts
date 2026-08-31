@@ -62,17 +62,22 @@ function mapSeries(item: OmbiMultiSearchResult, detail?: OmbiTvSearchDetail): Re
   };
 }
 
-export interface OmbiRequestProviderOptions { autoApprove: boolean; }
-
 export class OmbiRequestProvider implements RequestProvider {
   readonly name = 'Ombi';
   private readonly discordUserCache = new Map<string, { userName: string; expiresAt: number }>();
   private readonly discordUserCacheTtlMs = 5 * 60 * 1000;
-  constructor(private readonly client: OmbiClient, private readonly options: OmbiRequestProviderOptions) {}
+
+  constructor(private readonly client: OmbiClient) {}
 
   async healthCheck(): Promise<void> { await this.client.get<unknown>('/api/v1/Status'); }
+
   async getCapabilities(): Promise<RequestProviderCapabilities> {
-    return { movies: true, series: true, requestStatus: true, autoApproval: true };
+    return {
+      movies: true,
+      series: true,
+      requestStatus: false,
+      autoApproval: false,
+    };
   }
 
   async search(query: string, mediaType: RequestMediaType): Promise<RequestSearchResult[]> {
@@ -126,58 +131,119 @@ export class OmbiRequestProvider implements RequestProvider {
     return undefined;
   }
 
-  async request(item: RequestSearchResult, options?: { autoApprove?: boolean; requester?: { source: 'discord'; id: string } }): Promise<RequestSubmissionResult> {
-    if (item.available) return { success: false, providerRequestId: undefined, status: 'available', message: 'This media is already available.' };
-    if (item.requested) return { success: false, providerRequestId: undefined, status: 'requested', message: 'This media has already been requested.' };
-    const autoApprove = options?.autoApprove ?? this.options.autoApprove;
+  async request(
+    item: RequestSearchResult,
+    options?: {
+      requester?: {
+        source: 'discord';
+        id: string;
+      };
+    },
+  ): Promise<RequestSubmissionResult> {
+    if (item.available) {
+      return {
+        success: false,
+        providerRequestId: undefined,
+        status: 'available',
+        message: 'This media is already available.',
+      };
+    }
+
+    if (item.requested) {
+      return {
+        success: false,
+        providerRequestId: undefined,
+        status: 'requested',
+        message: 'This media has already been requested.',
+      };
+    }
+
     let ombiUserName: string | undefined;
     if (options?.requester?.source === 'discord') {
       ombiUserName = await this.resolveOmbiUserNameForDiscord(options.requester.id);
-      if (!ombiUserName) return {
-        success: false, providerRequestId: undefined, status: 'unknown',
-        message: 'Your Discord account is not mapped to an Ombi user. The request was not submitted so requester ownership is not lost.',
-      };
-      console.log(`Resolved Discord user ${options.requester.id} to Ombi user ${ombiUserName}`);
+      if (!ombiUserName) {
+        return {
+          success: false,
+          providerRequestId: undefined,
+          status: 'unknown',
+          message: 'Your Discord account is not mapped to an Ombi user. The request was not submitted so requester ownership is not lost.',
+        };
+      }
     }
+
     const userOptions = ombiUserName ? { userName: ombiUserName } : undefined;
 
     if (item.mediaType === 'movie') {
       const movieId = Number.parseInt(item.providerId, 10);
-      if (!Number.isInteger(movieId)) throw new Error('Invalid Ombi movie identifier.');
-      const response = await this.client.post<OmbiRequestResponse>('/api/v1/Request/movie', { theMovieDbId: movieId }, userOptions);
+      if (!Number.isInteger(movieId) || movieId <= 0) {
+        throw new Error('Invalid Ombi movie identifier.');
+      }
+
+      const response = await this.client.post<OmbiRequestResponse>(
+        '/api/v1/Request/movie',
+        { theMovieDbId: movieId },
+        userOptions,
+      );
       const requestId = response.requestId;
-      if (response.result !== true || response.isError === true || !requestId || requestId <= 0) return {
-        success: false, providerRequestId: requestId ? String(requestId) : undefined, status: 'unknown',
-        message: response.errorMessage ?? response.message ?? 'Ombi did not create the request.',
+
+      if (response.result !== true || response.isError === true || !requestId || requestId <= 0) {
+        return {
+          success: false,
+          providerRequestId: requestId ? String(requestId) : undefined,
+          status: 'unknown',
+          message: response.errorMessage ?? response.message ?? 'Ombi did not create the request.',
+        };
+      }
+
+      return {
+        success: true,
+        providerRequestId: String(requestId),
+        status: 'pending',
+        message: 'Request submitted to Ombi.',
       };
-      if (!autoApprove) return { success: true, providerRequestId: String(requestId), status: 'pending', message: 'Request submitted to Ombi for approval.' };
-      const approval = await this.client.post<OmbiRequestResponse>('/api/v1/Request/movie/approve', { id: requestId, is4K: false });
-      if (approval.result !== true || approval.isError === true) return {
-        success: true, providerRequestId: String(requestId), status: 'pending',
-        message: approval.errorMessage ?? approval.message ?? 'The request was created, but automatic approval failed.',
-      };
-      return { success: true, providerRequestId: String(requestId), status: 'approved', message: 'Request submitted and automatically approved.' };
     }
 
     const tvId = Number.parseInt(item.providerId, 10);
-    if (!Number.isInteger(tvId)) throw new Error('Invalid Ombi TV identifier.');
+    if (!Number.isInteger(tvId) || tvId <= 0) {
+      throw new Error('Invalid Ombi TV identifier.');
+    }
+
     const payload: OmbiTvRequestPayload = {
-      theMovieDbId: tvId, requestAll: true, firstSeason: false, latestSeason: false, seasons: [], languageCode: 'en',
+      theMovieDbId: tvId,
+      requestAll: true,
+      firstSeason: false,
+      latestSeason: false,
+      seasons: [],
+      languageCode: 'en',
     };
-    const response = await this.client.post<OmbiRequestResponse>('/api/v2/Requests/tv', payload, userOptions);
+    const response = await this.client.post<OmbiRequestResponse>(
+      '/api/v2/Requests/tv',
+      payload,
+      userOptions,
+    );
     const requestId = response.requestId;
-    if (response.result !== true || response.isError === true || !requestId || requestId <= 0) return {
-      success: false, providerRequestId: requestId ? String(requestId) : undefined, status: 'unknown',
-      message: response.errorMessage ?? response.message ?? 'Ombi did not create the TV request.',
+
+    if (response.result !== true || response.isError === true || !requestId || requestId <= 0) {
+      return {
+        success: false,
+        providerRequestId: requestId ? String(requestId) : undefined,
+        status: 'unknown',
+        message: response.errorMessage ?? response.message ?? 'Ombi did not create the TV request.',
+      };
+    }
+
+    return {
+      success: true,
+      providerRequestId: String(requestId),
+      status: 'pending',
+      message: 'TV request submitted to Ombi.',
     };
-    if (!autoApprove) return { success: true, providerRequestId: String(requestId), status: 'pending', message: 'TV request submitted to Ombi for approval.' };
-    const approval = await this.client.post<OmbiRequestResponse>('/api/v1/Request/tv/approve', { id: requestId });
-    if (approval.result !== true || approval.isError === true) return {
-      success: true, providerRequestId: String(requestId), status: 'pending',
-      message: approval.errorMessage ?? approval.message ?? 'The TV request was created, but automatic approval failed.',
-    };
-    return { success: true, providerRequestId: String(requestId), status: 'approved', message: 'TV request submitted and automatically approved.' };
   }
 
-  async getRequestStatus(_providerId: string, _mediaType: RequestMediaType): Promise<RequestStatus> { return 'unknown'; }
+  async getRequestStatus(
+    _providerRequestId: string,
+    _mediaType: RequestMediaType,
+  ): Promise<RequestStatus> {
+    return 'unknown';
+  }
 }
