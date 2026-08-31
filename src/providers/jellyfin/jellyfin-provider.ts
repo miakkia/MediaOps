@@ -5,11 +5,267 @@ import type {
   MediaProvider,
   MediaSeries,
   MediaServerInfo,
+  MediaType,
+  SeriesLifecycleStatus,
 } from '../media-provider.js';
 
 import {
   jellyfinFetch,
 } from './jellyfin-client.js';
+
+const MAX_SEARCH_LENGTH = 100;
+const MAX_SEARCH_RESULTS = 5;
+const MAX_LATEST_RESULTS = 10;
+const MAX_ITEM_ID_LENGTH = 128;
+
+interface JellyfinItemsQueryResult {
+  items: MediaItem[];
+  totalRecordCount: number | undefined;
+}
+
+function mapSeriesStatus(
+  value: unknown,
+): SeriesLifecycleStatus | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const normalized =
+    value
+      .trim()
+      .toLowerCase();
+
+  if (
+    normalized === 'ended' ||
+    normalized === 'cancelled' ||
+    normalized === 'canceled'
+  ) {
+    return 'ended';
+  }
+
+  if (
+    normalized === 'continuing' ||
+    normalized === 'returning series' ||
+    normalized === 'in production'
+  ) {
+    return 'continuing';
+  }
+
+  return undefined;
+}
+
+function parseJellyfinMediaItem(
+  value: unknown,
+): MediaItem | undefined {
+  if (
+    !value ||
+    typeof value !== 'object'
+  ) {
+    return undefined;
+  }
+
+  const item =
+    value as Record<string, unknown>;
+
+  if (
+    typeof item.Id !== 'string' ||
+    typeof item.Name !== 'string'
+  ) {
+    return undefined;
+  }
+
+  const type: MediaType | undefined =
+    item.Type === 'Movie' ||
+    item.Type === 'Series'
+      ? item.Type
+      : undefined;
+
+  return {
+    id:
+      item.Id,
+
+    name:
+      item.Name,
+
+    originalTitle:
+      typeof item.OriginalTitle === 'string'
+        ? item.OriginalTitle
+        : undefined,
+
+    sortName:
+      typeof item.SortName === 'string'
+        ? item.SortName
+        : undefined,
+
+    year:
+      typeof item.ProductionYear === 'number'
+        ? item.ProductionYear
+        : undefined,
+
+    overview:
+      typeof item.Overview === 'string'
+        ? item.Overview
+        : undefined,
+
+    type,
+
+    dateCreated:
+      typeof item.DateCreated === 'string'
+        ? item.DateCreated
+        : undefined,
+
+    seriesStatus:
+      type === 'Series'
+        ? mapSeriesStatus(
+            item.Status,
+          )
+        : undefined,
+  };
+}
+
+function parseJellyfinItemsQueryResult(
+  data: unknown,
+  context: string,
+): JellyfinItemsQueryResult {
+  if (
+    !data ||
+    typeof data !== 'object'
+  ) {
+    throw new Error(
+      `Jellyfin returned an invalid ${context} response.`,
+    );
+  }
+
+  const record =
+    data as Record<string, unknown>;
+
+  if (
+    !Array.isArray(
+      record.Items,
+    )
+  ) {
+    throw new Error(
+      `Jellyfin returned an invalid ${context} response.`,
+    );
+  }
+
+  const items: MediaItem[] =
+    [];
+
+  for (
+    const item
+    of record.Items
+  ) {
+    const parsedItem =
+      parseJellyfinMediaItem(
+        item,
+      );
+
+    if (parsedItem) {
+      items.push(
+        parsedItem,
+      );
+    }
+  }
+
+  const totalRecordCount =
+    typeof record.TotalRecordCount === 'number' &&
+    Number.isSafeInteger(
+      record.TotalRecordCount,
+    ) &&
+    record.TotalRecordCount >= 0
+      ? record.TotalRecordCount
+      : undefined;
+
+  return {
+    items,
+    totalRecordCount,
+  };
+}
+
+function normalizeSearchTerm(
+  searchTerm: string,
+  mediaLabel: string,
+): string {
+  const normalizedSearchTerm =
+    searchTerm.trim();
+
+  if (
+    normalizedSearchTerm.length === 0 ||
+    normalizedSearchTerm.length > MAX_SEARCH_LENGTH
+  ) {
+    throw new Error(
+      `${mediaLabel} search must contain between 1 and ${MAX_SEARCH_LENGTH} characters.`,
+    );
+  }
+
+  return normalizedSearchTerm;
+}
+
+function normalizeJellyfinItemId(
+  itemId: string,
+): string {
+  const normalizedItemId =
+    itemId.trim();
+
+  if (
+    normalizedItemId.length === 0 ||
+    normalizedItemId.length > MAX_ITEM_ID_LENGTH ||
+    !/^[A-Za-z0-9_-]+$/.test(
+      normalizedItemId,
+    )
+  ) {
+    throw new Error(
+      'Invalid Jellyfin item ID.',
+    );
+  }
+
+  return normalizedItemId;
+}
+
+async function searchJellyfinItems(
+  searchTerm: string,
+  includeItemType: MediaType,
+): Promise<MediaItem[]> {
+  const normalizedSearchTerm =
+    normalizeSearchTerm(
+      searchTerm,
+      includeItemType,
+    );
+
+  const params =
+    new URLSearchParams({
+      SearchTerm:
+        normalizedSearchTerm,
+
+      IncludeItemTypes:
+        includeItemType,
+
+      Recursive:
+        'true',
+
+      Limit:
+        String(
+          MAX_SEARCH_RESULTS,
+        ),
+
+      Fields:
+        'Overview,DateCreated,OriginalTitle,SortName',
+    });
+
+  const response =
+    await jellyfinFetch(
+      `/Items?${params.toString()}`,
+    );
+
+  const data: unknown =
+    await response.json();
+
+  return parseJellyfinItemsQueryResult(
+    data,
+    `${includeItemType.toLowerCase()} search`,
+  ).items;
+}
 
 export class JellyfinMediaProvider
 implements MediaProvider {
@@ -50,39 +306,159 @@ implements MediaProvider {
   }
 
   async searchMovies(
-    _searchTerm: string,
+    searchTerm: string,
   ): Promise<MediaMovie[]> {
-    throw new Error(
-      'Jellyfin provider is not implemented yet.',
+    return searchJellyfinItems(
+      searchTerm,
+      'Movie',
     );
   }
 
   async searchSeries(
-    _searchTerm: string,
+    searchTerm: string,
   ): Promise<MediaSeries[]> {
-    throw new Error(
-      'Jellyfin provider is not implemented yet.',
+    return searchJellyfinItems(
+      searchTerm,
+      'Series',
     );
   }
 
   async getLatestItems(): Promise<MediaItem[]> {
-    throw new Error(
-      'Jellyfin provider is not implemented yet.',
-    );
+    const params =
+      new URLSearchParams({
+        IncludeItemTypes:
+          'Movie,Series',
+
+        Recursive:
+          'true',
+
+        SortBy:
+          'DateCreated',
+
+        SortOrder:
+          'Descending',
+
+        Limit:
+          String(
+            MAX_LATEST_RESULTS,
+          ),
+
+        Fields:
+          'Overview,DateCreated,OriginalTitle,SortName',
+      });
+
+    const response =
+      await jellyfinFetch(
+        `/Items?${params.toString()}`,
+      );
+
+    const data: unknown =
+      await response.json();
+
+    return parseJellyfinItemsQueryResult(
+      data,
+      'latest items',
+    ).items;
   }
 
   async getRandomMovie(): Promise<MediaMovie | undefined> {
-    throw new Error(
-      'Jellyfin provider is not implemented yet.',
-    );
+    const params =
+      new URLSearchParams({
+        IncludeItemTypes:
+          'Movie',
+
+        Recursive:
+          'true',
+
+        SortBy:
+          'Random',
+
+        Limit:
+          '1',
+
+        Fields:
+          'Overview,DateCreated,OriginalTitle,SortName',
+      });
+
+    const response =
+      await jellyfinFetch(
+        `/Items?${params.toString()}`,
+      );
+
+    const data: unknown =
+      await response.json();
+
+    const result =
+      parseJellyfinItemsQueryResult(
+        data,
+        'random movie',
+      );
+
+    const movie =
+      result.items[0];
+
+    if (
+      !movie ||
+      movie.type !== 'Movie'
+    ) {
+      return undefined;
+    }
+
+    return movie;
   }
 
   async getMovieById(
-    _movieId: string,
+    movieId: string,
   ): Promise<MediaMovie | undefined> {
-    throw new Error(
-      'Jellyfin provider is not implemented yet.',
-    );
+    const normalizedMovieId =
+      normalizeJellyfinItemId(
+        movieId,
+      );
+
+    const params =
+      new URLSearchParams({
+        Ids:
+          normalizedMovieId,
+
+        IncludeItemTypes:
+          'Movie',
+
+        Recursive:
+          'true',
+
+        Limit:
+          '1',
+
+        Fields:
+          'Overview,DateCreated,OriginalTitle,SortName',
+      });
+
+    const response =
+      await jellyfinFetch(
+        `/Items?${params.toString()}`,
+      );
+
+    const data: unknown =
+      await response.json();
+
+    const result =
+      parseJellyfinItemsQueryResult(
+        data,
+        'movie lookup',
+      );
+
+    const movie =
+      result.items[0];
+
+    if (
+      !movie ||
+      movie.id !== normalizedMovieId ||
+      movie.type !== 'Movie'
+    ) {
+      return undefined;
+    }
+
+    return movie;
   }
 
   async getPoster(
