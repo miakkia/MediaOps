@@ -7,10 +7,6 @@ import {
 } from './ombi/ombi-client.js';
 
 import {
-  ombiConfig,
-} from './ombi/ombi-config.js';
-
-import {
   OmbiRequestProvider,
 } from './ombi/ombi-request-provider.js';
 
@@ -42,10 +38,6 @@ RequestProvider | undefined {
     case 'ombi':
       return new OmbiRequestProvider(
         createOmbiClientFromEnvironment(),
-        {
-          autoApprove:
-            ombiConfig.autoApprove,
-        },
       );
 
     case 'seerr':
@@ -77,6 +69,5 @@ RequestProvider {
       'No RequestProvider is configured.',
     );
   }
-
   return requestProvider;
 }
