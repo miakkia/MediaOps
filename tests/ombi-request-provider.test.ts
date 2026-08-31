@@ -28,9 +28,6 @@ function createFakeClient() {
     },
     async post<T>(path: string): Promise<T> {
       posts.push(path);
-      if (path.endsWith('/approve')) {
-        return { result: true, requestId: 42 } as T;
-      }
       return { result: true, requestId: 42 } as T;
     },
   } as unknown as OmbiClient;
@@ -61,7 +58,7 @@ test('TV search maps first-air year from Ombi metadata', async () => {
     },
   } as unknown as OmbiClient;
 
-  const provider = new OmbiRequestProvider(client, { autoApprove: false });
+  const provider = new OmbiRequestProvider(client);
   const results = await provider.search('Dead Like Me', 'series');
 
   assert.equal(results.length, 1);
@@ -89,72 +86,33 @@ test('TV search falls back to a year embedded in the title', async () => {
     },
   } as unknown as OmbiClient;
 
-  const provider = new OmbiRequestProvider(client, { autoApprove: false });
+  const provider = new OmbiRequestProvider(client);
   const results = await provider.search('Example Show', 'series');
 
   assert.equal(results[0]?.title, 'Example Show');
   assert.equal(results[0]?.year, 2019);
 });
 
-test('OMBI_AUTO_APPROVE=false creates request without approval call', async () => {
+test('Ombi creates a movie request without forcing approval', async () => {
   const { client, posts } = createFakeClient();
-  const provider = new OmbiRequestProvider(client, { autoApprove: false });
+  const provider = new OmbiRequestProvider(client);
 
   const result = await provider.request(movie());
 
   assert.equal(result.success, true);
   assert.equal(result.status, 'pending');
+  assert.equal(result.providerRequestId, '42');
   assert.deepEqual(posts, ['/api/v1/Request/movie']);
 });
 
-test('OMBI_AUTO_APPROVE=true creates request then approves it', async () => {
-  const { client, posts } = createFakeClient();
-  const provider = new OmbiRequestProvider(client, { autoApprove: true });
+test('Ombi reports approval as provider-owned capability', async () => {
+  const { client } = createFakeClient();
+  const provider = new OmbiRequestProvider(client);
 
-  const result = await provider.request(movie());
+  const capabilities = await provider.getCapabilities();
 
-  assert.equal(result.success, true);
-  assert.equal(result.status, 'approved');
-  assert.deepEqual(posts, [
-    '/api/v1/Request/movie',
-    '/api/v1/Request/movie/approve',
-  ]);
-});
-
-test('per-request false override never approves', async () => {
-  const { client, posts } = createFakeClient();
-  const provider = new OmbiRequestProvider(client, { autoApprove: true });
-
-  const result = await provider.request(movie(), { autoApprove: false });
-
-  assert.equal(result.status, 'pending');
-  assert.deepEqual(posts, ['/api/v1/Request/movie']);
-});
-
-test('failed automatic approval leaves created request pending', async () => {
-  const posts: string[] = [];
-  const client = {
-    async get<T>(): Promise<T> {
-      return undefined as T;
-    },
-    async post<T>(path: string): Promise<T> {
-      posts.push(path);
-      if (path.endsWith('/approve')) {
-        return { result: false, isError: true, errorMessage: 'Approval denied' } as T;
-      }
-      return { result: true, requestId: 42 } as T;
-    },
-  } as unknown as OmbiClient;
-
-  const provider = new OmbiRequestProvider(client, { autoApprove: true });
-  const result = await provider.request(movie());
-
-  assert.equal(result.success, true);
-  assert.equal(result.status, 'pending');
-  assert.deepEqual(posts, [
-    '/api/v1/Request/movie',
-    '/api/v1/Request/movie/approve',
-  ]);
+  assert.equal(capabilities.autoApproval, false);
+  assert.equal(capabilities.requestStatus, false);
 });
 
 test('Discord requester is submitted to Ombi under the mapped Ombi username', async () => {
@@ -207,10 +165,7 @@ test('Discord requester is submitted to Ombi under the mapped Ombi username', as
     },
   } as unknown as OmbiClient;
 
-  const provider = new OmbiRequestProvider(
-    client,
-    { autoApprove: false },
-  );
+  const provider = new OmbiRequestProvider(client);
 
   const result = await provider.request(
     movie(),
@@ -246,7 +201,7 @@ test('unmapped Discord requester is rejected instead of falling back to API iden
     },
   } as unknown as OmbiClient;
 
-  const provider = new OmbiRequestProvider(client, { autoApprove: false });
+  const provider = new OmbiRequestProvider(client);
   const result = await provider.request(movie(), {
     requester: {
       source: 'discord',
