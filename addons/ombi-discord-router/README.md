@@ -1,27 +1,40 @@
-# Ombi Discord Router addon
+# MediaOps Discord Router
 
-This optional companion service adapts Ombi request notifications into a Discord Forum workflow that MediaOps can maintain as a searchable request history.
+The **MediaOps Discord Router** is the optional companion service that routes request-provider webhooks into managed Discord Forum threads. It currently supports **Ombi** and **Seerr** through provider-specific adapters.
 
-The router is intentionally separate from the main MediaOps bot. It owns the Discord webhook credential, while MediaOps only needs the webhook's non-secret ID plus the Forum/tag IDs used for status synchronization.
+The component originally shipped as **Ombi Discord Router**. Existing installations do not need to rename or recreate anything: the historical addon path, GHCR image, Compose service/container name, Unraid template filename, and default appdata path remain intentionally unchanged for upgrade compatibility.
 
 ## What it does
 
-For supported Ombi movie and TV request notifications, the router:
+```text
+POST /ombi   -> Ombi adapter
+POST /seerr  -> Seerr adapter
+                 |
+                 v
+        normalized lifecycle
+                 |
+                 v
+          Discord Forum thread
+```
 
-- creates one Discord Forum post per active media request lifecycle;
-- applies one media-type tag and one request-status tag when the post is created;
-- stores the Discord thread ID in a small persistent JSON index;
-- posts only meaningful forward lifecycle changes into the existing thread;
-- ignores duplicate same-state notifications and stale/backward transitions;
-- keeps terminal request states terminal within the same Ombi request lifecycle;
-- removes active correlation when Ombi reports `RequestDeleted` while leaving Discord history intact;
-- recognizes a new Ombi request ID for the same provider item as a new request lifecycle;
-- recovers from a deleted/missing Discord Forum thread by removing the stale correlation and recreating the thread from the current event;
-- exposes `/health` for container monitoring;
-- emits sanitized technical event logs without titles, requester names, provider IDs, request IDs, or webhook credentials;
-- avoids logging the Discord webhook URL/token when Discord returns an error.
+The router can create one Forum thread per request lifecycle, preserve the thread association in `/data/media-threads.json`, append forward lifecycle updates, maintain Movie/Series and Requested/Processing/Available/Failed/Denied tags, ignore duplicate or backward events, recover from missing Discord threads, and expose `/health` for private monitoring.
 
-MediaOps then performs the privileged Discord-side lifecycle management, including status-tag synchronization and closing/locking terminal request posts.
+The router is a messenger. It reports request-provider lifecycle events; it does not independently prove that media is present on the media server. MediaOps can separately verify actual library availability before sending its own final availability notification.
+
+## Compatibility identifiers
+
+These historical identifiers remain supported and intentionally unchanged:
+
+```text
+Addon path:       addons/ombi-discord-router/
+Image:            ghcr.io/miakkia/mediaops-ombi-discord-router
+Compose service:  ombi-discord-router
+Container name:   ombi-discord-router
+Unraid template:  templates/ombi-discord-router.xml
+Default appdata:  /mnt/user/appdata/ombi-discord-router/data
+```
+
+New documentation and UI text should call the component **MediaOps Discord Router**. The historical identifiers are compatibility details, not a limitation to Ombi.
 
 ## Published image
 
@@ -31,28 +44,26 @@ ghcr.io/miakkia/mediaops-ombi-discord-router:dev
 ghcr.io/miakkia/mediaops-ombi-discord-router:sha-<commit>
 ```
 
-`latest` follows `main`; development branches publish `dev`; repository release tags publish matching semantic-version tags.
+`latest` follows `main`; development branches publish `dev`; release tags publish matching semantic-version tags.
 
 ## Requirements
 
-- Ombi with webhook notifications enabled;
-- one Discord Forum channel;
-- a Discord webhook created for that Forum;
-- Forum tags for `Movie`, `Series`, `Requested`, `Processing`, `Available`, `Failed`, and `Denied`;
-- optional Forum tag for webhook diagnostics, such as `Test`;
-- persistent storage for `/data` that is writable by UID/GID `1000:1000` when using the hardened example Compose configuration;
-- network reachability from Ombi to the router.
+- Ombi and/or Seerr with webhook notifications enabled;
+- one Discord Forum channel and Forum webhook;
+- Forum tags for Movie, Series, Requested, Processing, Available, Failed, and Denied;
+- optional Test tag for provider webhook diagnostics;
+- persistent `/data` storage writable by UID/GID `1000:1000` with the hardened deployment examples;
+- private network reachability from the request provider to the router.
 
-The visible tag names are administrator choices. Configuration uses Discord IDs.
+Dynamic Forum tag updates can use the runtime `DISCORD_BOT_TOKEN` setting. Keep it masked and grant only the Discord permissions required for the target Forum.
 
-## Configuration
-
-Copy `.env.example` to `.env` and fill in your own values. Never commit the real `.env` file.
+## Core configuration
 
 ```env
 TZ=America/Toronto
 MEDIA_REQUESTS_WEBHOOK=
 MEDIA_REQUESTS_WEBHOOK_NAME=Media Request Herald
+DISCORD_BOT_TOKEN=
 MEDIA_TAG_REQUESTED=
 MEDIA_TAG_PROCESSING=
 MEDIA_TAG_AVAILABLE=
@@ -66,76 +77,39 @@ ROUTER_DATA_HOST_DIR=./data
 MEDIAOPS_NETWORK=mediaops-backend
 ```
 
-`MEDIA_REQUESTS_WEBHOOK` is a secret because the Discord webhook URL contains its credential. Do not paste it into issues, screenshots, logs, examples, or MediaOps configuration.
-
-MediaOps itself should receive only the webhook **ID** through `MEDIA_REQUESTS_WEBHOOK_ID`, not this secret URL.
+Never commit a populated `.env` file or publish Discord credentials in logs, screenshots, or support posts.
 
 ## Persistent data and permissions
 
-The router persists its request/thread index under `/data` and uses an atomic temporary-file write before replacing `media-threads.json`. The hardened Compose example runs the container as UID/GID `1000:1000`, so the host directory mounted at `/data` must be writable by that identity.
+The router stores only its request/thread index under `/data`. Keep `ROUTER_DATA_DIR=/data`; host paths belong in the volume mapping.
 
-A typical host mapping is:
+A compatible host mapping is:
 
 ```yaml
 volumes:
   - /path/on/host/ombi-discord-router/data:/data
 ```
 
-Keep `ROUTER_DATA_DIR=/data`; host filesystem paths do not belong in `ROUTER_DATA_DIR`.
+The historical directory name does not need to be changed.
 
-On a shell-capable Docker host, prepare the directory before starting the router:
-
-```bash
-mkdir -p /path/on/host/ombi-discord-router/data
-chown -R 1000:1000 /path/on/host/ombi-discord-router/data
-chmod -R 750 /path/on/host/ombi-discord-router/data
-```
-
-Portainer/NAS deployments without SSH can perform the same one-time ownership change with a temporary privileged/root utility container that bind-mounts the host directory, runs `chown -R 1000:1000` and `chmod -R 750`, then is removed. Do not make the router itself privileged and do not use world-writable `777` permissions as a workaround.
-
-If permissions are wrong, Ombi delivery may reach the router but return HTTP 502 with a log similar to:
-
-```text
-PermissionError: [Errno 13] Permission denied: '/data/media-threads.tmp'
-```
-
-That error means network delivery is working; correct the host bind-mount ownership/permissions and restart the router.
+With the hardened UID/GID `1000:1000` runtime, the mounted directory must be writable by that identity. Do not solve permission problems with `777`, root execution, or privileged mode.
 
 ## Networking
 
-### Ombi and router on the same Docker host/network
-
-Prefer a user-defined Docker network so Ombi can reach the router by container name instead of a changing container IP.
+Prefer a user-defined Docker network when the request provider and router share a host:
 
 ```bash
 docker network create mediaops-backend
 ```
 
-Connect Ombi to the same network, then configure Ombi's webhook destination as:
+With the compatibility container name, webhook destinations are:
 
 ```text
-http://ombi-discord-router:8080/ombi
+Ombi:  http://ombi-discord-router:8080/ombi
+Seerr: http://ombi-discord-router:8080/seerr
 ```
 
-`compose.example.yaml` expects the network to already exist and defaults to `mediaops-backend`. Set `MEDIAOPS_NETWORK` if you use a different external network name.
-
-### Ombi and router on different LAN hosts
-
-If Ombi and the router are intentionally on different trusted LAN hosts, they cannot use a shared Docker network. Publish the router port only to the trusted LAN as required by your platform and point Ombi at the router host, for example:
-
-```text
-http://ROUTER_LAN_IP:8080/ombi
-```
-
-Verify reachability first with:
-
-```text
-http://ROUTER_LAN_IP:8080/health
-```
-
-A successful response reports `status: ok`, `version: 1.9`, `mode: discord-forum`, and the `/data/media-threads.json` index path.
-
-Do not port-forward router port 8080 from the Internet. `/ombi` is designed for a private Docker/LAN trust boundary.
+If the provider is on another trusted LAN host, use the router's private LAN address instead. Do not port-forward router port 8080 from the Internet; `/ombi`, `/seerr`, and `/health` are intended for a private Docker/LAN trust boundary.
 
 ## Compose deployment
 
@@ -147,110 +121,38 @@ docker compose -f compose.example.yaml pull
 docker compose -f compose.example.yaml up -d
 ```
 
-The example Compose file uses the published GHCR image and deliberately keeps least-privilege defaults: non-root execution, read-only root filesystem, dropped Linux capabilities, `no-new-privileges`, PID/memory limits, and a dedicated persistent `/data` mount.
-
-For development or reproducible local testing:
-
-```bash
-docker build -t local/ombi-discord-router:test .
-```
+The example keeps non-root execution, a read-only root filesystem, dropped Linux capabilities, `no-new-privileges`, PID/memory limits, and a dedicated persistent `/data` mount.
 
 ## Unraid
 
-A generic Unraid v2 template is included at:
+The generic Unraid v2 template remains at:
 
 ```text
 templates/ombi-discord-router.xml
 ```
 
-The template points to the published GHCR image, masks the webhook credential, predefines `/data`, includes all required Forum tag variables, and applies the same hardened runtime options used during validation.
+The template is displayed as **MediaOps Discord Router** while retaining the historical GHCR image and `/mnt/user/appdata/ombi-discord-router/data` default so existing installations do not need migration.
 
-Before installing the router template, create an external Docker network such as `mediaops-backend` and attach Ombi to it. Keep the router name `ombi-discord-router` or update the Ombi webhook URL if you choose a different container name.
+Existing users may keep a container visibly named **Ombi Discord Router** or `ombi-discord-router`. That name does not restrict the router to Ombi. If a container is manually renamed, any provider webhook URL that addresses it by Docker DNS name must be updated accordingly.
 
-## Health check
+## Provider behavior
 
-Expected response from `GET /health`:
+### Ombi
 
-```json
-{
-  "status": "ok",
-  "version": "1.9",
-  "mode": "discord-forum",
-  "index": "/data/media-threads.json"
-}
-```
+Ombi may deliver `RequestApproved` and `NewRequest` in different orders, especially with auto-approval. The router does not fabricate a missing earlier state. `RequestDeleted` clears active correlation while keeping Discord history so a later re-request can start a fresh lifecycle.
 
-The packaged example does not publish port `8080` to the host by default. Check `/health` from inside the container or another container on the shared Docker network. Publish the port only when a separate trusted LAN host such as Ombi must reach the router.
+Ombi's built-in webhook test creates an **Ombi Webhook Test** post when the Test tag is configured.
 
-## Ombi notification behavior
+### Seerr
 
-The router accepts `POST /ombi` JSON notifications from Ombi. Movie and TV request lifecycle messages are correlated using provider/request identity and recorded in `/data/media-threads.json`.
+Seerr payloads are normalized through `/seerr` into the same shared Forum lifecycle. Seerr's request identity is kept separate from the media/TMDB identity so lifecycle updates correlate correctly.
 
-A normal lifecycle is represented as one Forum post with meaningful forward updates:
+A Seerr webhook test creates a **Seerr Webhook Test** post when the Test tag is configured.
 
-```text
-Requested -> Processing -> Available
-```
-
-`Failed` and `Denied` are also terminal states supported by MediaOps.
-
-Ombi may emit multiple notifications for one logical state change, and those notifications can arrive in a surprising order. The router therefore treats lifecycle delivery as idempotent:
-
-- a notification that resolves to the same status already stored is ignored;
-- a notification that would move the stored request backward is ignored;
-- a terminal request cannot be rewritten by later non-terminal events from the same request lifecycle;
-- request/provider metadata may still be refreshed silently when a duplicate or stale event contains useful identifiers;
-- if the same provider item later arrives with a different Ombi request ID, the router treats it as a new request lifecycle and creates a fresh Forum thread;
-- if the stored Discord thread no longer exists and Discord returns `Unknown Channel`, the stale correlation is removed and the current lifecycle is recreated instead of remaining stuck on a dead thread ID.
-
-This prevents sequences such as `RequestApproved -> NewRequest -> RequestApproved` from producing three near-identical Forum messages or regressing a request from Processing back to Requested, while still allowing a previously Available, Failed, Denied, or deleted item to be requested again later.
-
-### Request deletion and re-requesting
-
-`RequestDeleted` does not delete Discord history. Instead, the router removes the active `/data/media-threads.json` correlation for that request. A later request for the same media can therefore create a new Forum thread without being mistaken for a duplicate of the deleted request.
-
-The same lifecycle separation applies when a previous request reached `Available`, `Failed`, or `Denied`: a later Ombi request with a new request ID starts a fresh active lifecycle while the old Discord thread remains historical.
-
-### Ombi administrator requests
-
-Ombi's notification behavior depends on who creates the request. In particular, Ombi does not emit the normal `NewRequest` notification for a request created by an Ombi **Admin** account because the administrator is considered to already know that the request was made. API, Power User, and normal-user requests can emit the normal request notification flow.
-
-This is an Ombi-side behavior, not a router permission decision. The router cannot create a `Requested` Forum post for an event it never receives. A later notification such as `RequestApproved`, `RequestAvailable`, `Failed`, or `Denied` can still create the Forum post if no earlier post exists.
-
-Administrators who require every request to appear in the Forum from its first state should avoid relying on Ombi Admin-origin `NewRequest` notifications as the sole source of truth. A future MediaOps-side request/API synchronization path may cover that case without weakening the router trust boundary.
-
-### Ombi webhook test
-
-When `MEDIA_TAG_TEST` is configured, Ombi's built-in **Send test** action creates a dedicated `Ombi Webhook Test` Forum post carrying only the configured Test tag. It is not written to `media-threads.json` and is not treated as a Movie/Series lifecycle entry.
-
-## Operational logging
-
-The router logs a narrow technical summary for each accepted Ombi event, for example:
-
-```text
-OMBI EVENT: notificationType=RequestApproved type=Movie result=created
-OMBI EVENT: notificationType=NewRequest type=Movie result=ignored reason=duplicate-status
-OMBI EVENT: notificationType=RequestDeleted type=Movie result=removed reason=request-deleted
-```
-
-These lines are intentionally limited to notification type, media type, result, and a bounded reason. They do not include titles, requester identities, request/provider IDs, overview text, or webhook credentials.
+Provider-native Discord notifications remain independent from MediaOps. If MediaOps is being used as the authority for media-server-verified availability, overlapping provider-native availability notifications can be disabled to avoid contradictory announcements.
 
 ## Security notes
 
-Treat Ombi payloads and Discord responses as untrusted integration data. Keep the service private to the Docker/LAN network and do not expose `/ombi` publicly unless you add an appropriate authenticated reverse-proxy boundary.
+Keep the router private, non-root, read-only, capability-dropped, and without privileged mode. Treat provider payloads and Discord responses as untrusted integration data. Do not broaden network exposure merely to simplify provider routing.
 
-The router never needs the MediaOps Discord bot token. MediaOps never needs the router's webhook token. Keeping those credentials separate reduces the impact of either component being misconfigured or compromised.
-
-The router intentionally sanitizes Discord delivery errors so the webhook URL/token is not included in application logs.
-
-For the MediaOps-side trust boundary and required Discord permissions, see [`../../docs/REQUEST_FORUM.md`](../../docs/REQUEST_FORUM.md) and [`../../docs/SECURITY_MODEL.md`](../../docs/SECURITY_MODEL.md).
-
-## Runtime files
-
-The only persistent application-owned state is the request/thread index:
-
-```text
-/data/media-threads.json
-```
-
-Do not commit runtime state or a populated `.env` file.
+For the complete Forum workflow and security boundaries, see [`../../docs/REQUEST_FORUM.md`](../../docs/REQUEST_FORUM.md), [`../../docs/UNRAID.md`](../../docs/UNRAID.md), and [`../../docs/SECURITY_MODEL.md`](../../docs/SECURITY_MODEL.md).
