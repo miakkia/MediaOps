@@ -1,192 +1,130 @@
 # MediaOps
 
-[![CI](https://github.com/miakkia/MediaOps/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/miakkia/MediaOps/actions/workflows/docker-publish.yml)
-[![License](https://img.shields.io/github/license/miakkia/MediaOps)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-22%2B-339933?logo=nodedotjs&logoColor=white)](package.json)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](package.json)
-[![GHCR](https://img.shields.io/badge/GHCR-mediaops-2496ED?logo=docker&logoColor=white)](https://github.com/miakkia/MediaOps/pkgs/container/mediaops)
-[![Discord](https://img.shields.io/badge/Discord-MediaOps-5865F2?logo=discord&logoColor=white)](https://discord.gg/39EG2Y6fhA)
-[![Emby](https://img.shields.io/badge/Media-Emby-52B54B)](https://emby.media/)
-[![Ombi](https://img.shields.io/badge/Requests-Ombi-4C8BF5)](https://ombi.io/)
-[![Watch Party](https://img.shields.io/badge/Watch%20Party-Emby%20Watch%20Party-8A2BE2)](https://github.com/Oratorian/emby-watchparty)
+MediaOps is an open-source Discord companion for self-hosted media communities. It connects Discord to a selected media server, request provider, and optional Watch Party service so members can discover media, submit requests, track request state, and organize Watch Parties from Discord.
 
-MediaOps is an open-source Discord companion for self-hosted media communities. It connects Discord to a media server, request provider, and Watch Party service so members can discover media, submit requests, coordinate Watch Parties, and receive useful status updates without memorizing a large command set.
+## Current supported integrations
 
-> **Release status:** first public release candidate. Emby is the supported media provider, Ombi is the supported request provider, and Emby Watch Party is the supported Watch Party integration for this release.
+| Capability | Supported integrations |
+| --- | --- |
+| Media provider | **Emby**, **Jellyfin** |
+| Request provider | **Ombi**, **Seerr** |
+| Watch Party | Emby Watch Party by Oratorian |
+| Request Forum history | MediaOps Discord Router (Ombi + Seerr) |
+| Deployment | Docker/GHCR, Portainer/Compose, Unraid |
 
-## MediaOps in action
+Plex and Jellyfin SyncPlay orchestration remain future work.
 
-MediaOps keeps the day-to-day media workflow inside Discord: search what is already in your library, request missing content, track request status, and organize synchronized Watch Parties.
+## Provider model
 
-### Rich Media Cards
+MediaOps is provider-aware. Select one media provider and one request provider per deployment:
 
-Media discovery is now visual without becoming noisy. `/movie`, `/tv`, `/latest`, and `/request` use compact Rich Media Cards so members can identify the correct title at a glance.
-
-Movie cards show the **poster, title, and year**. TV cards also show the series lifecycle when available, such as **Continuing / En cours** or **Ended / Terminée**. Request cards keep the existing request status and actions while adding the same visual identity.
-
-![MediaOps Rich Media Cards](Images/Rich%20cards.jpg)
-
-Emby artwork is fetched by MediaOps through the authenticated provider connection and uploaded to Discord as an attachment. The Emby API key is never embedded in a Discord poster URL. Ombi artwork is limited to trusted TMDB HTTPS image URLs.
-
-### Search the Emby library
-
-Use `/movie` or `/tv` to quickly find matching titles already available in your media library. Search results are capped to a compact set of visual cards instead of a plain text list.
-
-### See recently added media
-
-Use `/latest` to see recently added movies and series using the same Rich Media Card presentation, including TV lifecycle status when the provider exposes it.
-
-### Request missing media through Ombi
-
-Use `/request` to search Ombi, choose the exact movie or series, and submit the request without leaving Discord. Search results use poster cards while preserving request availability, selection, and confirmation controls.
-
-![MediaOps movie request workflow](Images/Request%20movie%20Feature.jpg)
-
-### Keep request history in a Discord Forum
-
-The optional MediaOps Ombi Discord Router can maintain persistent request threads and lifecycle tags such as Requested, Processing, Available, Failed, and Denied.
-
-![MediaOps request forum lifecycle](Images/forum%20request%20feature.jpg)
-
-### Schedule and launch Watch Parties
-
-MediaOps can schedule Watch Parties, collect RSVPs, send reminders, open the synchronized viewing room automatically, and provide direct join links.
-
-![MediaOps Watch Party](Images/Watchparty%20feature.jpg)
-
-MediaOps integrates with the open-source [Emby Watch Party project by Oratorian](https://github.com/Oratorian/emby-watchparty) for synchronized playback. MediaOps handles the Discord-side scheduling and lifecycle orchestration; Emby Watch Party provides the synchronized viewing experience.
-
-### Publish a simple command guide for members
-
-Administrators can publish a bilingual command panel so members can discover the main MediaOps features without memorizing slash commands.
-
-![MediaOps Discord command guide](Images/Discord%20Bot%20Commands.jpg)
-
-## Important: Discord deployment model for v1
-
-MediaOps v1 is **self-hosted and single-tenant**.
-
-Each operator:
-
-1. creates their own Discord application/bot;
-2. installs that bot into their own Discord server;
-3. runs their own MediaOps container;
-4. configures that container with their own Emby/Ombi/Watch Party credentials.
-
-```text
-Your Discord server
-        |
-        v
-Your Discord application / bot
-        |
-        v
-Your MediaOps container
-   |        |        |
-   v        v        v
- Emby      Ombi   Watch Party
+```env
+MEDIA_PROVIDER=emby
+REQUEST_PROVIDER=ombi
 ```
 
-The public **MediaOps Community demo bot is not a universal hosted bot** for other servers. The current provider configuration is global to one MediaOps container, not isolated per Discord guild. Do not invite a v1 MediaOps bot instance into unrelated guilds that require different backend credentials.
+or, for example:
 
-See **[`docs/DISCORD_BOT_SETUP.md`](docs/DISCORD_BOT_SETUP.md)** for the complete Discord Developer Portal setup, intents, permissions, installation restrictions, and command deployment procedure.
+```env
+MEDIA_PROVIDER=jellyfin
+REQUEST_PROVIDER=seerr
+```
 
-A hosted official universal/multi-tenant bot is retained only as a **Future / Maybe** concept. It is not committed or scheduled. If it is ever pursued, it will require a separate security-first architecture with per-guild isolation and secure private-backend connectivity rather than extending the current global v1 configuration directly.
+Only the selected provider is initialized. Credentials for unselected providers are not required.
 
-## What MediaOps provides
+### Emby
 
-- compact Rich Media Cards for `/movie`, `/tv`, `/latest`, and `/request`;
-- Emby movie and TV-series search;
-- recently added media discovery;
-- Ombi movie/TV request submission with requester attribution and optional auto-approval;
-- persistent request tracking and one-time Discord DM notification when requested media becomes available;
-- optional Discord Forum request history through the companion Ombi Discord Router;
-- Watch Party scheduling, RSVP, T-15 reminder, automatic room creation, direct join links, organizer cancellation, lifecycle cleanup, and restart-safe persistent state;
-- library-wide random movie selection and guided scheduling;
-- `/mediaops-setup` and `/watchparty-setup` persistent self-service guides;
-- administrator diagnostics through `/ping`, `/health`, and `/mediaops-admin-setup`;
-- configurable public branding through `MEDIAOPS_BOT_NAME` and `MEDIAOPS_SERVER_NAME`;
-- privacy-safe public/demo deployments through `MEDIAOPS_DEMO_MODE`;
-- EN/FR internationalization foundation;
-- Docker/GHCR distribution with a non-root runtime and persistent `/data` storage;
-- Portainer/Compose and Unraid deployment paths;
-- optional Ombi Discord Router image/template.
+```env
+MEDIA_PROVIDER=emby
+EMBY_URL=http://emby:8096
+EMBY_API_KEY=REPLACE_ME
+```
 
-## Supported integrations for the first public release
+### Jellyfin
 
-| Capability | Supported integration |
-| --- | --- |
-| Discord model | Operator-owned bot / one self-hosted MediaOps deployment |
-| Media provider | Emby |
-| Request provider | Ombi |
-| Watch Party | [Emby Watch Party by Oratorian](https://github.com/Oratorian/emby-watchparty) |
-| Discord request history | Optional Discord Forum + MediaOps Ombi Discord Router |
-| Deployment | Docker, Portainer/Compose, Unraid |
+```env
+MEDIA_PROVIDER=jellyfin
+JELLYFIN_URL=http://jellyfin:8096
+JELLYFIN_API_KEY=REPLACE_ME
+```
 
-See [`docs/RELEASE_SCOPE_V1.md`](docs/RELEASE_SCOPE_V1.md) and [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md).
+The Jellyfin adapter supports system information, movie search, series search, latest additions, random movie selection, exact movie lookup, posters, and Watch Party event artwork retrieval where the shared workflow uses media artwork.
+
+### Ombi
+
+```env
+REQUEST_PROVIDER=ombi
+OMBI_URL=http://ombi:3579
+OMBI_API_KEY=REPLACE_ME
+```
+
+MediaOps does **not** force Ombi approval. Ombi's own user/role policy controls auto-approval and approval behavior.
+
+### Seerr
+
+```env
+REQUEST_PROVIDER=seerr
+SEERR_URL=http://seerr:5055
+SEERR_API_KEY=REPLACE_ME
+```
+
+MediaOps supports Seerr search, movie requests, series requests, request identifiers/status tracking, and provider-owned approval policy. MediaOps does not call Seerr's elevated approval endpoint to override Seerr policy.
 
 ## Discord commands
 
-MediaOps currently registers **15 guild-scoped commands**.
+The same commands work against the selected providers:
 
-| Command | Purpose |
-| --- | --- |
-| `/movie` | Search the movie library with Rich Media Cards |
-| `/tv` | Search the TV-series library with Rich Media Cards |
-| `/latest` | Show recently added media with Rich Media Cards |
-| `/request` | Search Ombi with Rich Media Cards and submit a movie or TV request |
-| `/watchparty` | Open the configured Watch Party service |
-| `/watchparty-start` | Validate a Watch Party code and provide a join action |
-| `/watchparty-status` | Check a Watch Party session |
-| `/watchparty-schedule` | Schedule a Watch Party |
-| `/watchpartyrandom` | Pick, reroll, choose, and schedule a random movie |
-| `/watchparty-upcoming` | Show upcoming and active scheduled Watch Parties |
-| `/watchparty-setup` | Admin: publish the bilingual Watch Party panel |
-| `/mediaops-setup` | Admin: publish the user-facing command guide |
-| `/mediaops-admin-setup` | Admin: publish the diagnostics guide |
-| `/ping` | Admin: confirm that MediaOps is online |
-| `/health` | Admin: show MediaOps/build/provider diagnostics |
+- `/movie` — search movies with Rich Media Cards
+- `/tv` — search TV/series with Rich Media Cards
+- `/latest` — recently added media
+- `/request` — search and request through the selected request provider
+- `/health` — MediaOps/build/media-provider/request-provider diagnostics
+- Watch Party commands — scheduling, RSVP, launch, random movie selection, lifecycle management
 
-`/ping`, `/health`, `/mediaops-setup`, `/mediaops-admin-setup`, and `/watchparty-setup` require Discord **Manage Server** permission for the invoking member by default. Diagnostic replies are ephemeral.
+Provider selection is a deployment concern; members do not need separate `/emby`, `/jellyfin`, `/ombi`, or `/seerr` commands.
 
-See [`docs/DISCORD_FEATURES.md`](docs/DISCORD_FEATURES.md).
+## Rich Media Cards
 
-## Request workflow
+`/movie`, `/tv`, `/latest`, `/request`, and random Watch Party flows use compact cards with title/year/overview and artwork when available. Provider credentials are never embedded into Discord image URLs.
 
-With Ombi configured:
+## Request availability tracking
 
-```text
-/request
-  -> search Ombi
-  -> show Rich Media Card results
-  -> choose result
-  -> confirm exact title/year
-  -> create request as mapped Ombi user
-  -> pending or auto-approved according to OMBI_AUTO_APPROVE
-  -> persist request tracking
-  -> notify requester when media becomes available
-```
+MediaOps keeps its own tracked request state and treats the selected media server as the final authority for actual library availability. A provider reporting `Available` does not by itself prove that the title is present in Emby/Jellyfin.
 
-`OMBI_AUTO_APPROVE=false` leaves requests pending for an Ombi administrator. `OMBI_AUTO_APPROVE=true` asks Ombi to approve the newly created request automatically.
+This is intentionally separate from third-party native Discord notifications. Operators who require authoritative final availability notifications should avoid letting a request provider independently announce `Available` without a media-server verification step.
 
-### Optional Discord Forum history
+## MediaOps Discord Router
 
-The companion Ombi Discord Router can maintain persistent request history in a Discord Forum with Movie/Series and Requested/Processing/Available/Failed/Denied tags.
+The companion router is a messenger/routing component for Discord Forum workflows. It does not decide whether a request is valid or whether media is truly available.
 
-The router is independently deployable and keeps its own `/data/media-threads.json` state. See [`docs/REQUEST_FORUM.md`](docs/REQUEST_FORUM.md) and [`addons/ombi-discord-router/README.md`](addons/ombi-discord-router/README.md).
-
-## Watch Party lifecycle
-
-MediaOps integrates with [Oratorian/emby-watchparty](https://github.com/Oratorian/emby-watchparty) as the supported Watch Party provider for v1.
+Current provider routes:
 
 ```text
-scheduled
-  -> ready 30 minutes before start
-  -> automatic room creation at scheduled time
-  -> active
-  -> expiry at scheduled time + Emby runtime + 45 minutes
+POST /ombi   -> Ombi adapter
+POST /seerr  -> Seerr adapter
+                 |
+                 v
+        normalized router event
+                 |
+                 v
+          Discord Forum post
 ```
 
-If runtime information cannot be read, MediaOps uses a **4.5-hour safety fallback**. The organizer can cancel a tracked Watch Party even after its room has opened, and tracked scheduling/reminder/open-room messages are cleaned up by the lifecycle scheduler.
+It can create a Forum post, persist the request/thread association, append lifecycle updates to the same thread, and update Movie/Series plus Requested/Processing/Available/Failed/Denied tags.
+
+For tag updates, the router may use the MediaOps Discord bot token with the minimum Discord permissions required by the target Forum. Keep that token secret and inject it at runtime; never commit it.
+
+The router remains distributed under the historical image name for upgrade compatibility:
+
+```text
+ghcr.io/miakkia/mediaops-ombi-discord-router:latest
+```
+
+The component is being generalized as **MediaOps Discord Router**; existing Ombi deployments remain supported.
+
+Persistent router state lives at `/data/media-threads.json`. On NAS/Portainer bind mounts, the mapped host directory must already be writable by the configured non-root container user. Do not solve permission problems with `777` or privileged mode.
+
+See [`docs/REQUEST_FORUM.md`](docs/REQUEST_FORUM.md) and [`addons/ombi-discord-router/README.md`](addons/ombi-discord-router/README.md).
 
 ## Docker / Portainer quick start
 
@@ -196,15 +134,13 @@ Stable image:
 ghcr.io/miakkia/mediaops:latest
 ```
 
-Optional router:
+Development image:
 
 ```text
-ghcr.io/miakkia/mediaops-ombi-discord-router:latest
+ghcr.io/miakkia/mediaops:dev
 ```
 
-Before creating the stack, create **your own Discord bot** using [`docs/DISCORD_BOT_SETUP.md`](docs/DISCORD_BOT_SETUP.md).
-
-Example:
+Example using Jellyfin + Seerr:
 
 ```yaml
 services:
@@ -213,20 +149,18 @@ services:
     container_name: MediaOps
     restart: unless-stopped
     environment:
-      MEDIAOPS_BOT_NAME: MediaOps Bot
-      MEDIAOPS_SERVER_NAME: My Media Server
-      MEDIAOPS_DEMO_MODE: "false"
-      MEDIA_PROVIDER: emby
       DISCORD_TOKEN: REPLACE_ME
       DISCORD_CLIENT_ID: REPLACE_ME
       DISCORD_GUILD_ID: REPLACE_ME
-      EMBY_URL: http://YOUR-EMBY-HOST:8096
-      EMBY_API_KEY: REPLACE_ME
-      REQUEST_PROVIDER: ombi
-      OMBI_URL: http://YOUR-OMBI-HOST:3579
-      OMBI_API_KEY: REPLACE_ME
-      OMBI_AUTO_APPROVE: "false"
-      WATCHPARTY_URL: https://watch.example.com
+
+      MEDIA_PROVIDER: jellyfin
+      JELLYFIN_URL: http://jellyfin:8096
+      JELLYFIN_API_KEY: REPLACE_ME
+
+      REQUEST_PROVIDER: seerr
+      SEERR_URL: http://seerr:5055
+      SEERR_API_KEY: REPLACE_ME
+
       MEDIAOPS_LOCALE: en
       MEDIAOPS_TIMEZONE: America/Toronto
       MEDIAOPS_DATA_DIR: /data
@@ -234,60 +168,43 @@ services:
       - ./mediaops-data:/data
 ```
 
-`MEDIAOPS_DEMO_MODE=false` is the normal self-hosted behavior. For a public/demo deployment where Watch Party controls should remain visible without publishing the configured Watch Party URL into Discord, set it to `true`. See [`docs/DEMO_MODE.md`](docs/DEMO_MODE.md).
+For Emby + Ombi, select those providers and supply only `EMBY_*` and `OMBI_*` credentials instead.
 
-No privileged mode, Docker socket, media-library filesystem mount, or inbound MediaOps application port is required for current features.
-
-### Register slash commands
-
-After the container is running:
-
-```bash
-docker exec MediaOps npm run deploy-commands
-```
-
-The published runtime contains the compiled command deployment utility. `tsx`, Git, TypeScript, and a source checkout are not required on the host.
-
-## Security posture
-
-- Create and own your Discord bot/token for your v1 deployment.
-- Do not expose the project Community demo bot for unrelated guilds.
-- Do not reuse one v1 instance across unrelated customers with different backends.
-- Do not commit Discord tokens, provider API keys, webhook credentials, or passwords.
-- Rich Media Card poster handling does not expose the Emby API key in Discord image URLs.
-- No privileged container mode.
-- No Docker socket.
-- No media-library mounts required.
-- Watch Party creation should use a dedicated non-admin Emby account.
-- The runtime uses a dedicated non-root user.
-- Optional router webhook credentials remain isolated from the MediaOps bot token.
-
-See [`SECURITY.md`](SECURITY.md) and [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md).
+No privileged mode, Docker socket, media-library filesystem mount, or inbound MediaOps application port is required for current core bot features.
 
 ## Unraid
 
-The repository includes:
+The Community Apps template exposes provider selection and provider-specific configuration. Existing Emby/Ombi installations remain a supported configuration; adding Jellyfin/Seerr support does not require existing operators to migrate providers.
+
+Files:
 
 - [`templates/mediaops.xml`](templates/mediaops.xml)
 - [`templates/ombi-discord-router.xml`](templates/ombi-discord-router.xml)
-- [`ca_profile.xml`](ca_profile.xml)
 - [`docs/UNRAID.md`](docs/UNRAID.md)
 
-Before Community Apps submission, the templates must pass the current Unraid **Validate** and **Scan** workflow.
+## Security posture
+
+- one self-hosted MediaOps deployment uses an operator-owned Discord bot;
+- least privilege and minimum attack surface are preferred;
+- unselected provider credentials are not required;
+- API keys/tokens are sent in provider headers where supported, never query strings for the new Jellyfin/Seerr clients;
+- redirects are rejected by provider clients where credential forwarding would be unsafe;
+- external provider responses are validated before use;
+- no Docker socket or privileged mode is required;
+- persistent state is limited to explicitly mounted data directories;
+- secrets must not be committed, logged, or posted in screenshots/support material.
+
+See [`SECURITY.md`](SECURITY.md) and [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md).
 
 ## Documentation
 
-- [`docs/DISCORD_BOT_SETUP.md`](docs/DISCORD_BOT_SETUP.md) — create and secure your v1 Discord bot
-- [`docs/DEMO_MODE.md`](docs/DEMO_MODE.md) — privacy-safe public/demo deployments
-- [`docs/RELEASE_SCOPE_V1.md`](docs/RELEASE_SCOPE_V1.md) — release boundaries
-- [`docs/RELEASE_READINESS.md`](docs/RELEASE_READINESS.md) — acceptance checklist
-- [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) — current limitations
-- [`docs/DISCORD_FEATURES.md`](docs/DISCORD_FEATURES.md) — Discord UX and capabilities
-- [`docs/REQUEST_FORUM.md`](docs/REQUEST_FORUM.md) — optional Forum workflow
+- [`docs/PROVIDER_MODEL.md`](docs/PROVIDER_MODEL.md) — media/request provider architecture
 - [`docs/DOCKER.md`](docs/DOCKER.md) — Docker/GHCR deployment
 - [`docs/UNRAID.md`](docs/UNRAID.md) — Unraid deployment
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — current foundation and future work
-- [`CHANGELOG.md`](CHANGELOG.md)
+- [`docs/DISCORD_FEATURES.md`](docs/DISCORD_FEATURES.md) — Discord UX
+- [`docs/REQUEST_FORUM.md`](docs/REQUEST_FORUM.md) — Discord Forum router workflow
+- [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) — current limitations
+- [`CHANGELOG.md`](CHANGELOG.md) — release history
 
 ## License
 
