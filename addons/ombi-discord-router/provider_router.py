@@ -39,10 +39,12 @@ def normalize_seerr_payload(payload):
     request_status = _text(media.get("status") or payload.get("event"))
 
     requested_by = (
-        req.get("requested_by_username")
+        req.get("requestedBy_username")
         or req.get("requestedByUsername")
-        or req.get("requested_by_email")
+        or req.get("requested_by_username")
+        or req.get("requestedBy_email")
         or req.get("requestedByEmail")
+        or req.get("requested_by_email")
         or "Unknown"
     )
 
