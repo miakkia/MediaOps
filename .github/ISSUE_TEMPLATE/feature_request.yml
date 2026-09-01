@@ -1,0 +1,57 @@
+name: Feature request
+description: Suggest an improvement or new capability for MediaOps
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement.
+
+        Please describe the user problem first. MediaOps favors provider-neutral design, least privilege, and the smallest practical attack surface.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What problem are you trying to solve, and who benefits from it?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior you would like MediaOps to provide.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Discord commands / UX
+        - Media provider integration
+        - Request provider integration
+        - Watch Party
+        - MediaOps Discord Router
+        - Deployment / Docker
+        - Documentation
+        - Security / privacy
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: providers
+    attributes:
+      label: Provider relevance
+      description: If applicable, explain whether this should work across Emby, Jellyfin, Ombi, Seerr, or future providers.
+  - type: textarea
+    id: security
+    attributes:
+      label: Security and privacy considerations
+      description: Note any new ports, permissions, credentials, external services, stored data, or network exposure this could require. Write "None known" if not applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional. Describe any simpler or lower-risk alternatives you considered.
