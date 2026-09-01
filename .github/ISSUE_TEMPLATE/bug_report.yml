@@ -1,0 +1,89 @@
+name: Bug report
+description: Report a reproducible problem in MediaOps
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve MediaOps.
+
+        Before submitting, please remove or redact all secrets and private infrastructure details from logs, screenshots, configuration, and command output. Never include Discord bot tokens, provider API keys, webhook URLs, passwords, private keys, session cookies, or other credentials.
+  - type: input
+    id: version
+    attributes:
+      label: MediaOps version
+      description: For example, 1.2.0 or the commit SHA if you are testing a development build.
+      placeholder: 1.2.0
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment platform
+      options:
+        - Unraid
+        - Docker Compose
+        - Portainer
+        - Docker CLI
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: media-provider
+    attributes:
+      label: Media provider
+      options:
+        - Emby
+        - Jellyfin
+        - Not applicable
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: request-provider
+    attributes:
+      label: Request provider
+      options:
+        - Ombi
+        - Seerr
+        - Not applicable
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the problem clearly and include the command or workflow involved.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reliable sequence that reproduces the issue.
+      placeholder: |
+        1. Configure ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      description: Paste only the minimum needed. Redact secrets, tokens, keys, webhook URLs, passwords, private hostnames/IPs when they are not necessary, and any other sensitive data.
+      render: shell
+  - type: checkboxes
+    id: security
+    attributes:
+      label: Security check
+      options:
+        - label: I reviewed my submission and removed credentials, secrets, tokens, private keys, and other sensitive data.
+          required: true
