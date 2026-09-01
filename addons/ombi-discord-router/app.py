@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import threading
 from pathlib import Path
 from urllib.parse import urlencode
@@ -131,6 +132,12 @@ def display_title(data):
     title = str(data.get("title") or "Media Request").strip()
     year = str(data.get("year") or "").strip()
     return f"{title} ({year})" if year else title
+
+
+def canonical_title(value):
+    text = str(value or "").strip().casefold()
+    text = re.sub(r"\s*\((?:19|20)\d{2}\)\s*$", "", text)
+    return " ".join(text.split())
 
 
 def requested_user(data):
@@ -278,29 +285,29 @@ def _same_value(left, right):
     return bool(left_value and right_value and left_value == right_value)
 
 
+def request_matches(existing, data):
+    provider = source_provider(data).casefold()
+    media_type = normalize_media_type(data.get("type"))
+    if str(existing.get("sourceProvider") or "Ombi").casefold() != provider:
+        return False
+    if media_type and existing.get("type") != media_type:
+        return False
+    if _same_value(existing.get("requestId"), data.get("requestId")):
+        return True
+    if _same_value(existing.get("providerId"), data.get("providerId")):
+        return True
+    incoming_title = canonical_title(data.get("title") or display_title(data))
+    existing_title = canonical_title(existing.get("title"))
+    return bool(incoming_title and existing_title and incoming_title == existing_title)
+
+
 def find_existing_request(index, data, preferred_key):
     direct = index.get(preferred_key)
     if direct:
         return preferred_key, direct
-
-    media_type = normalize_media_type(data.get("type"))
-    provider = source_provider(data).casefold()
-    title = display_title(data).casefold()
-    request_id = data.get("requestId")
-    provider_id = data.get("providerId")
-
     for existing_key, existing in index.items():
-        if str(existing.get("sourceProvider") or "Ombi").casefold() != provider:
-            continue
-        if existing.get("type") != media_type:
-            continue
-        if _same_value(existing.get("requestId"), request_id):
+        if request_matches(existing, data):
             return existing_key, existing
-        if _same_value(existing.get("providerId"), provider_id):
-            return existing_key, existing
-        if str(existing.get("title") or "").strip().casefold() == title:
-            return existing_key, existing
-
     return preferred_key, None
 
 
@@ -313,18 +320,26 @@ def remove_index_entry(key):
         return removed
 
 
-def process_request_deleted(data):
-    preferred_key = media_key(data)
-    media_type = normalize_media_type(data.get("type"))
-    if not preferred_key or not media_type:
-        return {"status": "ignored", "reason": "missing-media-identity"}
+def remove_matching_entries(data):
     with index_lock:
         index = load_index()
-        key, existing = find_existing_request(index, data, preferred_key)
-    if not existing:
+        matched = [key for key, existing in index.items() if request_matches(existing, data)]
+        removed = [index.pop(key) for key in matched]
+        if matched:
+            save_index(index)
+        return removed
+
+
+def process_request_deleted(data):
+    removed = remove_matching_entries(data)
+    if not removed:
         return {"status": "ignored", "reason": "request-deleted-untracked"}
-    remove_index_entry(key)
-    return {"status": "removed", "reason": "request-deleted", "threadId": str(existing.get("threadId") or "")}
+    return {
+        "status": "removed",
+        "reason": "request-deleted",
+        "removedCount": len(removed),
+        "threadId": str(removed[0].get("threadId") or ""),
+    }
 
 
 def process_media_notification(data):
@@ -333,18 +348,25 @@ def process_media_notification(data):
     if not preferred_key or not media_type:
         return {"status": "ignored", "reason": "missing-media-identity"}
     incoming_status, status_tag = status_from_payload(data)
+    notification_type = str(data.get("notificationType") or "").strip().upper()
     with index_lock:
         index = load_index()
         key, existing = find_existing_request(index, data, preferred_key)
 
     if existing:
         current_status = str(existing.get("status") or "requested").strip().lower()
-        # Some Ombi notifications for one request do not expose identifiers in the
-        # same way. Never interpret an ID mismatch during an active lifecycle as a
-        # brand-new request. A fresh lifecycle is allowed only after a terminal
-        # state; RequestDeleted explicitly removes active state when Ombi sends it.
-        if is_new_request_instance(existing, data) and current_status in TERMINAL_STATUSES:
-            remove_index_entry(key)
+
+        # Ombi's NewRequest event is the authoritative start of a fresh lifecycle.
+        # If stale terminal state survived a delete event (or an older router build),
+        # clear every correlated record and allow the same title to be requested again.
+        # During an active lifecycle NewRequest remains a duplicate and does not fork
+        # a second Discord Forum post.
+        if source_provider(data).casefold() == "ombi" and notification_type == "NEWREQUEST" and current_status in TERMINAL_STATUSES:
+            remove_matching_entries(data)
+            key = preferred_key
+            existing = None
+        elif is_new_request_instance(existing, data) and current_status in TERMINAL_STATUSES:
+            remove_matching_entries(data)
             key = preferred_key
             existing = None
 
