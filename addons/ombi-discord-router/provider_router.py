@@ -6,7 +6,6 @@ from app import (
     APP_VERSION,
     app,
     create_test_forum_post,
-    log_notification_result,
     process_media_notification,
 )
 
@@ -67,7 +66,7 @@ def _log_seerr_result(data, result):
     status = _text(result.get("status"))[:64] or "unknown"
     reason = _text(result.get("reason"))[:64]
     suffix = f" reason={reason}" if reason else ""
-    print(f"SEERR EVENT: notificationType={notification} result={status}{suffix}", flush=True)
+    print(f"ROUTER EVENT: provider=Seerr notificationType={notification} result={status}{suffix}", flush=True)
 
 
 @app.post("/seerr")
@@ -80,7 +79,7 @@ def seerr_webhook():
 
     try:
         if notification_type in ("TEST_NOTIFICATION", "TEST"):
-            thread_id = create_test_forum_post()
+            thread_id = create_test_forum_post("Seerr")
             result = {
                 "status": "created" if thread_id else "ok",
                 "mode": "discord-forum-test" if thread_id else "discord-forum",
