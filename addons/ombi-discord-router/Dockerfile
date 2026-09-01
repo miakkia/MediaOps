@@ -10,4 +10,7 @@ RUN pip install --no-cache-dir \
 COPY app.py /app/app.py
 COPY provider_router.py /app/provider_router.py
 
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "--workers", "2", "--threads", "2", "--access-logfile", "-", "provider_router:app"]
+# The router keeps a tiny file-backed thread index. A single Gunicorn worker
+# prevents two provider events from racing across separate processes while
+# still allowing concurrent requests through threads.
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "--workers", "1", "--threads", "4", "--access-logfile", "-", "provider_router:app"]
