@@ -5,7 +5,9 @@ WORKDIR /app
 RUN pip install --no-cache-dir \
     flask==3.1.3 \
     requests==2.34.2 \
-    gunicorn==23.0.0
+    gunicorn==23.0.0 \
+    && mkdir -p /data \
+    && chown 1000:1000 /data
 
 COPY app.py /app/app.py
 COPY provider_router.py /app/provider_router.py
