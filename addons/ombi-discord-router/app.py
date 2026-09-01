@@ -116,6 +116,12 @@ def is_forward_status_transition(current, incoming):
     return incoming_order > current_order
 
 
+def is_new_request_instance(existing, data):
+    old_request_id = str(existing.get("requestId") or "").strip()
+    new_request_id = str(data.get("requestId") or "").strip()
+    return bool(old_request_id and new_request_id and old_request_id != new_request_id)
+
+
 def source_provider(data):
     value = str(data.get("sourceProvider") or "Ombi").strip()
     return value[:64] or "Provider"
@@ -248,10 +254,22 @@ def send_thread_update(thread_id, data, status):
 
 
 def update_thread_tags(thread_id, media_type, status_tag):
+    token = os.environ.get("DISCORD_BOT_TOKEN", "").strip()
+    if not token:
+        return
     payload = {"applied_tags": [media_tag(media_type), status_tag]}
     url = f"https://discord.com/api/v10/channels/{thread_id}"
-    response = requests.patch(url, json=payload, timeout=15, headers={"Authorization": "Bot " + os.environ.get("DISCORD_BOT_TOKEN", "").strip()}) if os.environ.get("DISCORD_BOT_TOKEN", "").strip() else None
-    return response
+    response = requests.patch(
+        url,
+        json=payload,
+        timeout=15,
+        headers={"Authorization": f"Bot {token}"},
+    )
+    if response.ok:
+        return
+    body = response.text.strip().replace("\n", " ")[:300]
+    suffix = f": {body}" if body else ""
+    raise RuntimeError(f"Discord tag update returned HTTP {response.status_code}{suffix}")
 
 
 def process_media_notification(data):
@@ -263,27 +281,57 @@ def process_media_notification(data):
     with index_lock:
         index = load_index()
         existing = index.get(key)
+
+    # A provider/media ID identifies the title, not a permanent request lifecycle.
+    # If Seerr/Ombi creates a fresh request ID for the same title, forget the old
+    # terminal state/thread and allow the new lifecycle to create a new Forum post.
+    if existing and is_new_request_instance(existing, data):
+        with index_lock:
+            index = load_index()
+            index.pop(key, None)
+            save_index(index)
+        existing = None
+
     if not existing:
         thread_id = create_forum_post(data, key, incoming_status, status_tag)
         return {"status": "created", "threadId": thread_id, "mediaStatus": incoming_status}
+
     current_status = str(existing.get("status") or "requested")
     if not is_forward_status_transition(current_status, incoming_status):
         return {"status": "ignored", "reason": "non-forward-status", "mediaStatus": current_status}
+
     thread_id = str(existing.get("threadId") or "").strip()
     if not thread_id:
-        return {"status": "ignored", "reason": "missing-thread"}
+        with index_lock:
+            index = load_index()
+            index.pop(key, None)
+            save_index(index)
+        thread_id = create_forum_post(data, key, incoming_status, status_tag)
+        return {"status": "recreated", "reason": "missing-thread", "threadId": thread_id, "mediaStatus": incoming_status}
+
     try:
         send_thread_update(thread_id, data, incoming_status)
     except RuntimeError as error:
         if not is_unknown_channel_error(error):
             raise
+        with index_lock:
+            index = load_index()
+            index.pop(key, None)
+            save_index(index)
         thread_id = create_forum_post(data, key, incoming_status, status_tag)
-        return {"status": "recreated", "threadId": thread_id, "mediaStatus": incoming_status}
+        return {"status": "recreated", "reason": "discord-thread-missing", "threadId": thread_id, "mediaStatus": incoming_status}
+
     update_thread_tags(thread_id, media_type, status_tag)
     with index_lock:
         index = load_index()
         current = index.get(key, {})
-        current.update({"threadId": thread_id, "status": incoming_status, "sourceProvider": source_provider(data)})
+        current.update({
+            "threadId": thread_id,
+            "status": incoming_status,
+            "requestId": data.get("requestId"),
+            "providerId": data.get("providerId"),
+            "sourceProvider": source_provider(data),
+        })
         index[key] = current
         save_index(index)
     return {"status": "updated", "threadId": thread_id, "mediaStatus": incoming_status}
