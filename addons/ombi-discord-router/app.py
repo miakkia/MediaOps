@@ -7,14 +7,14 @@ from urllib.parse import urlencode
 import requests
 from flask import Flask, jsonify, request
 
-APP_VERSION = "1.9"
+APP_VERSION = "2.0-dev"
 
 app = Flask(__name__)
 
 MEDIA_REQUESTS_WEBHOOK = os.environ["MEDIA_REQUESTS_WEBHOOK"].strip()
 MEDIA_REQUESTS_WEBHOOK_NAME = os.environ.get(
     "MEDIA_REQUESTS_WEBHOOK_NAME",
-    "Media Request Herald",
+    "MediaOps Request Router",
 ).strip()
 
 TAG_REQUESTED = os.environ["MEDIA_TAG_REQUESTED"].strip()
@@ -116,8 +116,13 @@ def is_forward_status_transition(current, incoming):
     return incoming_order > current_order
 
 
+def source_provider(data):
+    value = str(data.get("sourceProvider") or "Ombi").strip()
+    return value[:64] or "Provider"
+
+
 def display_title(data):
-    title = str(data.get("title") or "Ombi Request").strip()
+    title = str(data.get("title") or "Media Request").strip()
     year = str(data.get("year") or "").strip()
     return f"{title} ({year})" if year else title
 
@@ -138,13 +143,14 @@ def build_embed(data, state):
     poster = str(data.get("posterImage") or "").strip()
     request_id = str(data.get("requestId") or "").strip() or "—"
     provider_id = str(data.get("providerId") or "").strip() or "—"
+    provider = source_provider(data)
     embed = {
         "title": display_title(data),
         "fields": [
             {"name": "Type", "value": "Series" if media_type == "series" else "Movie", "inline": True},
             {"name": "Status", "value": state.capitalize(), "inline": True},
             {"name": "Requested by", "value": str(requested_user(data))[:256], "inline": True},
-            {"name": "Ombi Request", "value": request_id[:256], "inline": True},
+            {"name": f"{provider} Request", "value": request_id[:256], "inline": True},
             {"name": "Provider ID", "value": provider_id[:256], "inline": True},
         ],
     }
@@ -155,10 +161,11 @@ def build_embed(data, state):
     return embed
 
 
-def build_test_embed():
+def build_test_embed(provider="MediaOps"):
+    provider = str(provider or "MediaOps").strip()[:64] or "MediaOps"
     return {
-        "title": "Ombi Webhook Test",
-        "description": "Ombi successfully reached the MediaOps companion router and the router successfully delivered this test to the configured Discord Forum.",
+        "title": f"{provider} Webhook Test",
+        "description": f"{provider} successfully reached the MediaOps Discord Router, and the router successfully delivered this test to the configured Discord Forum.",
         "fields": [
             {"name": "Status", "value": "OK", "inline": True},
             {"name": "Router", "value": f"v{APP_VERSION}", "inline": True},
@@ -187,14 +194,15 @@ def is_unknown_channel_error(error):
     return "HTTP 400" in message and ("Unknown Channel" in message or '"code": 10003' in message)
 
 
-def create_test_forum_post():
+def create_test_forum_post(provider="Ombi"):
     if not TAG_TEST:
         return None
+    provider = str(provider or "Provider").strip()[:64] or "Provider"
     payload = {
         "username": MEDIA_REQUESTS_WEBHOOK_NAME,
-        "thread_name": "Ombi Webhook Test",
+        "thread_name": f"{provider} Webhook Test"[:100],
         "applied_tags": [TAG_TEST],
-        "embeds": [build_test_embed()],
+        "embeds": [build_test_embed(provider)],
     }
     response = discord_post(webhook_url(wait="true"), payload)
     result = response.json()
@@ -228,6 +236,7 @@ def create_forum_post(data, key, status, status_tag):
             "status": status,
             "requestId": data.get("requestId"),
             "providerId": data.get("providerId"),
+            "sourceProvider": source_provider(data),
         }
         save_index(index)
     return thread_id
@@ -238,112 +247,54 @@ def send_thread_update(thread_id, data, status):
     discord_post(webhook_url(wait="true", thread_id=thread_id), payload)
 
 
-def update_index_metadata(key, data, status=None):
-    with index_lock:
-        index = load_index()
-        current = index.get(key)
-        if not current:
-            return
-        if status is not None:
-            current["status"] = status
-        if data.get("requestId"):
-            current["requestId"] = data.get("requestId")
-        if data.get("providerId"):
-            current["providerId"] = data.get("providerId")
-        save_index(index)
-
-
-def remove_index_entry(key):
-    with index_lock:
-        index = load_index()
-        removed = index.pop(key, None)
-        if removed is not None:
-            save_index(index)
-        return removed
-
-
-def is_new_request_instance(existing, data):
-    old_request_id = str(existing.get("requestId") or "").strip()
-    new_request_id = str(data.get("requestId") or "").strip()
-    return bool(old_request_id and new_request_id and old_request_id != new_request_id)
-
-
-def process_request_deleted(data):
-    key = media_key(data)
-    if not key:
-        return {"status": "ignored", "reason": "missing-media-identity"}
-    removed = remove_index_entry(key)
-    if not removed:
-        return {"status": "ignored", "reason": "request-deleted-untracked", "mediaKey": key}
-    return {
-        "status": "removed",
-        "reason": "request-deleted",
-        "mediaKey": key,
-        "threadId": str(removed.get("threadId") or ""),
-    }
+def update_thread_tags(thread_id, media_type, status_tag):
+    payload = {"applied_tags": [media_tag(media_type), status_tag]}
+    url = f"https://discord.com/api/v10/channels/{thread_id}"
+    response = requests.patch(url, json=payload, timeout=15, headers={"Authorization": "Bot " + os.environ.get("DISCORD_BOT_TOKEN", "").strip()}) if os.environ.get("DISCORD_BOT_TOKEN", "").strip() else None
+    return response
 
 
 def process_media_notification(data):
-    media_type = normalize_media_type(data.get("type"))
-    if not media_type:
-        return {"status": "ignored", "reason": "unsupported-media-type"}
     key = media_key(data)
-    if not key:
+    media_type = normalize_media_type(data.get("type"))
+    if not key or not media_type:
         return {"status": "ignored", "reason": "missing-media-identity"}
-    status, status_tag = status_from_payload(data)
+    incoming_status, status_tag = status_from_payload(data)
     with index_lock:
         index = load_index()
         existing = index.get(key)
-
-    # The provider ID identifies the media, not one Ombi request lifecycle. A new
-    # Ombi request ID means the same title has been requested again after deletion,
-    # denial, failure, availability/history cleanup, or another completed lifecycle.
-    if existing and is_new_request_instance(existing, data):
-        remove_index_entry(key)
-        existing = None
-
     if not existing:
-        thread_id = create_forum_post(data, key, status, status_tag)
-        return {"status": "created", "mediaKey": key, "threadId": thread_id, "requestStatus": status}
-
+        thread_id = create_forum_post(data, key, incoming_status, status_tag)
+        return {"status": "created", "threadId": thread_id, "mediaStatus": incoming_status}
+    current_status = str(existing.get("status") or "requested")
+    if not is_forward_status_transition(current_status, incoming_status):
+        return {"status": "ignored", "reason": "non-forward-status", "mediaStatus": current_status}
     thread_id = str(existing.get("threadId") or "").strip()
     if not thread_id:
-        remove_index_entry(key)
-        thread_id = create_forum_post(data, key, status, status_tag)
-        return {"status": "recreated", "reason": "missing-thread-id", "mediaKey": key, "threadId": thread_id, "requestStatus": status}
-
-    current_status = str(existing.get("status") or "").strip().lower()
-    if current_status == status:
-        update_index_metadata(key, data)
-        return {"status": "ignored", "reason": "duplicate-status", "mediaKey": key, "threadId": thread_id, "requestStatus": current_status}
-    if not is_forward_status_transition(current_status, status):
-        update_index_metadata(key, data)
-        return {"status": "ignored", "reason": "stale-or-terminal-status", "mediaKey": key, "threadId": thread_id, "requestStatus": current_status}
-
+        return {"status": "ignored", "reason": "missing-thread"}
     try:
-        send_thread_update(thread_id, data, status)
+        send_thread_update(thread_id, data, incoming_status)
     except RuntimeError as error:
         if not is_unknown_channel_error(error):
             raise
-        remove_index_entry(key)
-        new_thread_id = create_forum_post(data, key, status, status_tag)
-        return {"status": "recreated", "reason": "discord-thread-missing", "mediaKey": key, "threadId": new_thread_id, "requestStatus": status}
-
-    update_index_metadata(key, data, status)
-    return {"status": "updated", "mediaKey": key, "threadId": thread_id, "requestStatus": status}
-
-
-def safe_log_value(value):
-    return str(value or "").replace("\r", " ").replace("\n", " ")[:64]
+        thread_id = create_forum_post(data, key, incoming_status, status_tag)
+        return {"status": "recreated", "threadId": thread_id, "mediaStatus": incoming_status}
+    update_thread_tags(thread_id, media_type, status_tag)
+    with index_lock:
+        index = load_index()
+        current = index.get(key, {})
+        current.update({"threadId": thread_id, "status": incoming_status, "sourceProvider": source_provider(data)})
+        index[key] = current
+        save_index(index)
+    return {"status": "updated", "threadId": thread_id, "mediaStatus": incoming_status}
 
 
 def log_notification_result(data, result):
-    notification_type = safe_log_value(data.get("notificationType")) or "<empty>"
-    raw_media_type = safe_log_value(data.get("type")) or "<empty>"
-    status = safe_log_value(result.get("status")) or "unknown"
-    reason = safe_log_value(result.get("reason"))
-    reason_suffix = f" reason={reason}" if reason else ""
-    print(f"OMBI EVENT: notificationType={notification_type} type={raw_media_type} result={status}{reason_suffix}", flush=True)
+    notification = str(data.get("notificationType") or "").strip()[:64] or "<empty>"
+    status = str(result.get("status") or "").strip()[:64] or "unknown"
+    reason = str(result.get("reason") or "").strip()[:64]
+    suffix = f" reason={reason}" if reason else ""
+    print(f"ROUTER EVENT: provider={source_provider(data)} notificationType={notification} result={status}{suffix}", flush=True)
 
 
 @app.post("/ombi")
@@ -351,32 +302,19 @@ def ombi_webhook():
     data = request.get_json(silent=True)
     if not isinstance(data, dict) or not data:
         return jsonify({"error": "Invalid JSON"}), 400
-    notification_type = str(data.get("notificationType") or "").strip().lower()
+    data["sourceProvider"] = "Ombi"
+    notification_type = str(data.get("notificationType") or "").strip().upper()
     try:
-        if notification_type == "test":
-            thread_id = create_test_forum_post()
+        if notification_type in ("TEST_NOTIFICATION", "TEST"):
+            thread_id = create_test_forum_post("Ombi")
+            result = {"status": "created" if thread_id else "ok", "provider": "Ombi", "version": APP_VERSION}
             if thread_id:
-                result = {"status": "created", "mode": "discord-forum-test", "version": APP_VERSION, "threadId": thread_id}
-            else:
-                result = {"status": "ok", "mode": "discord-forum", "version": APP_VERSION, "note": "Ombi test payload accepted; MEDIA_TAG_TEST is not configured."}
-            log_notification_result(data, result)
-            return jsonify(result), 200
-        if notification_type == "requestdeleted":
-            result = process_request_deleted(data)
+                result["threadId"] = thread_id
             log_notification_result(data, result)
             return jsonify(result), 200
         result = process_media_notification(data)
         log_notification_result(data, result)
         return jsonify(result), 200
-    except Exception as error:  # noqa: BLE001 - route boundary intentionally sanitizes logs
+    except Exception as error:
         print(f"ROUTER ERROR: {type(error).__name__}: {error}", flush=True)
-        return jsonify({"status": "error", "error": "Unable to deliver Ombi notification"}), 502
-
-
-@app.get("/health")
-def health():
-    return jsonify({"status": "ok", "version": APP_VERSION, "mode": "discord-forum", "index": str(INDEX_FILE)}), 200
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+        return jsonify({"status": "error", "error": "Unable to deliver provider notification"}), 502
