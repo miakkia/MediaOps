@@ -1,211 +1,148 @@
 # Provider Model
 
-MediaOps uses a provider abstraction so Discord features can work against a normalized media interface instead of calling a specific media server directly.
+MediaOps uses provider abstractions so Discord features can work against normalized media/request interfaces instead of hard-coding one backend.
 
 ## Current status
 
-The `MediaProvider` boundary is implemented.
+Media providers currently supported:
 
-Current runtime flow:
+- **Emby**
+- **Jellyfin**
 
-```text
-Discord / Watch Party workflows
-            |
-            v
-       MediaProvider
-            |
-       Emby adapter
-            |
-         Emby API
-```
+Request providers currently supported:
 
-Emby is the first and currently supported provider. Jellyfin and Plex remain planned future adapters.
+- **Ombi**
+- **Seerr**
 
-Application-level consumers now call generic provider methods rather than importing Emby-specific functions directly. The Emby service is isolated behind the Emby provider implementation.
+Plex remains future work. Jellyfin SyncPlay orchestration is also future work and is intentionally separate from the basic Jellyfin media-library adapter.
 
-## Why the provider model exists
+## Runtime selection
 
-Discord users think in terms of actions:
-
-- find a movie;
-- find a TV series;
-- see what is new;
-- choose something at random;
-- schedule a Watch Party.
-
-They should not need to know how the underlying server represents those operations.
-
-Provider-specific behavior therefore belongs behind adapters.
-
-## MediaProvider contract
-
-The current provider contract normalizes capabilities including:
-
-- system/server information;
-- movie search;
-- TV/series search;
-- latest additions;
-- random movie selection;
-- exact movie lookup by provider ID;
-- normalized media metadata.
-
-The current normalized media model includes values such as:
-
-```ts
-interface MediaItem {
-  id: string;
-  name: string;
-  originalTitle: string | undefined;
-  sortName: string | undefined;
-  year: number | undefined;
-  overview: string | undefined;
-  type: 'Movie' | 'Series' | undefined;
-  dateCreated: string | undefined;
-}
-```
-
-Provider adapters translate native provider responses into this stable representation before the Discord or Watch Party layers consume them.
-
-## Provider selection
-
-Runtime provider selection is configuration-driven:
+Provider selection is configuration-driven:
 
 ```env
 MEDIA_PROVIDER=emby
+REQUEST_PROVIDER=ombi
 ```
 
-The application creates the configured implementation through a central provider instance/factory boundary. Normal command and Watch Party code does not repeatedly inspect `MEDIA_PROVIDER`.
+or:
 
-Unsupported provider values fail fast during startup rather than silently falling back to an unintended backend.
+```env
+MEDIA_PROVIDER=jellyfin
+REQUEST_PROVIDER=seerr
+```
 
-## Current Emby adapter
+Only the selected implementation is initialized. Unselected providers do not require their URL/API-key variables.
 
-The Emby adapter is the reference implementation and currently supports:
+Unsupported provider values fail fast rather than silently falling back to another backend.
+
+## MediaProvider boundary
+
+Shared Discord/media workflows call the normalized `MediaProvider` interface for operations such as:
 
 - system information;
 - movie search;
 - series search;
 - latest additions;
+- random movie selection;
 - exact movie lookup;
-- full-library random movie selection;
-- display/original/sort title metadata;
-- validated API responses;
-- bounded HTTP timeout;
+- poster/artwork retrieval where supported.
+
+Provider adapters translate native API responses into MediaOps media objects before commands consume them.
+
+### Emby adapter
+
+Emby remains fully supported and is the original reference provider. Existing Emby deployments do not need to migrate when upgrading to a release that also supports Jellyfin.
+
+### Jellyfin adapter
+
+Jellyfin is implemented as its own adapter rather than being treated as interchangeable with Emby. Current implementation includes:
+
+- authenticated system-information lookup;
+- movie search;
+- series search;
+- latest additions;
+- server-side random movie selection;
+- exact movie lookup;
+- Primary poster retrieval;
+- event artwork fallback using Banner then Backdrop;
+- defensive response validation;
+- bounded requests;
 - redirect blocking;
-- API-token authentication through runtime configuration.
+- API token sent in request headers, not Discord-visible URLs.
 
-The Emby-specific HTTP client remains isolated in the service layer and is consumed by the Emby provider adapter.
+Jellyfin SyncPlay control is not part of the current media-provider implementation.
 
-## Title matching
+## RequestProvider boundary
 
-Media providers may localize display titles differently from the names users know.
+The request-provider layer normalizes search/request/status operations while allowing approval policy to remain provider-owned.
 
-MediaOps therefore avoids relying only on provider display title or result ordering when scheduling a specific movie.
+### Ombi
 
-Where metadata is available, matching considers:
+Ombi remains supported. MediaOps no longer exposes `OMBI_AUTO_APPROVE`; approval behavior belongs to Ombi's configured user/role policy. MediaOps does not need to call a separate approval endpoint simply to reproduce policy that Ombi already owns.
 
-1. display/title name;
-2. original title;
-3. sort title;
-4. provider result ranking as a fallback.
+### Seerr
 
-Normalization includes whitespace cleanup, case-insensitive comparison and accent normalization where appropriate.
+The Seerr adapter uses `/api/v1`, authenticates with `X-Api-Key`, and supports:
+
+- health/status checks;
+- media search;
+- movie request creation;
+- TV/series request creation (all seasons for the current Discord workflow);
+- provider request IDs;
+- request status lookup and normalized state mapping.
+
+MediaOps does not use Seerr's elevated explicit approval endpoint to override Seerr's configured user auto-approval policy.
+
+## Request availability authority
+
+Request-provider state and media-library availability are separate concepts.
+
+MediaOps request tracking verifies the selected media provider when deciding that requested content is actually available in the library. This protects the MediaOps notification path from a request provider being manually marked `Available` while the title is absent from Emby/Jellyfin.
+
+Third-party native Discord notification agents remain outside this guarantee; if operators require authoritative final availability announcements, the request provider's direct `Available` notification should not bypass MediaOps verification.
 
 ## Media provider vs Watch Party provider
 
-Media-library access and synchronized playback are separate concerns.
+Media-library access and synchronized playback remain separate concerns.
 
-A future `WatchPartyProvider` may expose capabilities such as:
+Current Emby Watch Party integration is not automatically replaced simply because `MEDIA_PROVIDER=jellyfin` is selected. Native Jellyfin SyncPlay orchestration is planned as a distinct feature so its permissions/session lifecycle can be designed and tested independently.
 
-- open/create session URL;
-- validate a session code or identifier;
-- generate a join URL;
-- determine whether a synchronized session is active;
-- provider-specific synchronized-playback automation where supported.
+## MediaOps Discord Router
 
-Keeping these concerns separate allows MediaOps to support a media library provider even when equivalent Watch Party automation is unavailable or implemented through another service.
+The companion Discord Router is a messaging/routing addon, not a validation authority.
 
-## Jellyfin direction
+Provider adapters currently accept:
 
-Jellyfin is a strong candidate for the first additional media adapter because its media model is historically related to Emby.
-
-It should still be implemented and tested as its own provider rather than assuming API compatibility.
-
-Potential implementation phases:
-
-1. system information and authentication;
-2. search and normalized metadata;
-3. latest additions and random selection;
-4. exact lookup;
-5. provider-specific capability reporting;
-6. synchronized-playback research as a separate Watch Party concern.
-
-## Plex direction
-
-Plex should use a dedicated adapter that translates Plex-specific metadata, libraries and identifiers into MediaOps domain objects.
-
-Potential implementation phases:
-
-1. server connection and authentication;
-2. library discovery;
-3. movie/series search;
-4. latest additions;
-5. random movie selection;
-6. exact metadata lookup;
-7. provider-specific capability reporting;
-8. Plex Watch Together research as a separate Watch Party integration.
-
-## Capability differences
-
-Not all providers will necessarily support identical operations.
-
-A future capability model should allow MediaOps to represent optional features explicitly rather than pretending unsupported operations exist.
-
-Example direction:
-
-```ts
-interface MediaProviderCapabilities {
-  searchMovies: boolean;
-  searchSeries: boolean;
-  latestItems: boolean;
-  randomMovie: boolean;
-  exactLookup: boolean;
-}
+```text
+POST /ombi
+POST /seerr
 ```
 
-Discord UX can then hide, disable or explain unavailable features gracefully.
+They normalize webhook payloads into the router's internal event format. The router can then create/update Discord Forum threads, persist thread associations, and maintain lifecycle tags.
+
+The router does not decide whether a provider's `Available` event is truthful. MediaOps Core owns media-server verification where that guarantee is required.
 
 ## Security boundary
 
-Provider adapters are responsible for validating external responses and keeping credentials scoped to the configured provider endpoint.
+Provider adapters are responsible for keeping credentials scoped to the configured endpoint and validating external input.
 
-Adapters should validate:
+Rules include:
 
-- provider configuration;
-- endpoint protocol/URL expectations;
-- HTTP status;
-- timeout behavior;
-- provider response shape;
-- item identifiers;
-- required metadata.
-
-Raw tokens, API keys and sensitive response details must never be surfaced to Discord users.
+- secrets never embedded in Discord URLs;
+- no query-string API keys for the Jellyfin/Seerr clients;
+- redirects blocked where forwarding credentials would be unsafe;
+- bounded input/search/identifier handling;
+- defensive parsing of provider responses;
+- unselected provider secrets not required;
+- raw tokens/API keys never returned to Discord users or logs.
 
 ## Testing expectations
 
-Every provider adapter should eventually have automated tests covering:
+Provider changes require automated coverage for normal parsing and failure cases. The current Jellyfin and Seerr implementations include tests for client behavior, provider selection, media/request parsing, status mapping, artwork handling, and security-sensitive request behavior.
 
-- valid response parsing;
-- malformed response rejection;
-- empty-library behavior;
-- title matching;
-- exact lookup;
-- random-selection bounds;
-- authentication/error behavior;
-- capability reporting.
-
-Provider fixtures must remain sanitized and contain no real credentials.
+Real integration testing should still be performed against disposable/private provider instances before marking a new provider workflow confirmed functional.
 
 ## Architectural rule
 
-Provider complexity must stay behind the provider boundary. If normal Discord commands or shared Watch Party scheduling code begin importing provider-specific services directly, the architecture has regressed and should be corrected.
+Provider-specific complexity belongs behind provider boundaries. Shared Discord command code should not require a new command implementation merely because another media/request backend is added.
