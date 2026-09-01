@@ -272,41 +272,94 @@ def update_thread_tags(thread_id, media_type, status_tag):
     raise RuntimeError(f"Discord tag update returned HTTP {response.status_code}{suffix}")
 
 
-def process_media_notification(data):
-    key = media_key(data)
+def _same_value(left, right):
+    left_value = str(left or "").strip()
+    right_value = str(right or "").strip()
+    return bool(left_value and right_value and left_value == right_value)
+
+
+def find_existing_request(index, data, preferred_key):
+    direct = index.get(preferred_key)
+    if direct:
+        return preferred_key, direct
+
     media_type = normalize_media_type(data.get("type"))
-    if not key or not media_type:
+    provider = source_provider(data).casefold()
+    title = display_title(data).casefold()
+    request_id = data.get("requestId")
+    provider_id = data.get("providerId")
+
+    for existing_key, existing in index.items():
+        if str(existing.get("sourceProvider") or "Ombi").casefold() != provider:
+            continue
+        if existing.get("type") != media_type:
+            continue
+        if _same_value(existing.get("requestId"), request_id):
+            return existing_key, existing
+        if _same_value(existing.get("providerId"), provider_id):
+            return existing_key, existing
+        if str(existing.get("title") or "").strip().casefold() == title:
+            return existing_key, existing
+
+    return preferred_key, None
+
+
+def remove_index_entry(key):
+    with index_lock:
+        index = load_index()
+        removed = index.pop(key, None)
+        if removed is not None:
+            save_index(index)
+        return removed
+
+
+def process_request_deleted(data):
+    preferred_key = media_key(data)
+    media_type = normalize_media_type(data.get("type"))
+    if not preferred_key or not media_type:
+        return {"status": "ignored", "reason": "missing-media-identity"}
+    with index_lock:
+        index = load_index()
+        key, existing = find_existing_request(index, data, preferred_key)
+    if not existing:
+        return {"status": "ignored", "reason": "request-deleted-untracked"}
+    remove_index_entry(key)
+    return {"status": "removed", "reason": "request-deleted", "threadId": str(existing.get("threadId") or "")}
+
+
+def process_media_notification(data):
+    preferred_key = media_key(data)
+    media_type = normalize_media_type(data.get("type"))
+    if not preferred_key or not media_type:
         return {"status": "ignored", "reason": "missing-media-identity"}
     incoming_status, status_tag = status_from_payload(data)
     with index_lock:
         index = load_index()
-        existing = index.get(key)
+        key, existing = find_existing_request(index, data, preferred_key)
 
-    # A provider/media ID identifies the title, not a permanent request lifecycle.
-    # If Seerr/Ombi creates a fresh request ID for the same title, forget the old
-    # terminal state/thread and allow the new lifecycle to create a new Forum post.
-    if existing and is_new_request_instance(existing, data):
-        with index_lock:
-            index = load_index()
-            index.pop(key, None)
-            save_index(index)
-        existing = None
+    if existing:
+        current_status = str(existing.get("status") or "requested").strip().lower()
+        # Some Ombi notifications for one request do not expose identifiers in the
+        # same way. Never interpret an ID mismatch during an active lifecycle as a
+        # brand-new request. A fresh lifecycle is allowed only after a terminal
+        # state; RequestDeleted explicitly removes active state when Ombi sends it.
+        if is_new_request_instance(existing, data) and current_status in TERMINAL_STATUSES:
+            remove_index_entry(key)
+            key = preferred_key
+            existing = None
 
     if not existing:
         thread_id = create_forum_post(data, key, incoming_status, status_tag)
         return {"status": "created", "threadId": thread_id, "mediaStatus": incoming_status}
 
-    current_status = str(existing.get("status") or "requested")
+    current_status = str(existing.get("status") or "requested").strip().lower()
     if not is_forward_status_transition(current_status, incoming_status):
         return {"status": "ignored", "reason": "non-forward-status", "mediaStatus": current_status}
 
     thread_id = str(existing.get("threadId") or "").strip()
     if not thread_id:
-        with index_lock:
-            index = load_index()
-            index.pop(key, None)
-            save_index(index)
-        thread_id = create_forum_post(data, key, incoming_status, status_tag)
+        remove_index_entry(key)
+        thread_id = create_forum_post(data, preferred_key, incoming_status, status_tag)
         return {"status": "recreated", "reason": "missing-thread", "threadId": thread_id, "mediaStatus": incoming_status}
 
     try:
@@ -314,11 +367,8 @@ def process_media_notification(data):
     except RuntimeError as error:
         if not is_unknown_channel_error(error):
             raise
-        with index_lock:
-            index = load_index()
-            index.pop(key, None)
-            save_index(index)
-        thread_id = create_forum_post(data, key, incoming_status, status_tag)
+        remove_index_entry(key)
+        thread_id = create_forum_post(data, preferred_key, incoming_status, status_tag)
         return {"status": "recreated", "reason": "discord-thread-missing", "threadId": thread_id, "mediaStatus": incoming_status}
 
     update_thread_tags(thread_id, media_type, status_tag)
@@ -328,9 +378,11 @@ def process_media_notification(data):
         current.update({
             "threadId": thread_id,
             "status": incoming_status,
-            "requestId": data.get("requestId"),
-            "providerId": data.get("providerId"),
+            "requestId": data.get("requestId") or current.get("requestId"),
+            "providerId": data.get("providerId") or current.get("providerId"),
             "sourceProvider": source_provider(data),
+            "title": display_title(data),
+            "type": media_type,
         })
         index[key] = current
         save_index(index)
@@ -358,6 +410,10 @@ def ombi_webhook():
             result = {"status": "created" if thread_id else "ok", "provider": "Ombi", "version": APP_VERSION}
             if thread_id:
                 result["threadId"] = thread_id
+            log_notification_result(data, result)
+            return jsonify(result), 200
+        if notification_type == "REQUESTDELETED":
+            result = process_request_deleted(data)
             log_notification_result(data, result)
             return jsonify(result), 200
         result = process_media_notification(data)
