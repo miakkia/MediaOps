@@ -4,98 +4,64 @@ All notable changes to MediaOps are documented here.
 
 ## [Unreleased]
 
-Future changes merged after the v1.0.0 baseline belong here until the next release is prepared.
+### Added
+
+- **Jellyfin media provider** selectable with `MEDIA_PROVIDER=jellyfin`.
+- Jellyfin system information, movie/series search, latest additions, random movie selection, exact movie lookup, posters, and event artwork retrieval.
+- **Seerr request provider** selectable with `REQUEST_PROVIDER=seerr`.
+- Seerr health checks, search, movie requests, TV/series requests, request IDs, and request-status mapping.
+- Provider-aware `/health` diagnostics for the selected media and request providers.
+- MediaOps Discord Router `/seerr` webhook adapter alongside the existing `/ombi` route.
+- Discord Router provider-aware test messages, request labels, requester mapping, persistent same-thread lifecycle updates, and dynamic Forum tag updates.
+- Additional automated coverage for Jellyfin, Seerr, provider selection, provider security behavior, artwork retrieval, and request status handling.
+
+### Changed
+
+- Provider configuration is now lazy/provider-specific: unselected providers do not require their URL/API-key variables.
+- Ombi and Seerr approval behavior is owned by each provider's configured user/role policy; MediaOps does not force approval.
+- `OMBI_AUTO_APPROVE` has been removed from current configuration.
+- Request responses and health output are provider-aware rather than hard-coded to Ombi/Emby.
+- The historical Ombi Discord Router is being generalized as **MediaOps Discord Router** while retaining the existing GHCR image/path for upgrade compatibility.
+- Router state handling uses one Gunicorn process with threaded concurrency to avoid cross-process races on its small file-backed thread index.
+- A new request ID for the same provider media ID starts a fresh Discord Forum request lifecycle instead of being blocked by an older terminal state.
+
+### Security
+
+- Jellyfin and Seerr credentials are scoped to the selected provider and are not required when that provider is not selected.
+- Jellyfin/Seerr clients use authenticated request headers and defensive response validation.
+- Redirect behavior is restricted to avoid unsafe credential forwarding.
+- Router remains non-root/read-only except for explicit persistent `/data`, with `cap_drop=ALL` and `no-new-privileges` in hardened examples.
+- Discord bot token used for Forum tag mutation is runtime-only and must not be committed or logged.
+
+### Tested
+
+- Real Jellyfin + Seerr integration was exercised on a private Docker/Portainer lab.
+- Jellyfin `/health` and real movie/poster lookup were verified.
+- Seerr request creation and provider health were verified.
+- Seerr generic webhook → MediaOps Discord Router → Discord Forum was verified end-to-end.
+- Router requester attribution, same-thread `Processing` → `Available` updates, poster metadata, and Forum tag transition were verified in Discord.
+- Router persistent-state permission failure was reproduced and resolved with a writable pre-created bind directory while retaining non-root/read-only hardening.
+
+### Known scope
+
+- Jellyfin SyncPlay orchestration is not included yet.
+- Plex is not included yet.
+- The Emby Watch Party integration remains the current Watch Party implementation.
+- Existing Emby + Ombi deployments remain supported; migration to Jellyfin/Seerr is optional.
 
 ## [1.0.0] - 2026-08-30
 
 First stable public self-hosted MediaOps baseline.
 
-### Added
+### Highlights
 
-- **Rich Media Cards** for `/movie`, `/tv`, `/latest`, and `/request`, replacing plain text search output with compact visual results.
-- Movie cards show poster artwork, title, and year.
-- TV cards show poster artwork, title, year, and lifecycle status such as Continuing / En cours or Ended / Terminée when the provider exposes it.
-- Ombi request search keeps the existing request state/actions while adding the same Rich Media Card presentation.
-- Emby poster artwork is fetched server-side and uploaded to Discord as an attachment so the Emby API key is never placed in a Discord image URL.
-- Random Watch Party selections now use the selected movie poster while preserving reroll, choose, and scheduling actions.
-- Discord Scheduled Events created for Watch Parties use Emby horizontal artwork when available: Banner first, then Backdrop, otherwise no event cover.
-- Active Watch Parties expose a single organizer-facing **Close Room / Fermer la salle** control in Discord.
-- Discord bot foundation with automatic modular slash-command discovery.
-- Operator-owned Discord bot setup documentation for the self-hosted v1 model.
-- Emby health, movie search, TV-series search, and recently-added discovery.
-- Ombi-backed `/request` workflow with Discord requester attribution and configurable auto-approval.
-- Persistent request tracking and one-time Discord DM availability notification.
-- Optional Discord Forum request history synchronized through the companion Ombi Discord Router.
-- Request Forum lifecycle tags for Requested, Processing, Available, Failed, and Denied while preserving Movie/Series media type.
-- Packaged and hardened Ombi Discord Router with persistent thread correlation and separate GHCR publication.
-- Watch Party code validation, status, scheduling, upcoming-session discovery, RSVP, and persistent lifecycle state.
-- One-time T-15 Watch Party reminders with restart-safe deduplication.
-- Automatic Watch Party room creation at scheduled start and direct `/party/CODE` links.
-- Organizer-only Watch Party cancellation, including after room activation.
-- Tracked Watch Party announcement/reminder/open-room cleanup.
-- Runtime-aware Watch Party expiry using Emby runtime plus a 45-minute grace period, with a 4.5-hour fallback when runtime is unavailable.
-- Library-wide random movie picker with reroll and guided scheduling.
-- `/mediaops-setup` user-facing command guide.
-- `/mediaops-admin-setup` administrator diagnostics guide.
-- Enhanced `/watchparty-setup` panel including upcoming/status guidance.
-- Configurable public branding through `MEDIAOPS_BOT_NAME` and `MEDIAOPS_SERVER_NAME`.
-- EN/FR internationalization foundation and configurable automated-message locale.
-- `MediaProvider` abstraction with Emby as the first adapter and request-provider abstraction with Ombi as the first adapter.
-- Multi-stage production Docker image with dedicated non-root runtime user.
-- Runtime-safe `npm run deploy-commands` using compiled JavaScript from the published container.
-- GHCR development, latest, SHA, release, and semantic-version tagging strategy.
-- Automated GitHub Release creation after successful tagged release builds.
-- Persistent Docker runtime data under `/data`.
-- Unraid templates, Community Apps profile, application icon, and deployment documentation.
-- Public feature screenshots covering Rich Media Cards, library search, Ombi requests, Forum lifecycle, Watch Party, and the Discord command guide.
-
-### Security
-
-- V1 deployment model explicitly documented as self-hosted/single-tenant with an operator-owned Discord application/bot.
-- Public Community demo bot is documented as non-universal and should not be invited into unrelated guilds.
-- Hardened Emby API client with URL/protocol validation, bounded timeouts, explicit redirect behavior, and response validation.
-- Rich Media Card artwork handling keeps Emby credentials server-side, caps poster downloads, and avoids exposing provider API keys in Discord image URLs.
-- Watch Party Scheduled Event artwork is fetched from the configured media provider and uploaded to Discord as bytes; no Emby API credential is exposed in Discord image URLs.
-- Ombi Rich Media Card artwork is limited to trusted TMDB HTTPS image URLs.
-- Input validation for Discord identifiers and scheduling data.
-- User-bound, short-lived request-selection tokens.
-- Runtime data and secrets kept outside source control.
-- Main Docker runtime executes as a dedicated non-root user.
-- Current deployment requires no privileged mode, Docker socket, media-library mounts, or inbound MediaOps application ports.
-- Optional request Forum synchronization remains fail-closed unless its complete identifier set is configured.
-- Request Forum state changes are scoped to the configured Forum and integration source.
-- Completed request states are terminal.
-- Discord webhook credentials remain isolated in the companion router and are sanitized from delivery errors/logs.
-- Administrator setup/diagnostic commands use Discord Manage Server permission by default; diagnostic replies are ephemeral.
-- Release tags are rejected when they do not exactly match the package version, and release publication occurs only after validation and image publication succeed.
-
-### Fixed
-
-- Failed Watch Party announcements roll back to `auto_cancelled` rather than remaining visible as valid upcoming sessions.
-- Discord `50001 Missing Access` scheduling failures return a clear channel-permission message.
-- Watch Party store mutations are serialized to avoid concurrent persistence loss.
-- Watch Party fallback expiry is consistently 4.5 hours.
-- Watch Party reminders and launch messages are tracked for lifecycle cleanup.
-- Automatically started Watch Parties now refresh their Discord controls so stale RSVP/Start/Cancel controls are not left visible after activation.
-- Production containers can deploy Discord commands without the development-only `tsx` package.
-- Manual and random Watch Party modal scheduling now interprets entered date/time in `MEDIAOPS_TIMEZONE` instead of depending on the container process timezone.
-
-### Changed
-
-- `/movie`, `/tv`, `/latest`, and `/request` now use a consistent compact Rich Media Card UX for media discovery.
-- Public v1 is explicitly defined as one self-hosted MediaOps instance + one operator-owned Discord bot + one backend configuration.
-- Hosted/universal multi-tenant operation is classified as **Future / Maybe**, with no committed target release; any future implementation requires a separate security-first multi-tenant architecture.
-- Shared Watch Party scheduling logic is used by manual and random scheduling flows.
-- Before activation, the organizer sees **Start Now** and **Cancel Watch Party**. Once active, those scheduling controls are replaced by the single **Close Room / Fermer la salle** action.
-- Closing an active Watch Party ends MediaOps/Discord orchestration and removes tracked announcement, reminder, and room-code/link posts; it intentionally does not call or modify the Emby Watch Party room-dissolve lifecycle.
-- Initial Watch Party RSVP announcements can use `@here` to surface the event when the bot has the required Discord mention permission.
-- Discord and Watch Party consumers use generic provider boundaries where applicable.
-- Public-facing branding defaults are generic and deployment-configurable.
-- Public setup panels reduce the need for members to discover or memorize slash commands.
-- README, Docker, Unraid, release scope, limitations, and Community Apps template wording reflect the supported self-hosted deployment model.
-- README now credits the external [Oratorian/emby-watchparty](https://github.com/Oratorian/emby-watchparty) project used for synchronized Watch Party playback.
-- Tagged releases publish `release`, exact `X.Y.Z`, minor-line `X.Y`, and SHA image tags without moving the rolling `latest` tag.
+- Discord Rich Media Cards for `/movie`, `/tv`, `/latest`, and `/request`.
+- Emby media provider and Ombi request provider.
+- Persistent request tracking and Discord availability notifications.
+- Optional Discord Forum request history through the companion router.
+- Watch Party scheduling, RSVP, reminders, automatic room creation, random movie selection, lifecycle cleanup, and organizer controls.
+- EN/FR foundation, Docker/GHCR distribution, Unraid templates, and security-first non-root runtime.
 
 ## Development history
 
-The first public baseline was built through iterative milestones and reviewed feature/hardening branches. Git history and pull requests remain the source of truth for individual implementation commits and review context.
+Git history and pull requests remain the source of truth for individual implementation commits and reviews.
