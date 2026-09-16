@@ -4,6 +4,14 @@ All notable changes to MediaOps are documented here.
 
 ## [Unreleased]
 
+Future changes will be documented here before the next release.
+
+## [1.2.1] - 2026-09-15
+
+### Security maintenance release
+
+MediaOps 1.2.1 packages the September 2026 security maintenance work into a visible patch release so users can understand what changed without reading implementation pull requests.
+
 ### Added
 
 - **Jellyfin media provider** selectable with `MEDIA_PROVIDER=jellyfin`.
@@ -15,8 +23,8 @@ All notable changes to MediaOps are documented here.
 
 ### Changed
 
-- **Security maintenance refresh (2026-09-15):** MediaOps Docker build/runtime moves from Node 22 to Node 24 LTS.
-- Router base is pinned to Python 3.13.15 rather than a floating Python 3.13 tag.
+- MediaOps Docker build/runtime moves from Node 22 to **Node 24 LTS**.
+- Router base is pinned to **Python 3.13.15** rather than a floating Python 3.13 tag.
 - Router runtime dependencies are refreshed to Flask 3.1.3, Requests 2.34.2, urllib3 2.7+ and Gunicorn 26.2.0.
 - Router Docker runtime explicitly uses unprivileged UID/GID `1000:1000`.
 - Provider configuration remains lazy/provider-specific; unselected providers do not require credentials.
@@ -26,17 +34,18 @@ All notable changes to MediaOps are documented here.
 
 ### Security
 
-- Node production dependency audit reports zero known vulnerabilities at the September 2026 maintenance check.
-- Provider webhook authentication uses constant-time secret comparison and never requires secrets in URL query strings.
-- Seerr deployments can migrate to `SEERR_WEBHOOK_AUTH=required` after configuring the same custom header in Seerr.
-- Ombi remains private-network-first; `OMBI_WEBHOOK_AUTH=required` is intended only when a trusted ingress component can supply the configured header.
+- Node production dependency audit reported zero known vulnerabilities at the September 2026 maintenance check.
+- Provider webhook authentication uses constant-time secret comparison and does not require secrets in URL query strings.
+- Seerr deployments can migrate to `SEERR_WEBHOOK_AUTH=required` when the configured webhook path can supply the matching custom authentication header.
+- Ombi does not natively provide the custom header required by this router authentication mechanism, so Ombi remains **private-network-first** and should normally keep `OMBI_WEBHOOK_AUTH=off`.
 - `/ombi` and `/seerr` remain backward-compatible by default (`off`) so an image update cannot silently break existing provider notifications.
 - Router remains non-root/read-only except for explicit persistent `/data`, with dropped capabilities and `no-new-privileges` in hardened examples.
 - Discord bot token and webhook/provider secrets are runtime-only and must not be committed or logged.
 
 ### Tested
 
-- CI typecheck, build and the existing 100-test application suite passed during the security refresh before the Python audit gate was introduced.
+- CI typecheck, build and the existing 100-test application suite passed during the security refresh.
+- Production Node dependencies and Router Python dependencies passed their vulnerability audit gates during release preparation.
 - The audit gate correctly rejected an invalid Gunicorn version pin; it was corrected to the published 26.2.0 release before release preparation.
 - Real Jellyfin + Seerr integration and Seerr webhook → Router → Discord Forum flow were previously exercised on a private Docker/Portainer lab.
 
@@ -44,8 +53,9 @@ All notable changes to MediaOps are documented here.
 
 - Existing Ombi/Seerr webhooks continue working immediately after the image update because provider authentication defaults to `off`.
 - Keep router port 8080 private; authentication is defense-in-depth, not a reason to expose it publicly.
-- For Seerr, generate a long random token, add `X-MediaOps-Webhook-Token` as a custom webhook header, set the same `SEERR_WEBHOOK_TOKEN` in the router, test, then switch `SEERR_WEBHOOK_AUTH` to `required`.
-- For Ombi, keep provider and router on the private Docker network unless a trusted ingress capable of adding the authentication header is deliberately configured.
+- For Seerr, use a long random token and the configured custom webhook header where supported, test with `SEERR_WEBHOOK_AUTH=optional`, then switch to `required`.
+- For Ombi, keep Ombi and the Router on the private Docker network and leave `OMBI_WEBHOOK_AUTH=off` unless a trusted internal ingress deliberately adds the authentication header.
+- Existing Emby + Ombi deployments do not need to migrate providers.
 
 ### Known scope
 
