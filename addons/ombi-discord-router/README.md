@@ -1,61 +1,49 @@
 # MediaOps Discord Router
 
-The **MediaOps Discord Router** is the optional companion service that routes request-provider webhooks into managed Discord Forum threads. It currently supports **Ombi** and **Seerr** through provider-specific adapters.
+The **MediaOps Discord Router** is the optional companion service that routes Ombi and Seerr provider webhooks into managed Discord Forum threads. Historical addon, image, container and appdata identifiers remain unchanged for upgrade compatibility.
 
-The component originally shipped as **Ombi Discord Router**. Existing installations do not need to rename or recreate anything: the historical addon path, GHCR image, Compose service/container name, Unraid template filename, and default appdata path remain intentionally unchanged for upgrade compatibility.
-
-## What it does
+## Endpoints
 
 ```text
-POST /ombi   -> Ombi adapter
-POST /seerr  -> Seerr adapter
-                 |
-                 v
-        normalized lifecycle
-                 |
-                 v
-          Discord Forum thread
+POST /ombi   -> Ombi adapter -> Discord Forum lifecycle
+POST /seerr  -> Seerr adapter -> Discord Forum lifecycle
+GET  /health -> private monitoring
 ```
 
-The router can create one Forum thread per request lifecycle, preserve the thread association in `/data/media-threads.json`, append forward lifecycle updates, maintain Movie/Series and Requested/Processing/Available/Failed/Denied tags, ignore duplicate or backward events, recover from missing Discord threads, and expose `/health` for private monitoring.
+The router maintains request/thread correlation in `/data/media-threads.json`, advances lifecycle tags, ignores duplicate/backward events and can recover from deleted Discord threads.
 
-The router is a messenger. It reports request-provider lifecycle events; it does not independently prove that media is present on the media server. MediaOps can separately verify actual library availability before sending its own final availability notification.
+## Security baseline
 
-## Compatibility identifiers
+The packaged deployment is designed to remain private and least-privileged: unprivileged UID/GID `1000:1000`, read-only root filesystem, writable `/data` only, `cap-drop=ALL`, `no-new-privileges`, memory/PID limits, provider request-size limiting and optional shared-secret authentication.
 
-These historical identifiers remain supported and intentionally unchanged:
+**Do not expose port 8080 directly to the Internet.** Authentication is defense-in-depth and does not replace Docker/LAN isolation.
 
-```text
-Addon path:       addons/ombi-discord-router/
-Image:            ghcr.io/miakkia/mediaops-ombi-discord-router
-Compose service:  ombi-discord-router
-Container name:   ombi-discord-router
-Unraid template:  templates/ombi-discord-router.xml
-Default appdata:  /mnt/user/appdata/ombi-discord-router/data
+Provider webhook authentication uses the header `X-MediaOps-Webhook-Token` by default. The secret is compared in constant time and is never expected in a URL/query string.
+
+```env
+ROUTER_AUTH_HEADER=X-MediaOps-Webhook-Token
+ROUTER_MAX_BODY_BYTES=262144
+SEERR_WEBHOOK_AUTH=off
+SEERR_WEBHOOK_TOKEN=
+OMBI_WEBHOOK_AUTH=off
+OMBI_WEBHOOK_TOKEN=
 ```
 
-New documentation and UI text should call the component **MediaOps Discord Router**. The historical identifiers are compatibility details, not a limitation to Ombi.
+Each provider supports three migration modes: `off` preserves existing behavior, `optional` validates a supplied token while allowing requests without one, and `required` fails closed unless the configured token is present.
 
-## Published image
+### Seerr recommended migration
 
-```text
-ghcr.io/miakkia/mediaops-ombi-discord-router:latest
-ghcr.io/miakkia/mediaops-ombi-discord-router:dev
-ghcr.io/miakkia/mediaops-ombi-discord-router:sha-<commit>
-```
+1. Generate a long random secret locally.
+2. Set `SEERR_WEBHOOK_TOKEN` to that secret in the router container.
+3. Keep `SEERR_WEBHOOK_AUTH=optional` during the migration test.
+4. In Seerr's webhook notification configuration, add custom header `X-MediaOps-Webhook-Token` with the same secret.
+5. Run Seerr's webhook test and confirm the Discord Forum test post is created.
+6. Set `SEERR_WEBHOOK_AUTH=required`, restart the router and test again.
+7. Keep the secret masked and out of Git, screenshots and logs.
 
-`latest` follows `main`; development branches publish `dev`; release tags publish matching semantic-version tags.
+### Ombi recommended migration
 
-## Requirements
-
-- Ombi and/or Seerr with webhook notifications enabled;
-- one Discord Forum channel and Forum webhook;
-- Forum tags for Movie, Series, Requested, Processing, Available, Failed, and Denied;
-- optional Test tag for provider webhook diagnostics;
-- persistent `/data` storage writable by UID/GID `1000:1000` with the hardened deployment examples;
-- private network reachability from the request provider to the router.
-
-Dynamic Forum tag updates can use the runtime `DISCORD_BOT_TOKEN` setting. Keep it masked and grant only the Discord permissions required for the target Forum.
+Keep Ombi and the router on the same private user-defined Docker network. Do **not** add a token as a query parameter to the Ombi webhook URL because URLs may be written to access logs. Leave `OMBI_WEBHOOK_AUTH=off` unless Ombi or a deliberately configured trusted ingress can add the authentication header. If such an ingress is used, migrate through `optional` and then `required` exactly as with Seerr.
 
 ## Core configuration
 
@@ -77,82 +65,43 @@ ROUTER_DATA_HOST_DIR=./data
 MEDIAOPS_NETWORK=mediaops-backend
 ```
 
-Never commit a populated `.env` file or publish Discord credentials in logs, screenshots, or support posts.
-
-## Persistent data and permissions
-
-The router stores only its request/thread index under `/data`. Keep `ROUTER_DATA_DIR=/data`; host paths belong in the volume mapping.
-
-A compatible host mapping is:
-
-```yaml
-volumes:
-  - /path/on/host/ombi-discord-router/data:/data
-```
-
-The historical directory name does not need to be changed.
-
-With the hardened UID/GID `1000:1000` runtime, the mounted directory must be writable by that identity. Do not solve permission problems with `777`, root execution, or privileged mode.
+The Discord webhook URL, Discord bot token and provider webhook tokens are secrets. Never commit a populated `.env` file.
 
 ## Networking
 
-Prefer a user-defined Docker network when the request provider and router share a host:
+Prefer a user-defined Docker network when provider and router share a host:
 
 ```bash
 docker network create mediaops-backend
 ```
 
-With the compatibility container name, webhook destinations are:
+Compatibility webhook destinations remain:
 
 ```text
 Ombi:  http://ombi-discord-router:8080/ombi
 Seerr: http://ombi-discord-router:8080/seerr
 ```
 
-If the provider is on another trusted LAN host, use the router's private LAN address instead. Do not port-forward router port 8080 from the Internet; `/ombi`, `/seerr`, and `/health` are intended for a private Docker/LAN trust boundary.
+If the provider is on another trusted host, use a private LAN address and firewall the router so only the provider/trusted management network can reach it.
 
-## Compose deployment
+## Persistent data
 
-```bash
-cp .env.example .env
-# edit .env with your values
+The router stores only its small request/thread index under `/data`. The mounted host directory must be writable by UID/GID `1000:1000`. Do not fix permissions by switching the container to root, privileged mode, or world-writable `777` permissions.
 
-docker compose -f compose.example.yaml pull
-docker compose -f compose.example.yaml up -d
-```
-
-The example keeps non-root execution, a read-only root filesystem, dropped Linux capabilities, `no-new-privileges`, PID/memory limits, and a dedicated persistent `/data` mount.
-
-## Unraid
-
-The generic Unraid v2 template remains at:
+## Published image
 
 ```text
-templates/ombi-discord-router.xml
+ghcr.io/miakkia/mediaops-ombi-discord-router:latest
+ghcr.io/miakkia/mediaops-ombi-discord-router:dev
+ghcr.io/miakkia/mediaops-ombi-discord-router:sha-<commit>
 ```
 
-The template is displayed as **MediaOps Discord Router** while retaining the historical GHCR image and `/mnt/user/appdata/ombi-discord-router/data` default so existing installations do not need migration.
-
-Existing users may keep a container visibly named **Ombi Discord Router** or `ombi-discord-router`. That name does not restrict the router to Ombi. If a container is manually renamed, any provider webhook URL that addresses it by Docker DNS name must be updated accordingly.
+`latest` follows `main`; hardened/development branches publish `dev`; release tags publish semantic-version tags.
 
 ## Provider behavior
 
-### Ombi
+Ombi may emit `RequestApproved` and `NewRequest` in different orders with auto-approval. `RequestDeleted` clears active correlation while preserving Discord history. Seerr payloads are normalized into the same lifecycle while keeping request identity separate from media/TMDB identity. Provider test notifications create diagnostic Forum posts when `MEDIA_TAG_TEST` is configured.
 
-Ombi may deliver `RequestApproved` and `NewRequest` in different orders, especially with auto-approval. The router does not fabricate a missing earlier state. `RequestDeleted` clears active correlation while keeping Discord history so a later re-request can start a fresh lifecycle.
+The router reports provider lifecycle events; it does not independently prove media exists on the media server. MediaOps can separately verify library availability for its own final notifications.
 
-Ombi's built-in webhook test creates an **Ombi Webhook Test** post when the Test tag is configured.
-
-### Seerr
-
-Seerr payloads are normalized through `/seerr` into the same shared Forum lifecycle. Seerr's request identity is kept separate from the media/TMDB identity so lifecycle updates correlate correctly.
-
-A Seerr webhook test creates a **Seerr Webhook Test** post when the Test tag is configured.
-
-Provider-native Discord notifications remain independent from MediaOps. If MediaOps is being used as the authority for media-server-verified availability, overlapping provider-native availability notifications can be disabled to avoid contradictory announcements.
-
-## Security notes
-
-Keep the router private, non-root, read-only, capability-dropped, and without privileged mode. Treat provider payloads and Discord responses as untrusted integration data. Do not broaden network exposure merely to simplify provider routing.
-
-For the complete Forum workflow and security boundaries, see [`../../docs/REQUEST_FORUM.md`](../../docs/REQUEST_FORUM.md), [`../../docs/UNRAID.md`](../../docs/UNRAID.md), and [`../../docs/SECURITY_MODEL.md`](../../docs/SECURITY_MODEL.md).
+For broader boundaries and deployment guidance, see `docs/REQUEST_FORUM.md`, `docs/UNRAID.md`, and `docs/SECURITY_MODEL.md`.
