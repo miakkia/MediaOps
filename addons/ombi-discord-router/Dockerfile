@@ -6,7 +6,7 @@ RUN pip install --no-cache-dir \
     flask==3.1.3 \
     requests==2.34.2 \
     'urllib3>=2.7.0,<3' \
-    gunicorn==26.2.2 \
+    gunicorn==26.2.0 \
     && mkdir -p /data \
     && chown 1000:1000 /data
 
