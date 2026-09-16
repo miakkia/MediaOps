@@ -28,22 +28,18 @@ env:
 jobs:
   validate:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13.15'
-
       - name: Verify package versions are synchronized
         shell: bash
         run: |
@@ -51,12 +47,10 @@ jobs:
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
           LOCK_VERSION="$(node -p "require('./package-lock.json').version")"
           LOCK_ROOT_VERSION="$(node -p "require('./package-lock.json').packages[''].version")"
-
           if [[ "$PACKAGE_VERSION" != "$LOCK_VERSION" || "$PACKAGE_VERSION" != "$LOCK_ROOT_VERSION" ]]; then
             echo "package.json ($PACKAGE_VERSION) and package-lock.json ($LOCK_VERSION / $LOCK_ROOT_VERSION) versions do not match."
             exit 1
           fi
-
       - name: Verify release tag matches package version
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
@@ -64,30 +58,22 @@ jobs:
           set -euo pipefail
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
           EXPECTED_TAG="v${PACKAGE_VERSION}"
-
           if [[ "$GITHUB_REF_NAME" != "$EXPECTED_TAG" ]]; then
             echo "Release tag $GITHUB_REF_NAME does not match package.json version $PACKAGE_VERSION (expected $EXPECTED_TAG)."
             exit 1
           fi
-
       - name: Install dependencies
         run: npm ci
-
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
-
       - name: Typecheck
         run: npm run typecheck
-
       - name: Run tests
         run: npm test
-
       - name: Build application
         run: npm run build
-
-      - name: Validate Ombi Discord Router syntax
+      - name: Validate MediaOps Discord Router syntax
         run: python -m py_compile addons/ombi-discord-router/app.py addons/ombi-discord-router/provider_router.py
-
       - name: Audit router Python dependencies
         shell: bash
         run: |
@@ -97,31 +83,26 @@ jobs:
             flask==3.1.3 \
             requests==2.34.2 \
             'urllib3>=2.7.0,<3' \
-            gunicorn==26.2.2
+            gunicorn==26.2.0
           python -m pip_audit
-
-      - name: Build Ombi Discord Router addon
+      - name: Build MediaOps Discord Router addon
         run: docker build -t mediaops-ombi-discord-router:test addons/ombi-discord-router
 
   build-and-push:
     needs: validate
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Set build channel
         shell: bash
         run: |
@@ -134,7 +115,6 @@ jobs:
           else
             echo "MEDIAOPS_BUILD_CHANNEL=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
           fi
-
       - name: Generate MediaOps image metadata
         id: mediaops-meta
         uses: docker/metadata-action@v5
@@ -149,7 +129,6 @@ jobs:
             type=sha
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-
       - name: Generate router image metadata
         id: router-meta
         uses: docker/metadata-action@v5
@@ -164,7 +143,6 @@ jobs:
             type=sha
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-
       - name: Build and push MediaOps
         uses: docker/build-push-action@v6
         with:
@@ -178,8 +156,7 @@ jobs:
             MEDIAOPS_BUILD_CHANNEL=${{ env.MEDIAOPS_BUILD_CHANNEL }}
           cache-from: type=gha,scope=mediaops
           cache-to: type=gha,mode=max,scope=mediaops
-
-      - name: Build and push Ombi Discord Router
+      - name: Build and push MediaOps Discord Router
         uses: docker/build-push-action@v6
         with:
           context: ./addons/ombi-discord-router
@@ -196,11 +173,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
