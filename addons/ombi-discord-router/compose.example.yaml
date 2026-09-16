@@ -1,28 +1,21 @@
 services:
   ombi-discord-router:
     # Historical service/container/image naming is retained for compatibility.
-    # The component is now documented as MediaOps Discord Router and supports Ombi + Seerr.
     image: ghcr.io/miakkia/mediaops-ombi-discord-router:latest
     container_name: ombi-discord-router
     user: "1000:1000"
     restart: unless-stopped
-
     security_opt:
       - no-new-privileges:true
-
     cap_drop:
       - ALL
-
     mem_limit: 256m
     pids_limit: 64
     read_only: true
-
     tmpfs:
       - /tmp
-
     volumes:
       - ${ROUTER_DATA_HOST_DIR:-./data}:/data
-
     environment:
       TZ: ${TZ:-America/Toronto}
       ROUTER_DATA_DIR: ${ROUTER_DATA_DIR:-/data}
@@ -37,7 +30,12 @@ services:
       MEDIA_TAG_MOVIE: ${MEDIA_TAG_MOVIE}
       MEDIA_TAG_SERIES: ${MEDIA_TAG_SERIES}
       MEDIA_TAG_TEST: ${MEDIA_TAG_TEST:-}
-
+      ROUTER_AUTH_HEADER: ${ROUTER_AUTH_HEADER:-X-MediaOps-Webhook-Token}
+      ROUTER_MAX_BODY_BYTES: ${ROUTER_MAX_BODY_BYTES:-262144}
+      OMBI_WEBHOOK_AUTH: ${OMBI_WEBHOOK_AUTH:-off}
+      OMBI_WEBHOOK_TOKEN: ${OMBI_WEBHOOK_TOKEN:-}
+      SEERR_WEBHOOK_AUTH: ${SEERR_WEBHOOK_AUTH:-off}
+      SEERR_WEBHOOK_TOKEN: ${SEERR_WEBHOOK_TOKEN:-}
     networks:
       - mediaops-backend
 
