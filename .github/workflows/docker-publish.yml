@@ -92,7 +92,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker run -d --name mediaops-router-readonly-test --read-only --tmpfs /tmp --tmpfs /data:uid=1000,gid=1000 -p 127.0.0.1::8080 mediaops-ombi-discord-router:test
+          docker run -d --name mediaops-router-readonly-test \
+            --read-only \
+            --tmpfs /tmp \
+            --tmpfs /data:uid=1000,gid=1000 \
+            -e MEDIA_REQUESTS_WEBHOOK=https://discord.invalid/api/webhooks/test/test \
+            -e MEDIA_TAG_REQUESTED=1001 \
+            -e MEDIA_TAG_PROCESSING=1002 \
+            -e MEDIA_TAG_AVAILABLE=1003 \
+            -e MEDIA_TAG_FAILED=1004 \
+            -e MEDIA_TAG_DENIED=1005 \
+            -e MEDIA_TAG_MOVIE=1006 \
+            -e MEDIA_TAG_SERIES=1007 \
+            -p 127.0.0.1::8080 \
+            mediaops-ombi-discord-router:test
           trap 'docker rm -f mediaops-router-readonly-test >/dev/null 2>&1 || true' EXIT
           PORT="$(docker port mediaops-router-readonly-test 8080/tcp | sed 's/.*://')"
           for attempt in {1..20}; do
