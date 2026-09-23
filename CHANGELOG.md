@@ -6,6 +6,29 @@ All notable changes to MediaOps are documented here.
 
 Future changes will be documented here before the next release.
 
+## [1.2.2] - 2026-09-23
+
+### Corrective maintenance release
+
+MediaOps 1.2.2 fixes two runtime compatibility issues discovered after the 1.2.1 security maintenance release.
+
+### Fixed
+
+- **Jellyfin 12 authentication:** MediaOps now uses the supported `Authorization: MediaBrowser ... Token=...` request format instead of the deprecated `X-Emby-Token` header. Jellyfin 12 disables deprecated authorization mechanisms by default, which caused valid API keys to return HTTP 401 in MediaOps health checks, library searches, and tracked-request refreshes.
+- **Router read-only startup:** the MediaOps Discord Router disables Gunicorn's unused control socket. Gunicorn 26 attempted to create `/.gunicorn` when the hardened container used a read-only root filesystem, producing `Control server error: [Errno 30] Read-only file system: '/.gunicorn'` on both Unraid and ADM.
+
+### Security / hardening
+
+- The Router remains non-root with a read-only root filesystem; the fix does **not** weaken the v1.2.1 container hardening.
+- Jellyfin API keys remain runtime-only and are not logged.
+- CI now smoke-tests the Router with a read-only root filesystem and fails if the Gunicorn control-server error reappears.
+
+### Upgrade notes
+
+- Jellyfin users do not need to regenerate API keys solely for this issue; update MediaOps to 1.2.2 and retain the existing valid key.
+- Router users should update the Router image to 1.2.2/latest after release. Existing webhook/provider configuration remains unchanged.
+- No configuration migration is required for Emby, Ombi, or Seerr users.
+
 ## [1.2.1] - 2026-09-15
 
 ### Security maintenance release
