@@ -88,8 +88,8 @@ export async function jellyfinFetch(
             Accept:
               'application/json',
 
-            'X-Emby-Token':
-              apiKey,
+            Authorization:
+              `MediaBrowser Client="MediaOps", Device="MediaOps", DeviceId="mediaops", Version="1.2.2", Token="${apiKey}"`,
           },
 
           redirect:
