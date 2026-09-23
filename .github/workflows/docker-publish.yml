@@ -204,7 +204,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "$GITHUB_REF_NAME" \
-            --verify-tag \
-            --title "MediaOps $GITHUB_REF_NAME" \
-            --generate-notes
+          NOTES_FILE="docs/releases/${GITHUB_REF_NAME}.md"
+          if [[ -f "$NOTES_FILE" ]]; then
+            gh release create "$GITHUB_REF_NAME" \
+              --verify-tag \
+              --title "MediaOps $GITHUB_REF_NAME" \
+              --notes-file "$NOTES_FILE"
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --verify-tag \
+              --title "MediaOps $GITHUB_REF_NAME" \
+              --generate-notes
+          fi
