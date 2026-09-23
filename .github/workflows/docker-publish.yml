@@ -88,6 +88,27 @@ jobs:
           python -m pip_audit
       - name: Build MediaOps Discord Router addon
         run: docker build -t mediaops-ombi-discord-router:test addons/ombi-discord-router
+      - name: Smoke test Router with read-only root filesystem
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name mediaops-router-readonly-test --read-only --tmpfs /tmp --tmpfs /data:uid=1000,gid=1000 -p 127.0.0.1::8080 mediaops-ombi-discord-router:test
+          trap 'docker rm -f mediaops-router-readonly-test >/dev/null 2>&1 || true' EXIT
+          PORT="$(docker port mediaops-router-readonly-test 8080/tcp | sed 's/.*://')"
+          for attempt in {1..20}; do
+            if curl --fail --silent "http://127.0.0.1:${PORT}/health" >/dev/null; then
+              break
+            fi
+            if [[ "${attempt}" == "20" ]]; then
+              docker logs mediaops-router-readonly-test
+              exit 1
+            fi
+            sleep 0.5
+          done
+          if docker logs mediaops-router-readonly-test 2>&1 | grep -q "Control server error"; then
+            docker logs mediaops-router-readonly-test
+            exit 1
+          fi
 
   build-and-push:
     needs: validate
