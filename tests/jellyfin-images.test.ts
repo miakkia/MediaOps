@@ -34,9 +34,11 @@ test('Jellyfin provider retrieves primary poster bytes securely', async () => {
         String(input),
         'http://jellyfin.test:8096/Items/movie-1/Images/Primary?maxWidth=342&quality=90',
       );
+      const headers = new Headers(init?.headers);
+      assert.equal(headers.get('X-Emby-Token'), null);
       assert.equal(
-        new Headers(init?.headers).get('X-Emby-Token'),
-        'test-api-key',
+        headers.get('Authorization'),
+        'MediaBrowser Client="MediaOps", Device="MediaOps", DeviceId="mediaops", Version="1.2.2", Token="test-api-key"',
       );
       assert.equal(String(input).includes('test-api-key'), false);
       assert.equal(init?.redirect, 'error');

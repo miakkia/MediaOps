@@ -111,13 +111,23 @@ test('Jellyfin provider reads system information', async () => {
         'GET',
       );
 
-      assert.equal(
+      const headers =
         new Headers(
           init?.headers,
-        ).get(
+        );
+
+      assert.equal(
+        headers.get(
           'X-Emby-Token',
         ),
-        'test-token',
+        null,
+      );
+
+      assert.equal(
+        headers.get(
+          'Authorization',
+        ),
+        'MediaBrowser Client="MediaOps", Device="MediaOps", DeviceId="mediaops", Version="1.2.2", Token="test-token"',
       );
 
       assert.equal(

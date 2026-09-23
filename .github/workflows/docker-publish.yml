@@ -88,6 +88,40 @@ jobs:
           python -m pip_audit
       - name: Build MediaOps Discord Router addon
         run: docker build -t mediaops-ombi-discord-router:test addons/ombi-discord-router
+      - name: Smoke test Router with read-only root filesystem
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name mediaops-router-readonly-test \
+            --read-only \
+            --tmpfs /tmp \
+            --tmpfs /data:uid=1000,gid=1000 \
+            -e MEDIA_REQUESTS_WEBHOOK=https://discord.invalid/api/webhooks/test/test \
+            -e MEDIA_TAG_REQUESTED=1001 \
+            -e MEDIA_TAG_PROCESSING=1002 \
+            -e MEDIA_TAG_AVAILABLE=1003 \
+            -e MEDIA_TAG_FAILED=1004 \
+            -e MEDIA_TAG_DENIED=1005 \
+            -e MEDIA_TAG_MOVIE=1006 \
+            -e MEDIA_TAG_SERIES=1007 \
+            -p 127.0.0.1::8080 \
+            mediaops-ombi-discord-router:test
+          trap 'docker rm -f mediaops-router-readonly-test >/dev/null 2>&1 || true' EXIT
+          PORT="$(docker port mediaops-router-readonly-test 8080/tcp | sed 's/.*://')"
+          for attempt in {1..20}; do
+            if curl --fail --silent "http://127.0.0.1:${PORT}/health" >/dev/null; then
+              break
+            fi
+            if [[ "${attempt}" == "20" ]]; then
+              docker logs mediaops-router-readonly-test
+              exit 1
+            fi
+            sleep 0.5
+          done
+          if docker logs mediaops-router-readonly-test 2>&1 | grep -q "Control server error"; then
+            docker logs mediaops-router-readonly-test
+            exit 1
+          fi
 
   build-and-push:
     needs: validate
@@ -183,7 +217,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "$GITHUB_REF_NAME" \
-            --verify-tag \
-            --title "MediaOps $GITHUB_REF_NAME" \
-            --generate-notes
+          NOTES_FILE="docs/releases/${GITHUB_REF_NAME}.md"
+          if [[ -f "$NOTES_FILE" ]]; then
+            gh release create "$GITHUB_REF_NAME" \
+              --verify-tag \
+              --title "MediaOps $GITHUB_REF_NAME" \
+              --notes-file "$NOTES_FILE"
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --verify-tag \
+              --title "MediaOps $GITHUB_REF_NAME" \
+              --generate-notes
+          fi

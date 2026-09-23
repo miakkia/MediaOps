@@ -51,6 +51,15 @@ def protect_provider_webhooks():
     return None
 
 
+@app.get("/health")
+def health():
+    return jsonify({
+        "status": "ok",
+        "service": "MediaOps Discord Router",
+        "version": APP_VERSION,
+    }), 200
+
+
 def _dict(value):
     return value if isinstance(value, dict) else {}
 
