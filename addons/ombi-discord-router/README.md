@@ -69,20 +69,41 @@ The Discord webhook URL, Discord bot token and provider webhook tokens are secre
 
 ## Networking
 
-Prefer a user-defined Docker network when provider and router share a host:
+When Ombi or Seerr reaches the router by Docker hostname, the provider and router **must share at least one user-defined Docker network**. Docker DNS resolves container/service names only on networks shared by both containers.
+
+For a dedicated network:
 
 ```bash
 docker network create mediaops-backend
 ```
 
-Compatibility webhook destinations remain:
+If the provider already uses a private application network such as `arr-net`, attach the router to that existing network instead of creating unnecessary exposure. The router may remain attached to its existing private network as well.
+
+Example Compose attachment to an existing external network:
+
+```yaml
+services:
+  ombi-discord-router:
+    networks:
+      - arr-net
+
+networks:
+  arr-net:
+    external: true
+```
+
+Once both containers share the network, use the router service/container hostname directly:
 
 ```text
 Ombi:  http://ombi-discord-router:8080/ombi
 Seerr: http://ombi-discord-router:8080/seerr
 ```
 
-If the provider is on another trusted host, use a private LAN address and firewall the router so only the provider/trusted management network can reach it.
+If they do not share a Docker network, hostname-based webhook delivery can fail with a DNS error such as `getaddrinfo ENOTFOUND ombi-discord-router`.
+
+When all webhook senders reach the router only through shared Docker networks, **do not publish port 8080 to the host/LAN unless another trusted service actually requires it**. Docker-internal traffic does not require a `ports:` mapping. This keeps the router reachable by the intended containers without unnecessarily increasing the network attack surface.
+
+If the provider is on another trusted host, publish/bind the router only as required, use a private LAN address, and firewall access so only the provider or trusted management network can reach it. Never expose port 8080 directly to the Internet.
 
 ## Persistent data
 
