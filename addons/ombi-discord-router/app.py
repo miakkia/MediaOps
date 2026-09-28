@@ -483,10 +483,13 @@ def _ombi_flag(value):
 
 
 def _ombi_request_status(row):
-    if _ombi_flag(row.get("denied")) or _ombi_flag(row.get("markedAsDenied")):
-        return "denied"
+    # Availability is authoritative for reconciliation. If Ombi knows the media
+    # is present on the configured media server (the UI can offer "Play on
+    # Emby"), Available must win over stale approval/denial lifecycle flags.
     if _ombi_flag(row.get("available")) or _ombi_flag(row.get("markedAsAvailable")):
         return "available"
+    if _ombi_flag(row.get("denied")) or _ombi_flag(row.get("markedAsDenied")):
+        return "denied"
     if _ombi_flag(row.get("approved")) or _ombi_flag(row.get("markedAsApproved")):
         return "approved"
     return "requested"
