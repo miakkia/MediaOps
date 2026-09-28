@@ -14,6 +14,12 @@ MediaOps 1.2.2 fixes two runtime compatibility issues discovered after the 1.2.1
 
 ### Fixed
 
+- **Ombi missed-webhook recovery:** the companion Router can optionally reconcile recent Ombi movie/TV requests so Admin-origin requests or other missed webhook events can still appear in the Discord request Forum.
+- **Reconciliation duplicate protection:** webhook delivery and reconciliation share the same serialized lifecycle/index checks, preventing the normal single-worker Router from creating duplicate Forum threads for the same tracked request.
+- **Deleted Discord thread recovery:** reconciliation verifies a tracked Discord thread with the bot API before recreating it. Recreation occurs only after Discord definitively reports the channel missing; unavailable/ambiguous checks fail closed.
+- **Ombi lifecycle parsing:** reconciliation parses Ombi boolean-like fields strictly, preventing string values such as `"false"` from being interpreted as denied. Availability is authoritative when Ombi reports media as available.
+- **Reconciled metadata:** when request-list data lacks artwork, the Router queries Ombi's media-info endpoint and can refresh the existing Forum starter message in place with poster and overview metadata.
+- **Reconciliation diagnostics:** reconciliation summaries include ignored-reason categories without intentionally logging credentials.
 - **Jellyfin 12 authentication:** MediaOps now uses the supported `Authorization: MediaBrowser ... Token=...` request format instead of the deprecated `X-Emby-Token` header. Jellyfin 12 disables deprecated authorization mechanisms by default, which caused valid API keys to return HTTP 401 in MediaOps health checks, library searches, and tracked-request refreshes.
 - **Router read-only startup:** the MediaOps Discord Router disables Gunicorn's unused control socket. Gunicorn 26 attempted to create `/.gunicorn` when the hardened container used a read-only root filesystem, producing `Control server error: [Errno 30] Read-only file system: '/.gunicorn'` on both Unraid and ADM.
 
