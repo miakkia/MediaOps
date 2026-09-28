@@ -22,7 +22,7 @@
   <Config Name="Timezone" Target="TZ" Default="America/Toronto" Description="IANA timezone used by the router." Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="Media Requests Webhook" Target="MEDIA_REQUESTS_WEBHOOK" Default="" Description="Full Discord Forum webhook URL. Secret: never publish or log it." Type="Variable" Display="always" Required="true" Mask="true"/>
   <Config Name="Webhook Display Name" Target="MEDIA_REQUESTS_WEBHOOK_NAME" Default="Media Request Herald" Description="Display name used by the Discord webhook." Type="Variable" Display="always" Required="false" Mask="false"/>
-  <Config Name="Discord Bot Token" Target="DISCORD_BOT_TOKEN" Default="" Description="Optional token for dynamic Forum tag updates. Keep masked and least-privileged." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <Config Name="Discord Bot Token" Target="DISCORD_BOT_TOKEN" Default="" Description="Bot token for dynamic Forum tag updates and Discord thread existence checks. Required when Ombi reconciliation is enabled so deleted threads can be confirmed safely. Keep masked and least-privileged." Type="Variable" Display="advanced" Required="false" Mask="true"/>
 
   <Config Name="Requested Status Tag ID" Target="MEDIA_TAG_REQUESTED" Default="" Description="Forum tag ID for Requested." Type="Variable" Display="always" Required="true" Mask="false"/>
   <Config Name="Processing Status Tag ID" Target="MEDIA_TAG_PROCESSING" Default="" Description="Forum tag ID for Processing." Type="Variable" Display="always" Required="true" Mask="false"/>
