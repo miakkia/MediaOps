@@ -9,6 +9,7 @@ from app import (
     app,
     create_test_forum_post,
     process_media_notification,
+    start_ombi_reconciler,
 )
 
 # Provider webhook hardening. Existing installs remain compatible because auth
@@ -154,3 +155,8 @@ def seerr_webhook():
 
 # Keep the existing Ombi route from app.py. This module adds provider adapters
 # and the shared provider-facing security boundary.
+
+# Optional reconciliation is outbound-only and disabled by default. When enabled,
+# it uses the same serialized lifecycle path as provider webhooks, so a scan and
+# webhook cannot create duplicate Forum threads for the same tracked request.
+start_ombi_reconciler()
