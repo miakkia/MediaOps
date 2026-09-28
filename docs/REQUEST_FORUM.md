@@ -100,9 +100,11 @@ These safeguards are part of the application boundary, but administrators should
 
 Ombi does not emit its normal `NewRequest` notification when the request itself is created by an Ombi **Admin** account. Ombi treats the administrator as already aware of the request. Requests originating from the API, a Power User, or a normal user can follow the normal request-notification path.
 
-This means the Forum cannot show an initial `Requested` state for an Admin-origin request unless Ombi emits another supported lifecycle event afterward. If the first event the router receives is `RequestApproved`, `RequestAvailable`, `Failed`, or `Denied`, the router can create the Forum post directly at that later state.
+With Router reconciliation disabled, the Forum cannot show an initial `Requested` state for an Admin-origin request unless Ombi emits another supported lifecycle event afterward. If the first webhook event is `RequestApproved`, `RequestAvailable`, `Failed`, or `Denied`, the router can create the Forum post directly at that later state.
 
-This is an Ombi-side notification behavior, not a MediaOps or router authorization rule. The router intentionally does not invent missing lifecycle events.
+With optional Ombi reconciliation enabled, the Router can instead discover recent Admin-origin or otherwise missed requests from Ombi's request API. It uses the provider's current lifecycle state rather than inventing an event that Ombi never emitted.
+
+This is an Ombi-side notification behavior, not a MediaOps or router authorization rule.
 
 ## Operational notes
 
@@ -115,6 +117,9 @@ This is an Ombi-side notification behavior, not a MediaOps or router authorizati
 - The router and MediaOps should use the same Forum and tag IDs.
 - Rotating/recreating a Discord webhook changes its webhook ID; update `MEDIA_REQUESTS_WEBHOOK_ID` when that happens.
 - Keep `/data/media-threads.json` persistent across router image updates.
+- When Ombi reconciliation is enabled, configure `DISCORD_BOT_TOKEN` in the Router container as well as anywhere it is separately required by MediaOps; container environment variables are not shared.
+- Reconciliation repairs a deleted tracked thread only after Discord definitively confirms the indexed channel is missing. Ambiguous Discord/API failures do not create a replacement.
+- Reconciled requests can enrich missing poster/overview metadata through Ombi and refresh the existing Forum starter message without creating a duplicate thread.
 
 ## Companion Ombi Discord Router
 
