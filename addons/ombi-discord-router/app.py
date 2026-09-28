@@ -220,6 +220,33 @@ def is_unknown_channel_error(error):
     return "HTTP 400" in message and ("Unknown Channel" in message or '"code": 10003' in message)
 
 
+def discord_thread_exists(thread_id):
+    """Return True/False only when Discord gives a definitive answer; None is fail-safe unknown."""
+    token = os.environ.get("DISCORD_BOT_TOKEN", "").strip()
+    thread_id = str(thread_id or "").strip()
+    if not token or not thread_id:
+        return None
+    try:
+        response = requests.get(
+            f"https://discord.com/api/v10/channels/{thread_id}",
+            headers={"Authorization": f"Bot {token}"},
+            timeout=15,
+            allow_redirects=False,
+        )
+    except requests.RequestException:
+        return None
+    if response.status_code == 200:
+        return True
+    if response.status_code == 404:
+        try:
+            payload = response.json()
+        except ValueError:
+            return None
+        # Discord error 10003 is the definitive Unknown Channel response.
+        return False if payload.get("code") == 10003 else None
+    return None
+
+
 def create_test_forum_post(provider="Ombi"):
     if not TAG_TEST:
         return None
@@ -388,10 +415,22 @@ def _process_media_notification(data):
         return {"status": "created", "threadId": thread_id, "mediaStatus": incoming_status}
 
     current_status = str(existing.get("status") or "requested").strip().lower()
+    thread_id = str(existing.get("threadId") or "").strip()
+
+    # Reconciliation also validates the persisted Discord correlation. Recreate
+    # only when Discord definitively confirms Unknown Channel (404/code 10003).
+    # Authentication, rate-limit, network, and server errors are intentionally
+    # treated as unknown so an outage can never cause duplicate Forum threads.
+    if notification_type == "RECONCILIATION" and thread_id:
+        exists = discord_thread_exists(thread_id)
+        if exists is False:
+            remove_index_entry(key)
+            thread_id = create_forum_post(data, preferred_key, incoming_status, status_tag)
+            return {"status": "recreated", "reason": "discord-thread-confirmed-missing", "threadId": thread_id, "mediaStatus": incoming_status}
+
     if not is_forward_status_transition(current_status, incoming_status):
         return {"status": "ignored", "reason": "non-forward-status", "mediaStatus": current_status}
 
-    thread_id = str(existing.get("threadId") or "").strip()
     if not thread_id:
         remove_index_entry(key)
         thread_id = create_forum_post(data, preferred_key, incoming_status, status_tag)
