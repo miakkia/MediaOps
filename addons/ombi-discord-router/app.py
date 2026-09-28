@@ -5,7 +5,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlencode, urljoin, urlparse
+from urllib.parse import quote, urlencode, urljoin, urlparse
 
 import requests
 from flask import Flask, jsonify, request
@@ -290,6 +290,7 @@ def create_forum_post(data, key, status, status_tag):
             "requestId": data.get("requestId"),
             "providerId": data.get("providerId"),
             "sourceProvider": source_provider(data),
+            "posterImage": str(data.get("posterImage") or "").strip(),
         }
         save_index(index)
     return thread_id
@@ -298,6 +299,26 @@ def create_forum_post(data, key, status, status_tag):
 def send_thread_update(thread_id, data, status):
     payload = {"username": MEDIA_REQUESTS_WEBHOOK_NAME, "embeds": [build_embed(data, status)]}
     discord_post(webhook_url(wait="true", thread_id=thread_id), payload)
+
+
+def refresh_forum_starter_message(thread_id, message_id, data, status):
+    """Edit the webhook-owned Forum starter message in place."""
+    thread_id = str(thread_id or "").strip()
+    message_id = str(message_id or "").strip()
+    if not thread_id or not message_id:
+        return False
+    base = MEDIA_REQUESTS_WEBHOOK.split("?", 1)[0].rstrip("/")
+    url = f"{base}/messages/{message_id}?{urlencode({'thread_id': thread_id})}"
+    try:
+        response = requests.patch(
+            url,
+            json={"embeds": [build_embed(data, status)]},
+            timeout=15,
+            allow_redirects=False,
+        )
+    except requests.RequestException:
+        return False
+    return response.ok
 
 
 def update_thread_tags(thread_id, media_type, status_tag):
@@ -430,6 +451,19 @@ def _process_media_notification(data):
         if exists is None:
             return {"status": "ignored", "reason": "thread-check-unavailable", "mediaStatus": current_status}
 
+    incoming_poster = str(data.get("posterImage") or "").strip()
+    indexed_poster = str(existing.get("posterImage") or "").strip()
+    if notification_type == "RECONCILIATION" and incoming_poster and incoming_poster != indexed_poster:
+        message_id = str(existing.get("messageId") or "").strip()
+        if refresh_forum_starter_message(thread_id, message_id, data, current_status):
+            with index_lock:
+                index = load_index()
+                current = index.get(key, {})
+                current["posterImage"] = incoming_poster
+                index[key] = current
+                save_index(index)
+            return {"status": "updated", "reason": "metadata-refreshed", "threadId": thread_id, "mediaStatus": current_status}
+
     if not is_forward_status_transition(current_status, incoming_status):
         return {"status": "ignored", "reason": "non-forward-status", "mediaStatus": current_status}
 
@@ -459,6 +493,7 @@ def _process_media_notification(data):
             "sourceProvider": source_provider(data),
             "title": display_title(data),
             "type": media_type,
+            "posterImage": str(data.get("posterImage") or current.get("posterImage") or "").strip(),
         })
         index[key] = current
         save_index(index)
@@ -619,6 +654,68 @@ def _ombi_api_get(path):
     return payload
 
 
+def _ombi_api_get_object(path):
+    if not OMBI_RECONCILE_URL or not OMBI_RECONCILE_API_KEY:
+        return None
+    base = OMBI_RECONCILE_URL.rstrip("/") + "/"
+    parsed = urlparse(base)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return None
+    try:
+        response = requests.get(
+            urljoin(base, path.lstrip("/")),
+            headers={"ApiKey": OMBI_RECONCILE_API_KEY, "Accept": "application/json"},
+            timeout=15,
+            allow_redirects=False,
+        )
+    except requests.RequestException:
+        return None
+    if not response.ok:
+        return None
+    try:
+        payload = response.json()
+    except ValueError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _poster_from_ombi_metadata(metadata):
+    if not isinstance(metadata, dict):
+        return ""
+    for key in ("posterImage", "posterUrl", "poster", "image", "imageUrl", "banner"):
+        value = str(metadata.get(key) or "").strip()
+        if value.startswith(("https://", "http://")):
+            return value
+    poster_path = str(metadata.get("posterPath") or "").strip()
+    if poster_path.startswith(("https://", "http://")):
+        return poster_path
+    if poster_path:
+        return f"https://image.tmdb.org/t/p/w500/{poster_path.lstrip('/')}"
+    return ""
+
+
+def _enrich_ombi_poster(data):
+    if str(data.get("posterImage") or "").strip():
+        return data
+    media_type = normalize_media_type(data.get("type"))
+    provider_id = str(data.get("providerId") or "").strip()
+    if not provider_id:
+        return data
+    if media_type == "movie":
+        metadata = _ombi_api_get_object(f"/api/v1/Search/movie/info/{quote(provider_id, safe='')}")
+    elif media_type == "series":
+        metadata = _ombi_api_get_object(f"/api/v1/Search/tv/info/{quote(provider_id, safe='')}")
+    else:
+        metadata = None
+    poster = _poster_from_ombi_metadata(metadata)
+    if poster:
+        data["posterImage"] = poster
+        overview = str((metadata or {}).get("overview") or "").strip()
+        if overview and not str(data.get("overview") or "").strip():
+            data["overview"] = overview
+    return data
+
+
 def reconcile_ombi_requests():
     movies = _ombi_api_get("/api/v1/Request/movie")
     tv_rows = _ombi_api_get("/api/v1/Request/tv")
@@ -640,6 +737,7 @@ def reconcile_ombi_requests():
     ignored = 0
     ignored_reasons = {}
     for data in candidates:
+        _enrich_ombi_poster(data)
         result = process_media_notification(data)
         status = result.get("status")
         if status in ("created", "recreated"):
