@@ -427,6 +427,8 @@ def _process_media_notification(data):
             remove_index_entry(key)
             thread_id = create_forum_post(data, preferred_key, incoming_status, status_tag)
             return {"status": "recreated", "reason": "discord-thread-confirmed-missing", "threadId": thread_id, "mediaStatus": incoming_status}
+        if exists is None:
+            return {"status": "ignored", "reason": "thread-check-unavailable", "mediaStatus": current_status}
 
     if not is_forward_status_transition(current_status, incoming_status):
         return {"status": "ignored", "reason": "non-forward-status", "mediaStatus": current_status}
@@ -636,6 +638,7 @@ def reconcile_ombi_requests():
     created = 0
     updated = 0
     ignored = 0
+    ignored_reasons = {}
     for data in candidates:
         result = process_media_notification(data)
         status = result.get("status")
@@ -645,8 +648,15 @@ def reconcile_ombi_requests():
             updated += 1
         else:
             ignored += 1
+            reason = str(result.get("reason") or "unknown").strip()[:64]
+            ignored_reasons[reason] = ignored_reasons.get(reason, 0) + 1
+    reason_suffix = ""
+    if ignored_reasons:
+        reason_suffix = " ignoredReasons=" + ",".join(
+            f"{reason}:{count}" for reason, count in sorted(ignored_reasons.items())
+        )
     print(
-        f"ROUTER RECONCILE: provider=Ombi checked={len(candidates)} created={created} updated={updated} ignored={ignored}",
+        f"ROUTER RECONCILE: provider=Ombi checked={len(candidates)} created={created} updated={updated} ignored={ignored}{reason_suffix}",
         flush=True,
     )
 
