@@ -470,12 +470,24 @@ def _ombi_requested_user(row):
     return row.get("requestedByAlias") or "Unknown"
 
 
+def _ombi_flag(value):
+    # Ombi payloads can expose booleans as JSON booleans, numeric flags, or
+    # strings. Never use bool("false"), which is True in Python.
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value == 1
+    if isinstance(value, str):
+        return value.strip().casefold() in ("true", "1", "yes", "on")
+    return False
+
+
 def _ombi_request_status(row):
-    if bool(row.get("denied") or row.get("markedAsDenied")):
+    if _ombi_flag(row.get("denied")) or _ombi_flag(row.get("markedAsDenied")):
         return "denied"
-    if bool(row.get("available") or row.get("markedAsAvailable")):
+    if _ombi_flag(row.get("available")) or _ombi_flag(row.get("markedAsAvailable")):
         return "available"
-    if bool(row.get("approved") or row.get("markedAsApproved")):
+    if _ombi_flag(row.get("approved")) or _ombi_flag(row.get("markedAsApproved")):
         return "approved"
     return "requested"
 
