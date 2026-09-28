@@ -139,6 +139,12 @@ OMBI_RECONCILE_LOOKBACK_HOURS=168
 
 The feature is disabled by default. The API key is sent only in Ombi's `ApiKey` request header and is never placed in a URL or intentionally logged. Keep the Ombi URL on a private Docker/LAN network.
 
+When reconciliation is enabled, configure `DISCORD_BOT_TOKEN` in the **Router container itself**. Environment variables from the main MediaOps container are not shared automatically. The Router uses this token to verify whether an indexed Forum thread still exists and to manage its tags. Keep it masked and grant only the Discord permissions required for the configured Forum.
+
+When an indexed thread ID is present, reconciliation asks Discord whether that channel still exists. A confirmed Discord `Unknown Channel` response allows the Router to remove the stale correlation and recreate the Forum thread. Authentication failures, rate limits, network errors and other ambiguous responses fail closed and do **not** trigger recreation.
+
+If Ombi's request-list response has no usable poster, reconciliation can query Ombi's movie/TV information endpoint using the existing Ombi API key. Artwork/overview discovered this way can refresh the existing webhook-owned Forum starter message in place. The poster URL is then persisted in the Router index so unchanged metadata is not rewritten every reconciliation cycle.
+
 Duplicate prevention is fail-safe inside the packaged Router: webhook handling and reconciliation share one serialized lifecycle lock, the persistent request/thread index is checked before creation, and the packaged image intentionally runs one Gunicorn worker. A webhook and reconciliation pass therefore cannot concurrently create two Forum threads for the same tracked request.
 
 Only requests with a parseable `requestedDate` inside the configured lookback window are considered. Unknown/legacy request shapes are skipped rather than risking an unbounded historical import. TV reconciliation treats Ombi child requests as the request identity while retaining the parent show's title/provider identity.
