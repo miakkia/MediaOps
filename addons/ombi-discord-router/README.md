@@ -125,4 +125,22 @@ Ombi may emit `RequestApproved` and `NewRequest` in different orders with auto-a
 
 The router reports provider lifecycle events; it does not independently prove media exists on the media server. MediaOps can separately verify library availability for its own final notifications.
 
+## Ombi missed-webhook reconciliation
+
+Ombi deployments can optionally enable a read-only reconciliation loop that periodically reads `GET /api/v1/Request/movie` and `GET /api/v1/Request/tv`. Webhooks remain the real-time path; reconciliation is only a recovery path for requests that were created directly in Ombi or whose webhook was missed.
+
+```env
+OMBI_RECONCILE_ENABLED=true
+OMBI_RECONCILE_URL=http://ombi:3579
+OMBI_RECONCILE_API_KEY=
+OMBI_RECONCILE_INTERVAL_SECONDS=900
+OMBI_RECONCILE_LOOKBACK_HOURS=168
+```
+
+The feature is disabled by default. The API key is sent only in Ombi's `ApiKey` request header and is never placed in a URL or intentionally logged. Keep the Ombi URL on a private Docker/LAN network.
+
+Duplicate prevention is fail-safe inside the packaged Router: webhook handling and reconciliation share one serialized lifecycle lock, the persistent request/thread index is checked before creation, and the packaged image intentionally runs one Gunicorn worker. A webhook and reconciliation pass therefore cannot concurrently create two Forum threads for the same tracked request.
+
+Only requests with a parseable `requestedDate` inside the configured lookback window are considered. Unknown/legacy request shapes are skipped rather than risking an unbounded historical import. TV reconciliation treats Ombi child requests as the request identity while retaining the parent show's title/provider identity.
+
 For broader boundaries and deployment guidance, see `docs/REQUEST_FORUM.md`, `docs/UNRAID.md`, and `docs/SECURITY_MODEL.md`.
