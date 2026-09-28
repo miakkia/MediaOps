@@ -500,6 +500,20 @@ def _release_year(row):
     return value[:4] if len(value) >= 4 and value[:4].isdigit() else ""
 
 
+def _ombi_poster_image(*rows):
+    # Ombi request responses vary by media type/version. Reuse an absolute
+    # poster/image URL when the request API already provides one; never invent
+    # a third-party URL or leak the Ombi API key into an image URL.
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        for key in ("posterImage", "posterUrl", "poster", "image", "imageUrl"):
+            value = str(row.get(key) or "").strip()
+            if value.startswith(("https://", "http://")):
+                return value
+    return ""
+
+
 def _normalize_ombi_movie(row):
     if not isinstance(row, dict) or not _within_reconcile_window(row):
         return None
@@ -516,6 +530,7 @@ def _normalize_ombi_movie(row):
         "requestId": request_id,
         "providerId": row.get("theMovieDbId") or row.get("imdbId"),
         "requestedUser": _ombi_requested_user(row),
+        "posterImage": _ombi_poster_image(row),
     }
 
 
@@ -535,6 +550,7 @@ def _normalize_ombi_tv(parent, child):
         "requestId": request_id,
         "providerId": parent.get("tvDbId") or parent.get("externalProviderId") or parent.get("imdbId"),
         "requestedUser": _ombi_requested_user(child),
+        "posterImage": _ombi_poster_image(child, parent),
     }
 
 
