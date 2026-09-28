@@ -2,8 +2,10 @@ import json
 import os
 import re
 import threading
+import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urljoin, urlparse
 
 import requests
 from flask import Flask, jsonify, request
@@ -31,6 +33,17 @@ DATA_DIR = Path(os.environ.get("ROUTER_DATA_DIR", "/data"))
 INDEX_FILE = DATA_DIR / "media-threads.json"
 
 index_lock = threading.Lock()
+# Serializes the complete request lifecycle (webhooks + reconciliation). The
+# packaged Router intentionally runs one Gunicorn worker, so this prevents a
+# webhook and the Ombi reconciliation thread from creating the same Forum
+# thread concurrently.
+lifecycle_lock = threading.Lock()
+
+OMBI_RECONCILE_ENABLED = os.environ.get("OMBI_RECONCILE_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
+OMBI_RECONCILE_URL = os.environ.get("OMBI_RECONCILE_URL", "").strip()
+OMBI_RECONCILE_API_KEY = os.environ.get("OMBI_RECONCILE_API_KEY", "").strip()
+OMBI_RECONCILE_INTERVAL_SECONDS = max(300, int(os.environ.get("OMBI_RECONCILE_INTERVAL_SECONDS", "900")))
+OMBI_RECONCILE_LOOKBACK_HOURS = max(1, int(os.environ.get("OMBI_RECONCILE_LOOKBACK_HOURS", "168")))
 
 TERMINAL_STATUSES = {"available", "failed", "denied"}
 STATUS_ORDER = {
@@ -342,7 +355,7 @@ def process_request_deleted(data):
     }
 
 
-def process_media_notification(data):
+def _process_media_notification(data):
     preferred_key = media_key(data)
     media_type = normalize_media_type(data.get("type"))
     if not preferred_key or not media_type:
@@ -409,6 +422,185 @@ def process_media_notification(data):
         index[key] = current
         save_index(index)
     return {"status": "updated", "threadId": thread_id, "mediaStatus": incoming_status}
+
+
+def process_media_notification(data):
+    # Keep the entire read/check/create-or-update transaction serialized.
+    # create_forum_post() only writes the index after Discord confirms creation,
+    # so holding this separate lifecycle lock across the network operation is
+    # what closes the duplicate-thread race.
+    with lifecycle_lock:
+        return _process_media_notification(data)
+
+
+def _parse_ombi_date(value):
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _within_reconcile_window(row):
+    requested = _parse_ombi_date(row.get("requestedDate"))
+    if requested is None:
+        # Fail closed for unknown/legacy shapes: do not flood Discord with an
+        # unbounded historical request set.
+        return False
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=OMBI_RECONCILE_LOOKBACK_HOURS)
+    return requested >= cutoff
+
+
+def _ombi_requested_user(row):
+    user = row.get("requestedUser")
+    if isinstance(user, dict):
+        return (
+            user.get("userAlias")
+            or user.get("userName")
+            or user.get("username")
+            or user.get("emailAddress")
+            or row.get("requestedByAlias")
+            or "Unknown"
+        )
+    return row.get("requestedByAlias") or "Unknown"
+
+
+def _ombi_request_status(row):
+    if bool(row.get("denied") or row.get("markedAsDenied")):
+        return "denied"
+    if bool(row.get("available") or row.get("markedAsAvailable")):
+        return "available"
+    if bool(row.get("approved") or row.get("markedAsApproved")):
+        return "approved"
+    return "requested"
+
+
+def _release_year(row):
+    value = str(row.get("releaseDate") or "").strip()
+    return value[:4] if len(value) >= 4 and value[:4].isdigit() else ""
+
+
+def _normalize_ombi_movie(row):
+    if not isinstance(row, dict) or not _within_reconcile_window(row):
+        return None
+    request_id = row.get("id")
+    if request_id is None:
+        return None
+    return {
+        "sourceProvider": "Ombi",
+        "notificationType": "Reconciliation",
+        "requestStatus": _ombi_request_status(row),
+        "type": "Movie",
+        "title": row.get("title") or "Ombi Movie Request",
+        "year": _release_year(row),
+        "requestId": request_id,
+        "providerId": row.get("theMovieDbId") or row.get("imdbId"),
+        "requestedUser": _ombi_requested_user(row),
+    }
+
+
+def _normalize_ombi_tv(parent, child):
+    if not isinstance(parent, dict) or not isinstance(child, dict) or not _within_reconcile_window(child):
+        return None
+    request_id = child.get("id")
+    if request_id is None:
+        return None
+    return {
+        "sourceProvider": "Ombi",
+        "notificationType": "Reconciliation",
+        "requestStatus": _ombi_request_status(child),
+        "type": "TV Show",
+        "title": parent.get("title") or child.get("title") or "Ombi TV Request",
+        "year": _release_year(parent),
+        "requestId": request_id,
+        "providerId": parent.get("tvDbId") or parent.get("externalProviderId") or parent.get("imdbId"),
+        "requestedUser": _ombi_requested_user(child),
+    }
+
+
+def _ombi_api_get(path):
+    if not OMBI_RECONCILE_URL or not OMBI_RECONCILE_API_KEY:
+        raise RuntimeError("Ombi reconciliation credentials are not configured")
+    base = OMBI_RECONCILE_URL.rstrip("/") + "/"
+    parsed = urlparse(base)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise RuntimeError("OMBI_RECONCILE_URL must be a valid http(s) URL")
+    response = requests.get(
+        urljoin(base, path.lstrip("/")),
+        headers={"ApiKey": OMBI_RECONCILE_API_KEY, "Accept": "application/json"},
+        timeout=15,
+        allow_redirects=False,
+    )
+    if not response.ok:
+        raise RuntimeError(f"Ombi reconciliation returned HTTP {response.status_code}")
+    try:
+        payload = response.json()
+    except ValueError as error:
+        raise RuntimeError("Ombi reconciliation returned invalid JSON") from error
+    if not isinstance(payload, list):
+        raise RuntimeError("Ombi reconciliation returned an unexpected response shape")
+    return payload
+
+
+def reconcile_ombi_requests():
+    movies = _ombi_api_get("/api/v1/Request/movie")
+    tv_rows = _ombi_api_get("/api/v1/Request/tv")
+    candidates = []
+    for row in movies:
+        normalized = _normalize_ombi_movie(row)
+        if normalized:
+            candidates.append(normalized)
+    for parent in tv_rows:
+        if not isinstance(parent, dict):
+            continue
+        for child in parent.get("childRequests") or []:
+            normalized = _normalize_ombi_tv(parent, child)
+            if normalized:
+                candidates.append(normalized)
+
+    created = 0
+    updated = 0
+    ignored = 0
+    for data in candidates:
+        result = process_media_notification(data)
+        status = result.get("status")
+        if status in ("created", "recreated"):
+            created += 1
+        elif status == "updated":
+            updated += 1
+        else:
+            ignored += 1
+    print(
+        f"ROUTER RECONCILE: provider=Ombi checked={len(candidates)} created={created} updated={updated} ignored={ignored}",
+        flush=True,
+    )
+
+
+def ombi_reconcile_loop():
+    if not OMBI_RECONCILE_ENABLED:
+        return
+    if not OMBI_RECONCILE_URL or not OMBI_RECONCILE_API_KEY:
+        print("ROUTER RECONCILE: provider=Ombi disabled reason=missing-configuration", flush=True)
+        return
+    while True:
+        try:
+            reconcile_ombi_requests()
+        except Exception as error:
+            # Never log URLs, API keys, response bodies, or request payloads.
+            print(f"ROUTER RECONCILE ERROR: provider=Ombi type={type(error).__name__} message={error}", flush=True)
+        time.sleep(OMBI_RECONCILE_INTERVAL_SECONDS)
+
+
+def start_ombi_reconciler():
+    if not OMBI_RECONCILE_ENABLED:
+        return
+    thread = threading.Thread(target=ombi_reconcile_loop, name="ombi-reconciler", daemon=True)
+    thread.start()
 
 
 def log_notification_result(data, result):
