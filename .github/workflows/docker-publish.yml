@@ -179,7 +179,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
       - name: Build and push MediaOps
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
@@ -192,7 +192,7 @@ jobs:
           cache-from: type=gha,scope=mediaops
           cache-to: type=gha,mode=max,scope=mediaops
       - name: Build and push MediaOps Discord Router
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./addons/ombi-discord-router
           file: ./addons/ombi-discord-router/Dockerfile
