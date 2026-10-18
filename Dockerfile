@@ -2,6 +2,11 @@ FROM node:24-bookworm-slim AS build
 
 WORKDIR /app
 
+# Keep Node 24 while applying security fixes published for the Debian base image.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY package.json package-lock.json ./
 
 RUN npm ci
@@ -23,7 +28,11 @@ ENV MEDIAOPS_BUILD_CHANNEL=${MEDIAOPS_BUILD_CHANNEL}
 
 WORKDIR /app
 
-RUN groupadd --system mediaops \
+# Apply available Debian security fixes without moving MediaOps to a new Node major.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system mediaops \
     && useradd --system --gid mediaops --create-home mediaops
 
 COPY package.json package-lock.json ./
