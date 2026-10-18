@@ -37,8 +37,12 @@ RUN apt-get update \
 
 COPY package.json package-lock.json ./
 
+# npm is needed only to install production dependencies. Remove the package-manager
+# tooling afterwards so its bundled dependencies are not part of the runtime attack surface.
 RUN npm ci --omit=dev \
-    && npm cache clean --force
+    && npm cache clean --force \
+    && rm -rf /usr/local/lib/node_modules/npm \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx
 
 COPY --from=build /app/dist ./dist
 
