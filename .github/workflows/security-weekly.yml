@@ -30,7 +30,7 @@ jobs:
       - name: Build container for scanning
         run: docker build --pull -t security-scan:${{ github.sha }} .
       - name: Scan container for HIGH/CRITICAL vulnerabilities
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: security-scan:${{ github.sha }}
           format: table
