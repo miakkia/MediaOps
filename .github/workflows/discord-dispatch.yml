@@ -1,0 +1,84 @@
+name: Dispatch MediaOps Discord event
+
+# Event-only bridge. No Discord webhook, guild ID, channel ID, role ID, or
+# Solitario-specific configuration belongs in this public repository.
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch-pr:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch merged PR to private notifier
+        env:
+          GH_TOKEN: ${{ secrets.MEDIAOPS_INTERNAL_DISPATCH_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          test -n "$GH_TOKEN" || { echo "MEDIAOPS_INTERNAL_DISPATCH_TOKEN is not configured" >&2; exit 1; }
+          python3 - <<'PY' > /tmp/payload.json
+          import json, os
+          print(json.dumps({
+              "event_type": "mediaops-pr-merged",
+              "client_payload": {
+                  "number": int(os.environ["PR_NUMBER"]),
+                  "title": os.environ["PR_TITLE"],
+                  "url": os.environ["PR_URL"],
+                  "author": os.environ["PR_AUTHOR"],
+                  "merge_sha": os.environ["MERGE_SHA"],
+              },
+          }))
+          PY
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --header "Content-Type: application/json" \
+            https://api.github.com/repos/miakkia/MediaOps-Internal/dispatches \
+            --data-binary @/tmp/payload.json
+
+  dispatch-release:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch release to private notifier
+        env:
+          GH_TOKEN: ${{ secrets.MEDIAOPS_INTERNAL_DISPATCH_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_URL: ${{ github.event.release.html_url }}
+          RELEASE_AUTHOR: ${{ github.event.release.author.login }}
+        run: |
+          test -n "$GH_TOKEN" || { echo "MEDIAOPS_INTERNAL_DISPATCH_TOKEN is not configured" >&2; exit 1; }
+          python3 - <<'PY' > /tmp/payload.json
+          import json, os
+          print(json.dumps({
+              "event_type": "mediaops-release-published",
+              "client_payload": {
+                  "tag": os.environ["RELEASE_TAG"],
+                  "name": os.environ["RELEASE_NAME"] or os.environ["RELEASE_TAG"],
+                  "url": os.environ["RELEASE_URL"],
+                  "author": os.environ["RELEASE_AUTHOR"],
+              },
+          }))
+          PY
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --header "Content-Type: application/json" \
+            https://api.github.com/repos/miakkia/MediaOps-Internal/dispatches \
+            --data-binary @/tmp/payload.json
