@@ -1,8 +1,8 @@
-FROM node:24-bookworm-slim AS build
+FROM node:24.22.1-bookworm-slim AS build
 
 WORKDIR /app
 
-# Keep Node 24 while applying security fixes published for the Debian base image.
+# Keep Node 24 on the October 21, 2026 security release and apply Debian security fixes.
 RUN apt-get update \
     && apt-get upgrade -y \
     && rm -rf /var/lib/apt/lists/*
@@ -17,7 +17,7 @@ COPY src ./src
 RUN npm run build
 
 
-FROM node:24-bookworm-slim AS runtime
+FROM node:24.22.1-bookworm-slim AS runtime
 
 ARG MEDIAOPS_BUILD_SHA=unknown
 ARG MEDIAOPS_BUILD_CHANNEL=unknown
