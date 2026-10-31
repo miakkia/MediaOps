@@ -2,6 +2,7 @@ import 'dotenv/config';
 
 const DEFAULT_TIMEOUT_MS = 5_000;
 const PARTY_CODE_PATTERN = /^[A-Z0-9]{5}$/;
+const MIN_SERVICE_TOKEN_LENGTH = 32;
 
 const rawWatchPartyUrl = process.env.WATCHPARTY_URL?.trim();
 const rawWatchPartyInternalUrl =
@@ -212,6 +213,54 @@ export async function watchPartyExists(
   }
 
   return record.exists;
+}
+
+export async function closeWatchParty(
+  partyCode: string,
+): Promise<void> {
+  const normalizedPartyCode = normalizePartyCode(partyCode);
+  const serviceToken = process.env.WATCHPARTY_SERVICE_TOKEN;
+
+  if (
+    !serviceToken ||
+    serviceToken.length < MIN_SERVICE_TOKEN_LENGTH
+  ) {
+    throw new Error(
+      'WATCHPARTY_SERVICE_TOKEN must contain at least 32 characters.',
+    );
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(
+      `${internalBaseUrl}/api/party/${encodeURIComponent(normalizedPartyCode)}/close`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'X-WatchParty-Service-Token': serviceToken,
+        },
+        redirect: 'error',
+        signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+      },
+    );
+  } catch (error) {
+    if (
+      error instanceof DOMException &&
+      error.name === 'TimeoutError'
+    ) {
+      throw new Error('Watch Party close request timed out.');
+    }
+
+    throw error;
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      `Watch Party close failed with HTTP ${response.status}.`,
+    );
+  }
 }
 
 export function getWatchPartyUrl(): string {
