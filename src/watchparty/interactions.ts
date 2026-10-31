@@ -12,6 +12,10 @@ import {
 } from '../i18n/index.js';
 
 import {
+  closeWatchParty,
+} from '../services/watchparty.js';
+
+import {
   findWatchPartyById,
   setParticipantResponse,
   setWatchPartyLaunchMessageId,
@@ -255,6 +259,21 @@ export async function handleWatchPartyButton(
       const wasActive =
         party.status === 'active';
 
+      // An active room must be destroyed in WatchParty before MediaOps marks
+      // its own record cancelled. This keeps Discord state and actual playback
+      // authorization in sync and fails closed if WatchParty cannot confirm it.
+      if (wasActive) {
+        if (!party.partyCode) {
+          throw new Error(
+            `Active Watch Party ${party.id} has no room code.`,
+          );
+        }
+
+        await closeWatchParty(
+          party.partyCode,
+        );
+      }
+
       const cancelledParty =
         await setWatchPartyStatus(
           party.id,
@@ -272,8 +291,6 @@ export async function handleWatchPartyButton(
       }
 
       // Clean up every Discord message MediaOps created for this lifecycle.
-      // This does not dissolve Oratorian's Watch Party room; MediaOps only
-      // cancels the orchestration and artifacts it owns.
       for (const trackedMessage of [
         {
           id: party.reminderMessageId,
@@ -349,8 +366,8 @@ export async function handleWatchPartyButton(
         wasActive
           ? (
               locale === 'fr'
-                ? `🛑 La Watch Party pour **${cancelledParty.mediaTitle}** a été terminée dans MediaOps.`
-                : `🛑 The Watch Party for **${cancelledParty.mediaTitle}** has been ended in MediaOps.`
+                ? `🛑 La Watch Party pour **${cancelledParty.mediaTitle}** a été terminée.`
+                : `🛑 The Watch Party for **${cancelledParty.mediaTitle}** has been closed.`
             )
           : t(
               locale,
