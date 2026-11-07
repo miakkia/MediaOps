@@ -30,6 +30,12 @@ Ombi is the supported and validated request provider. Additional request provide
 
 The current Watch Party integration targets the external open-source [Oratorian/emby-watchparty](https://github.com/Oratorian/emby-watchparty) project. MediaOps orchestrates the Discord-side scheduling and lifecycle; availability, authentication, browser compatibility, and synchronized playback behavior of the Watch Party service remain separate runtime dependencies.
 
+## Oratorian v3 Watch Party room closure (partial restoration)
+
+PR #77 restored the Discord-side **Fermer la salle / Close Room** workflow after Oratorian v3 stopped accepting MediaOps' previous room-close API call (HTTP 405). A November 2026 production test confirmed that associated Discord messages were deleted successfully. The organizer or a user with a current **Going** RSVP can trigger this cleanup.
+
+This does **not** terminate the Oratorian playback room or invalidate an already shared party URL; Oratorian remains responsible for room expiry. We plan to investigate the behavioral/API changes between Oratorian 2.1.4 and 3.0.0 to see whether full, authenticated closure can be restored using supported upstream functionality. Do not represent this as fully fixed or promise that upstream exposes a compatible room-close API. The official Oratorian image remains unchanged.
+
 ## Discord command registration
 
 Commands are currently guild-scoped and must be synchronized after initial installation and after releases that change command definitions. The published container supports this directly with:
