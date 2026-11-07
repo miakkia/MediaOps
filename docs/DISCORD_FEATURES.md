@@ -158,7 +158,7 @@ Scheduled Watch Parties support:
 
 - Going / attending;
 - Not going;
-- organizer-only cancellation, including after the room has opened;
+- Discord-side cancellation/announcement closure by the organizer or a participant currently RSVP'd **Going**, including after the room has opened;
 - persistent RSVP state;
 - one-time reminder approximately 15 minutes before start;
 - automatic Watch Party room creation at scheduled start;
@@ -166,6 +166,14 @@ Scheduled Watch Parties support:
 - tracked cleanup of Watch Party announcement/reminder/open-room messages when the lifecycle is finished or cancelled.
 
 At the scheduled time, MediaOps creates the Watch Party using the configured dedicated non-admin Emby host account and announces the room code and direct room URL.
+
+### Oratorian v3: close-room compatibility status
+
+Following PR #77, the **Close Room / Fermer la salle** button no longer calls the unsupported Oratorian v3 `POST /api/party/{code}/close` endpoint (which returned HTTP 405). Instead, it marks the MediaOps Watch Party cancelled and cleans up tracked Discord announcements, reminders, launch messages, and the associated Discord scheduled event where possible. The organizer and users currently RSVP'd **Going** may close the Discord announcements; **Not Going** and non-RSVP users may not.
+
+**Production verification (November 2026):** the operator confirmed that the Discord messages were successfully deleted after updating MediaOps. This validates the Discord-message cleanup path, **not** server-side room termination.
+
+**Known remaining limitation / future work:** closing Discord announcements does **not** dissolve the actual Oratorian playback room or revoke previously shared join URLs. Oratorian manages its own room lifetime. We intend to compare the previously working Oratorian 2.1.4 integration with 3.0.0 and investigate whether a supported, authenticated upstream mechanism can safely restore full room closure. No unsupported endpoint, bypass, or modification of the official Oratorian Docker image should be introduced merely to reproduce the old behavior. Full restoration is a goal, not a guaranteed capability.
 
 ## Watch Party lifecycle and expiry
 
@@ -203,7 +211,7 @@ The default timezone for scheduling input without an explicit offset is configur
 
 Administrative setup and diagnostic actions require appropriate Discord permissions. Normal media discovery, requests, and Watch Party participation remain usable by regular members unless Discord command permissions restrict them.
 
-Request selection tokens are bound to the Discord user who created them. Watch Party cancellation validates the organizer against persistent server-side state rather than trusting a button identifier alone.
+Request selection tokens are bound to the Discord user who created them. Watch Party Discord-side closure validates the organizer or a persisted **Going** RSVP participant against server-side state rather than trusting a button identifier alone.
 
 Optional Forum automation is scoped to the configured Forum and configured integration source. Administrators should grant only the Discord channel permissions and gateway intents required by enabled features.
 
