@@ -12,10 +12,6 @@ import {
 } from '../i18n/index.js';
 
 import {
-  closeWatchParty,
-} from '../services/watchparty.js';
-
-import {
   findWatchPartyById,
   setParticipantResponse,
   setWatchPartyLaunchMessageId,
@@ -259,21 +255,10 @@ export async function handleWatchPartyButton(
       const wasActive =
         party.status === 'active';
 
-      // An active room must be destroyed in WatchParty before MediaOps marks
-      // its own record cancelled. This keeps Discord state and actual playback
-      // authorization in sync and fails closed if WatchParty cannot confirm it.
-      if (wasActive) {
-        if (!party.partyCode) {
-          throw new Error(
-            `Active Watch Party ${party.id} has no room code.`,
-          );
-        }
-
-        await closeWatchParty(
-          party.partyCode,
-        );
-      }
-
+      // Oratorian v3 does not expose an authenticated room-close REST API.
+      // This action closes the Discord invitation/lifecycle only. It must not
+      // claim to terminate playback or revoke an already shared room URL.
+      // Oratorian manages its own room lifecycle and empty-room cleanup.
       const cancelledParty =
         await setWatchPartyStatus(
           party.id,
@@ -284,10 +269,14 @@ export async function handleWatchPartyButton(
       // prevent the existing Watch Party cancellation from succeeding. An
       // active event is completed; a future event is cancelled.
       if (interaction.guild) {
-        await cancelDiscordScheduledEventForParty(
-          interaction.guild,
-          party.id,
-        );
+        try {
+          await cancelDiscordScheduledEventForParty(
+            interaction.guild,
+            party.id,
+          );
+        } catch (error) {
+          console.warn('Unable to update Watch Party scheduled event:', error);
+        }
       }
 
       // Clean up every Discord message MediaOps created for this lifecycle.
@@ -476,7 +465,11 @@ export async function handleWatchPartyButton(
     );
 
     await interaction.editReply(
-      startEarlyInteraction
+      cancelInteraction
+        ? (locale === 'fr'
+            ? 'Impossible de fermer les invitations Discord pour le moment.'
+            : 'Unable to close Discord invitations right now.')
+        : startEarlyInteraction
         ? (
             locale === 'fr'
               ? 'Impossible de démarrer la Watch Party plus tôt pour le moment.'
