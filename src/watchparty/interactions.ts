@@ -212,15 +212,16 @@ export async function handleWatchPartyButton(
     }
 
     if (cancelInteraction) {
-      if (
-        interaction.user.id !==
-        party.organizerDiscordId
-      ) {
+      const isOrganizer = interaction.user.id === party.organizerDiscordId;
+      const isGoingParticipant = party.participants.some(
+        participant => participant.discordUserId === interaction.user.id && participant.response === 'going',
+      );
+
+      if (!isOrganizer && !isGoingParticipant) {
         await interaction.editReply(
-          t(
-            locale,
-            'watchparty.cancel.organizerOnly',
-          ),
+          locale === 'fr'
+            ? 'Seul l’organisateur ou un participant ayant répondu « Je participe » peut fermer les annonces de cette Watch Party.'
+            : 'Only the organizer or someone who RSVP’d “Going” can close this Watch Party’s announcements.',
         );
 
         return true;
