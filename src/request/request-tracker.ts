@@ -10,7 +10,10 @@ const POLL_INTERVAL_MS = 5 * 60 * 1000;
 const RETRY_DELAYS_MS = [5000, 15000, 30000, 60000];
 
 function isServiceUnavailable(error: unknown): boolean {
-  return error instanceof Error && /HTTP (502|503|504)\b|request timed out/i.test(error.message);
+  if (!(error instanceof Error)) return false;
+  return error.name === 'TimeoutError' ||
+    /HTTP (502|503|504)\b|request timed out/i.test(error.message) ||
+    (error instanceof TypeError && error.message === 'fetch failed');
 }
 
 function normalizeTitle(value: string): string {
@@ -134,6 +137,7 @@ export function startRequestTracker(client: Client): void {
 
 export {
   checkTrackedRequests,
+  isServiceUnavailable,
   isAvailableOnMediaServer,
   isAvailableWithProvider,
   matchesTrackedRequest,
