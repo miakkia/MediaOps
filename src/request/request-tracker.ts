@@ -7,6 +7,11 @@ import {
 } from '../storage/request-tracking-store.js';
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
+const RETRY_DELAYS_MS = [5000, 15000, 30000, 60000];
+
+function isServiceUnavailable(error: unknown): boolean {
+  return error instanceof Error && /HTTP (502|503|504)\b|request timed out/i.test(error.message);
+}
 
 function normalizeTitle(value: string): string {
   return value
@@ -94,6 +99,7 @@ async function checkTrackedRequests(client: Client): Promise<void> {
         );
       }
     } catch (error) {
+      if (isServiceUnavailable(error)) throw error;
       console.warn(
         `Unable to refresh request ${request.providerRequestId}:`,
         error,
@@ -103,13 +109,27 @@ async function checkTrackedRequests(client: Client): Promise<void> {
 }
 
 export function startRequestTracker(client: Client): void {
-  void checkTrackedRequests(client);
-
-  const timer = setInterval(
-    () => void checkTrackedRequests(client),
-    POLL_INTERVAL_MS,
-  );
-  timer.unref();
+  let failures = 0;
+  async function run(): Promise<void> {
+    let delay = POLL_INTERVAL_MS;
+    try {
+      await checkTrackedRequests(client);
+      if (failures > 0) console.info('Media request tracking resumed.');
+      failures = 0;
+    } catch (error) {
+      if (isServiceUnavailable(error)) {
+        if (failures === 0) console.warn('Media server temporarily unavailable; request tracking will retry.');
+        delay = RETRY_DELAYS_MS[Math.min(failures, RETRY_DELAYS_MS.length - 1)] ?? 60000;
+        failures = Math.min(failures + 1, RETRY_DELAYS_MS.length);
+      } else {
+        console.warn('Unable to run media request tracking:', error);
+      }
+    } finally {
+      const timer = setTimeout(() => void run(), delay);
+      timer.unref();
+    }
+  }
+  void run();
 }
 
 export {
