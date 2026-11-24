@@ -7,6 +7,14 @@ import {
 } from '../storage/request-tracking-store.js';
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
+const RETRY_DELAYS_MS = [5000, 15000, 30000, 60000];
+
+function isServiceUnavailable(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return error.name === 'TimeoutError' ||
+    /HTTP (502|503|504)\b|request timed out/i.test(error.message) ||
+    (error instanceof TypeError && error.message === 'fetch failed');
+}
 
 function normalizeTitle(value: string): string {
   return value
@@ -94,6 +102,7 @@ async function checkTrackedRequests(client: Client): Promise<void> {
         );
       }
     } catch (error) {
+      if (isServiceUnavailable(error)) throw error;
       console.warn(
         `Unable to refresh request ${request.providerRequestId}:`,
         error,
@@ -102,18 +111,41 @@ async function checkTrackedRequests(client: Client): Promise<void> {
   }
 }
 
-export function startRequestTracker(client: Client): void {
-  void checkTrackedRequests(client);
+export function startRequestTrackerLoop(
+  check: () => Promise<void>,
+  schedule: (run: () => void, delay: number) => void,
+): void {
+  let failures = 0;
+  async function run(): Promise<void> {
+    let delay = POLL_INTERVAL_MS;
+    try {
+      await check();
+      if (failures > 0) console.info('Media request tracking resumed.');
+      failures = 0;
+    } catch (error) {
+      if (isServiceUnavailable(error)) {
+        if (failures === 0) console.warn('Media server temporarily unavailable; request tracking will retry.');
+        delay = RETRY_DELAYS_MS[Math.min(failures, RETRY_DELAYS_MS.length - 1)] ?? 60000;
+        failures = Math.min(failures + 1, RETRY_DELAYS_MS.length);
+      } else {
+        console.warn('Unable to run media request tracking:', error);
+      }
+    } finally {
+      schedule(() => void run(), delay);
+    }
+  }
+  void run();
+}
 
-  const timer = setInterval(
-    () => void checkTrackedRequests(client),
-    POLL_INTERVAL_MS,
-  );
-  timer.unref();
+export function startRequestTracker(client: Client): void {
+  startRequestTrackerLoop(() => checkTrackedRequests(client), (run, delay) => {
+    setTimeout(run, delay).unref();
+  });
 }
 
 export {
   checkTrackedRequests,
+  isServiceUnavailable,
   isAvailableOnMediaServer,
   isAvailableWithProvider,
   matchesTrackedRequest,
