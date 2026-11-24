@@ -111,12 +111,15 @@ async function checkTrackedRequests(client: Client): Promise<void> {
   }
 }
 
-export function startRequestTracker(client: Client): void {
+export function startRequestTrackerLoop(
+  check: () => Promise<void>,
+  schedule: (run: () => void, delay: number) => void,
+): void {
   let failures = 0;
   async function run(): Promise<void> {
     let delay = POLL_INTERVAL_MS;
     try {
-      await checkTrackedRequests(client);
+      await check();
       if (failures > 0) console.info('Media request tracking resumed.');
       failures = 0;
     } catch (error) {
@@ -128,11 +131,16 @@ export function startRequestTracker(client: Client): void {
         console.warn('Unable to run media request tracking:', error);
       }
     } finally {
-      const timer = setTimeout(() => void run(), delay);
-      timer.unref();
+      schedule(() => void run(), delay);
     }
   }
   void run();
+}
+
+export function startRequestTracker(client: Client): void {
+  startRequestTrackerLoop(() => checkTrackedRequests(client), (run, delay) => {
+    setTimeout(run, delay).unref();
+  });
 }
 
 export {
